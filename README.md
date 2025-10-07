@@ -151,6 +151,23 @@ Access the web UI at `http://localhost:3001`
 
 ## Examples
 
+### Running the Examples
+
+#### Simple Worker
+```bash
+cd examples/simple_worker
+statemachine config/worker.yaml --machine-name worker --debug
+```
+
+#### Controller/Worker (Multi-Machine)
+```bash
+cd examples/controller_worker
+./run.sh
+# Or run in separate terminals:
+# Terminal 1: statemachine config/controller.yaml --machine-name controller --debug
+# Terminal 2: statemachine config/worker.yaml --machine-name worker --debug
+```
+
 See the [examples/](examples/) directory for:
 - [Simple Worker](examples/simple_worker/) - Basic job processing
 - [Controller/Worker](examples/controller_worker/) - Multi-machine coordination
@@ -165,18 +182,43 @@ See the [examples/](examples/) directory for:
 ### Running Tests
 
 ```bash
+# Install dev dependencies first
+pip install -e ".[dev]"
+
 # Run all tests
 pytest tests/ -v
 
-# Run specific test category
-pytest tests/actions/ -v
-pytest tests/communication/ -v
+# Run with detailed output
+pytest tests/ -vv
+
+# Run specific test files
+pytest tests/actions/test_bash_action_fallback.py -v
+pytest tests/communication/test_control_socket.py -v
+
+# Run specific test categories
+pytest tests/actions/ -v          # Action tests
+pytest tests/communication/ -v     # Communication tests
+pytest tests/database/ -v          # Database tests
+
+# Show test summary
+pytest tests/ --tb=short
+
+# Run tests with coverage (install pytest-cov first)
+pytest tests/ --cov=statemachine_engine --cov-report=html
 ```
+
+**Current Test Status:** 57 tests total (33 passing, 18 failing, 6 skipped)
 
 ### Building the Package
 
 ```bash
+# Build distribution packages
 python -m build
+
+# Check the built package
+ls dist/
+# statemachine_engine-1.0.0-py3-none-any.whl
+# statemachine_engine-1.0.0.tar.gz
 ```
 
 ## License

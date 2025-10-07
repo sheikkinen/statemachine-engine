@@ -1,29 +1,98 @@
-name: "Simple Worker"
-initial_state: waiting
+# Simple Worker Machine Configuration
+# Basic job processing example for generic state machine engine
+
+name: "Simple Worker Machine"
+description: "Basic job processing with database queue integration"
+
+initial_state: initializing
+
+metadata:
+  machine_name: simple_worker
+  version: "1.0.0"
+  job_type: task
 
 states:
+  - initializing
   - waiting
   - processing
   - completed
 
 events:
+  - initialized
   - new_job
+  - no_jobs
   - job_done
+  - stop
 
 transitions:
+  # === INITIALIZATION ===
+  - from: initializing
+    to: waiting
+    event: initialized
+
+  # === MAIN WAITING LOOP ===
+  - from: waiting
+    to: waiting
+    event: no_jobs
+
   - from: waiting
     to: processing
     event: new_job
-    actions:
-      - type: check_database_queue
-        params:
-          job_type: task
 
+  # === PROCESSING ===
   - from: processing
     to: completed
     event: job_done
-    actions:
-      - type: bash
-        params:
-          command: "echo Processed {job_id}"
-          success: job_done
+
+  # === COMPLETION ===
+  - from: completed
+    to: waiting
+    event: new_job
+
+  # === STOP ===
+  - from: "*"
+    to: completed
+    event: stop
+
+actions:
+  # === INITIALIZATION (runs once at startup) ===
+  initializing:
+    - type: log
+      message: "Simple Worker initializing..."
+      level: info
+    - type: bash
+      description: "✅ Complete initialization"
+      command: "echo 'Simple Worker initialization complete'"
+      timeout: 5
+      success: initialized
+
+  # === MAIN WAITING LOOP ===
+  waiting:
+    - type: log
+      message: "Simple Worker ready - waiting for jobs"
+    - type: check_database_queue
+      description: "📋 Check database queue for pending tasks"
+      job_type: task
+      machine_type: simple_worker
+
+  # === PROCESSING ===
+  processing:
+    - type: log
+      message: "🔄 Processing job {id}"
+      level: info
+    - type: bash
+      description: "🔄 Process the job"
+      command: "echo 'Processing job {id}' && sleep 2 && echo 'Job {id} completed'"
+      timeout: 30
+      success: job_done
+
+  # === COMPLETION ===
+  completed:
+    - type: log
+      message: "✅ Job {id} completed successfully"
+      level: info
+    - type: bash
+      description: "✅ Mark completion and continue"
+      command: "echo 'Job {id} marked as completed'"
+      timeout: 5
+      success: new_job

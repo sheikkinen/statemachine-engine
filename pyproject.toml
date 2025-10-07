@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "statemachine-engine"
-version = "1.0.0"
+version = "0.0.2"
 description = "Event-driven state machine framework with real-time monitoring"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-    {name = "Sheikki Heikkinen", email = "sheikki@example.com"}
+    {name = "Sami Heikkinen", email = "sheikki@yahoo.com"}
 ]
 keywords = [
     "state-machine",

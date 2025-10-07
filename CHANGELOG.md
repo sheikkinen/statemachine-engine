@@ -5,7 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-10-07
+## [0.0.2] - 2025-10-07
+
+### Fixed
+- Fixed test suite: updated socket paths from face-changer to statemachine
+- Added missing CLI entry points: statemachine-db, statemachine-fsm, statemachine-ui
+- Simplified CI workflow tests
+
+### Changed
+- All 48 tests now passing on Python 3.9, 3.10, 3.11, 3.12
+- CI workflow validates package build
+
+## [0.0.1] - 2025-10-07
+
+### Added
+- Initial pre-release
+- GitHub Actions workflows (CI and release automation)
+- Package distribution infrastructure
+
+## [1.0.0] - Not Yet Released
 
 ### Added
 - Initial release of statemachine-engine

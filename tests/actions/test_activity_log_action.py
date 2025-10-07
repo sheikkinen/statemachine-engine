@@ -22,7 +22,7 @@ async def test_activity_log_basic_message():
         'machine_name': 'test_machine'
     }
 
-    with patch('src.actions.core.log_action.get_machine_event_model') as mock_event:
+    with patch('statemachine_engine.actions.builtin.log_action.get_machine_event_model') as mock_event:
         mock_model = MagicMock()
         mock_model.send_event.return_value = 123
         mock_event.return_value = mock_model
@@ -58,7 +58,7 @@ async def test_activity_log_different_levels():
         }
         action = LogAction(config)
 
-        with patch('src.actions.core.log_action.get_machine_event_model') as mock_event:
+        with patch('statemachine_engine.actions.builtin.log_action.get_machine_event_model') as mock_event:
             mock_model = MagicMock()
             mock_model.send_event.return_value = 123
             mock_event.return_value = mock_model
@@ -90,7 +90,7 @@ async def test_activity_log_placeholder_substitution():
         'machine_name': 'sdxl_generator'
     }
 
-    with patch('src.actions.core.log_action.get_machine_event_model') as mock_event:
+    with patch('statemachine_engine.actions.builtin.log_action.get_machine_event_model') as mock_event:
         mock_model = MagicMock()
         mock_model.send_event.return_value = 123
         mock_event.return_value = mock_model
@@ -122,7 +122,7 @@ async def test_activity_log_without_job_id():
         'machine_name': 'controller'
     }
 
-    with patch('src.actions.core.log_action.get_machine_event_model') as mock_event:
+    with patch('statemachine_engine.actions.builtin.log_action.get_machine_event_model') as mock_event:
         mock_model = MagicMock()
         mock_model.send_event.return_value = 123
         mock_event.return_value = mock_model
@@ -155,7 +155,7 @@ async def test_activity_log_error_level():
         'error_message': 'Invalid image format'
     }
 
-    with patch('src.actions.core.log_action.get_machine_event_model') as mock_event:
+    with patch('statemachine_engine.actions.builtin.log_action.get_machine_event_model') as mock_event:
         mock_model = MagicMock()
         mock_model.send_event.return_value = 123
         mock_event.return_value = mock_model
@@ -192,7 +192,7 @@ async def test_activity_log_event_data_payload():
         }
     }
 
-    with patch('src.actions.core.log_action.get_machine_event_model') as mock_event:
+    with patch('statemachine_engine.actions.builtin.log_action.get_machine_event_model') as mock_event:
         mock_model = MagicMock()
         mock_model.send_event.return_value = 123
         mock_event.return_value = mock_model
@@ -225,7 +225,7 @@ async def test_activity_log_error_handling():
         'machine_name': 'test_machine'
     }
 
-    with patch('src.actions.core.log_action.get_machine_event_model') as mock_event:
+    with patch('statemachine_engine.actions.builtin.log_action.get_machine_event_model') as mock_event:
         mock_model = MagicMock()
         mock_model.send_event.side_effect = Exception('Database error')
         mock_event.return_value = mock_model

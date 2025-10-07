@@ -207,7 +207,7 @@ pytest tests/ --tb=short
 pytest tests/ --cov=statemachine_engine --cov-report=html
 ```
 
-**Current Test Status:** 57 tests total (33 passing, 18 failing, 6 skipped)
+**Current Test Status:** 54 tests total (48 passing, 0 failing, 6 skipped) - 100% pass rate ✅
 
 ### Building the Package
 

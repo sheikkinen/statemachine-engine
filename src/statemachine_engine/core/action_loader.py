@@ -82,10 +82,10 @@ class ActionLoader:
             
             # Get relative path from actions root
             rel_path = action_file.relative_to(self.actions_root.parent)
-            
-            # Convert path to module notation: actions/ideator/generate_concepts_action.py
-            # -> actions.ideator.generate_concepts_action
-            module_path = str(rel_path.with_suffix('')).replace('/', '.')
+
+            # Convert path to module notation: actions/builtin/bash_action.py
+            # -> statemachine_engine.actions.builtin.bash_action
+            module_path = 'statemachine_engine.' + str(rel_path.with_suffix('')).replace('/', '.')
             
             # Extract action type from filename: generate_concepts_action.py -> generate_concepts
             action_type = action_file.stem.replace('_action', '')

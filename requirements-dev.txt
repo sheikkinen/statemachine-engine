@@ -1,0 +1,6 @@
+# Development dependencies
+-r requirements.txt
+pytest>=7.0
+pytest-asyncio>=0.21
+build>=1.0.0
+twine>=4.0.0

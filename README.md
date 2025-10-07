@@ -13,9 +13,41 @@ Event-driven state machine framework with real-time monitoring and database-back
 
 ## Installation
 
+### From Source (Development)
+
+```bash
+# Clone the repository
+git clone https://github.com/sheikkinen/statemachine-engine.git
+cd statemachine-engine
+
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Option 1: Install with pip (uses pyproject.toml)
+pip install -e ".[dev]"
+
+# Option 2: Install with requirements files
+pip install -r requirements-dev.txt
+```
+
+### From PyPI (Coming Soon)
+
 ```bash
 pip install statemachine-engine
 ```
+
+### Dependencies
+
+The package requires Python 3.9+ and automatically installs:
+- PyYAML (YAML configuration parsing)
+- FastAPI (WebSocket server)
+- Uvicorn (ASGI server)
+- websockets (WebSocket protocol)
+
+Development dependencies (optional):
+- pytest (testing framework)
+- pytest-asyncio (async test support)
 
 ## Quick Start
 
@@ -125,10 +157,32 @@ See the [examples/](examples/) directory for:
 
 ## Documentation
 
-- [Architecture](docs/architecture.md)
-- [API Reference](docs/api.md)
-- [Quickstart Guide](docs/quickstart.md)
+- [Quickstart Guide](docs/quickstart.md) - Get started in 5 minutes
+- [CLAUDE.md](CLAUDE.md) - Architecture and development guide
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run specific test category
+pytest tests/actions/ -v
+pytest tests/communication/ -v
+```
+
+### Building the Package
+
+```bash
+python -m build
+```
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) file
+
+## Repository
+
+https://github.com/sheikkinen/statemachine-engine

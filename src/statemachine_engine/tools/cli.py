@@ -6,18 +6,18 @@ Generates state machine diagrams from YAML configs in two formats:
 LEGACY FORMAT (Markdown):
 - Main flow with composite states, error flow, stop flow
 - States/events tables, configuration summary
-- Output: docs/{yaml_stem}_fsm.md
+- Output: docs/fsm-diagrams/{machine_name}/{machine_name}_fsm.md
 
 MODERN FORMAT (.mermaid files):
 - main.mermaid: High-level composite boundaries
 - {composite}.mermaid: Detailed internal views
 - metadata.json: Relationships and navigation
-- Output: docs/fsm/{machine_name}/
+- Output: docs/fsm-diagrams/{machine_name}/
 
 ARGUMENTS:
     yaml_file           YAML config file path
     output_file         (Optional) Custom Markdown output path
-    --output-dir        Modern format directory (default: docs/fsm)
+    --output-dir        Modern format directory (default: docs/fsm-diagrams)
     --old-format-only   Generate only Markdown
     --new-format-only   Generate only .mermaid files
 
@@ -57,7 +57,7 @@ def main():
     parser = argparse.ArgumentParser(description='Generate FSM diagrams from YAML configuration')
     parser.add_argument('yaml_file', help='Path to YAML configuration file')
     parser.add_argument('output_file', nargs='?', help='Output Markdown file (optional, for backward compatibility)')
-    parser.add_argument('--output-dir', default='docs/fsm', help='Output directory for new format (default: docs/fsm)')
+    parser.add_argument('--output-dir', default='docs/fsm-diagrams', help='Output directory for new format (default: docs/fsm-diagrams)')
     parser.add_argument('--old-format-only', action='store_true', help='Generate only old Markdown format')
     parser.add_argument('--new-format-only', action='store_true', help='Generate only new .mermaid format')
     
@@ -72,9 +72,13 @@ def main():
         if args.output_file:
             output_path = args.output_file
         else:
-            # Generate output in docs/ directory
-            yaml_name = Path(yaml_path).stem
-            output_path = f"docs/{yaml_name}_fsm.md"
+            # Use machine_name from metadata, fallback to filename
+            machine_name = config.get('metadata', {}).get('machine_name')
+            if not machine_name:
+                # Fallback to YAML filename
+                machine_name = Path(yaml_path).stem
+            # Place markdown within fsm-diagrams folder
+            output_path = f"{args.output_dir}/{machine_name}/{machine_name}_fsm.md"
         
         # Ensure output directory exists
         output_dir = Path(output_path).parent

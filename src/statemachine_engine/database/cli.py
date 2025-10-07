@@ -15,7 +15,7 @@ import json
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from database.models import get_database, get_job_model, get_pipeline_model, get_machine_event_model, get_controller_log_model
+from statemachine_engine.database.models import get_database, get_job_model, get_machine_event_model, get_machine_state_model, get_realtime_event_model
 import socket
 
 
@@ -936,42 +936,38 @@ def cmd_machine_health(args):
 
 def cmd_machine_state(args):
     """Show current state of all state machines"""
-    job_model = get_job_model()
+    machine_state_model = get_machine_state_model()
     
-    # Query recent state changes from pipeline_results
-    with job_model.db._get_connection() as conn:
+    # Query all machine states
+    with machine_state_model.db._get_connection() as conn:
         rows = conn.execute("""
             SELECT 
-                json_extract(metadata, '$.machine') as machine_name,
-                json_extract(metadata, '$.state') as current_state,
-                completed_at as last_activity
-            FROM pipeline_results 
-            WHERE step_name = 'state_change'
-            AND completed_at > datetime('now', '-1 hour')
-            ORDER BY machine_name, completed_at DESC
+                machine_name,
+                current_state,
+                last_activity
+            FROM machine_state 
+            ORDER BY machine_name
         """).fetchall()
     
-    # Group by machine and get latest state
-    machines = {}
+    # Convert to dict list
+    machines = []
     for row in rows:
-        machine = row['machine_name']
-        if machine and machine not in machines:
-            machines[machine] = {
-                'machine_name': machine,
-                'current_state': row['current_state'],
-                'last_activity': row['last_activity']
-            }
+        machines.append({
+            'machine_name': row['machine_name'],
+            'current_state': row['current_state'],
+            'last_activity': row['last_activity']
+        })
     
     if args.format == 'json':
-        print(json.dumps(list(machines.values()), indent=2))
+        print(json.dumps(machines, indent=2))
     else:
         if not machines:
-            print("No machine state data found in the last hour")
+            print("No machine state data found")
             return
         
         headers = ['Machine', 'Current State', 'Last Activity']
         table_data = [[m['machine_name'], m['current_state'], m['last_activity']] 
-                     for m in machines.values()]
+                     for m in machines]
         print(tabulate(table_data, headers=headers, tablefmt='grid'))
 
 def cmd_controller_log(args):

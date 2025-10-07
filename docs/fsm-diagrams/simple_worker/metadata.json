@@ -1,0 +1,59 @@
+{
+  "machine_name": "simple_worker",
+  "diagrams": {
+    "main": {
+      "file": "main.mermaid",
+      "title": "Simple Worker Machine Overview",
+      "description": "High-level state machine flow with composite states",
+      "composites": [
+        "INITIALIZATION",
+        "MAINLOOP",
+        "COMPLETION"
+      ]
+    },
+    "INITIALIZATION": {
+      "file": "INITIALIZATION.mermaid",
+      "title": "INITIALIZATION",
+      "description": "Detailed view of initialization",
+      "states": [
+        "initializing"
+      ],
+      "entry_states": [],
+      "exit_states": [
+        "initializing"
+      ],
+      "parent": "main"
+    },
+    "MAINLOOP": {
+      "file": "MAINLOOP.mermaid",
+      "title": "MAIN LOOP",
+      "description": "Detailed view of main loop",
+      "states": [
+        "waiting",
+        "processing"
+      ],
+      "entry_states": [
+        "waiting"
+      ],
+      "exit_states": [
+        "processing"
+      ],
+      "parent": "main"
+    },
+    "COMPLETION": {
+      "file": "COMPLETION.mermaid",
+      "title": "COMPLETION",
+      "description": "Detailed view of completion",
+      "states": [
+        "completed"
+      ],
+      "entry_states": [
+        "completed"
+      ],
+      "exit_states": [
+        "completed"
+      ],
+      "parent": "main"
+    }
+  }
+}

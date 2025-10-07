@@ -1,0 +1,15 @@
+stateDiagram-v2
+    %% Detailed view of MAINLOOP
+
+    [*] --> waiting
+
+    %% Internal transitions
+    waiting --> waiting : no_jobs
+    waiting --> processing : new_job
+
+    %% External composites
+    state INITIALIZATION
+    state COMPLETION
+
+    %% Transitions to other composites
+    processing --> COMPLETION : job_done

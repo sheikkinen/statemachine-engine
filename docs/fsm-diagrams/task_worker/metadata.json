@@ -1,0 +1,56 @@
+{
+  "machine_name": "task_worker",
+  "diagrams": {
+    "main": {
+      "file": "main.mermaid",
+      "title": "Task Worker Machine Overview",
+      "description": "High-level state machine flow with composite states",
+      "composites": [
+        "INITIALIZATION",
+        "MAINPROCESSING",
+        "COMPLETION"
+      ]
+    },
+    "INITIALIZATION": {
+      "file": "INITIALIZATION.mermaid",
+      "title": "INITIALIZATION",
+      "description": "Detailed view of initialization",
+      "states": [
+        "initializing"
+      ],
+      "entry_states": [],
+      "exit_states": [
+        "initializing"
+      ],
+      "parent": "main"
+    },
+    "MAINPROCESSING": {
+      "file": "MAINPROCESSING.mermaid",
+      "title": "MAIN PROCESSING",
+      "description": "Detailed view of main processing",
+      "states": [
+        "waiting",
+        "processing",
+        "notifying"
+      ],
+      "entry_states": [
+        "waiting"
+      ],
+      "exit_states": [],
+      "parent": "main"
+    },
+    "COMPLETION": {
+      "file": "COMPLETION.mermaid",
+      "title": "COMPLETION",
+      "description": "Detailed view of completion",
+      "states": [
+        "stopped"
+      ],
+      "entry_states": [
+        "stopped"
+      ],
+      "exit_states": [],
+      "parent": "main"
+    }
+  }
+}

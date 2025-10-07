@@ -12,9 +12,14 @@ metadata:
   job_type: task
 
 states:
+  # === INITIALIZATION STATES ===
   - initializing
+  
+  # === MAIN LOOP STATES ===
   - waiting
   - processing
+  
+  # === COMPLETION STATES ===
   - completed
 
 events:
@@ -30,7 +35,7 @@ transitions:
     to: waiting
     event: initialized
 
-  # === MAIN WAITING LOOP ===
+  # === MAIN LOOP ===
   - from: waiting
     to: waiting
     event: no_jobs
@@ -39,7 +44,6 @@ transitions:
     to: processing
     event: new_job
 
-  # === PROCESSING ===
   - from: processing
     to: completed
     event: job_done

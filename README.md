@@ -146,11 +146,9 @@ transitions:
 Start the WebSocket monitoring server:
 
 ```bash
-# Option 1: Direct Python
+# Direct Python
 python -m statemachine_engine.monitoring.websocket_server
 
-# Option 2: Using helper script
-./scripts/start-monitoring.sh
 ```
 
 The server provides:
@@ -181,9 +179,6 @@ Features:
 ```bash
 cd examples/simple_worker
 statemachine config/worker.yaml --machine-name worker
-
-# Or use the helper script:
-./scripts/start-worker.sh examples/simple_worker/config/worker.yaml worker
 
 # Or with debug logging:
 statemachine config/worker.yaml --machine-name worker --debug
@@ -240,13 +235,6 @@ The validator checks:
 
 # Specify config and machine name
 ./scripts/start-worker.sh examples/simple_worker/config/worker.yaml my_worker
-```
-
-### Start Monitoring
-
-```bash
-./scripts/start-monitoring.sh
-# Starts WebSocket server on http://localhost:3002
 ```
 
 ### Integrated System Startup

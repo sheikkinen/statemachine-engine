@@ -16,7 +16,29 @@ class StateMachineMonitor {
         
         // Start connections
         this.wsManager.connect();
-        this.diagramManager.loadDiagram('controller');
+        
+        // Load diagram for first available machine after machines are loaded
+        this.loadInitialDiagram();
+    }
+    
+    async loadInitialDiagram() {
+        try {
+            // Wait a bit for machines to be fetched
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Get machines from the machine manager (it's a Map)
+            const machines = Array.from(this.machineManager.machines.values());
+            
+            if (machines && machines.length > 0) {
+                const firstMachine = machines[0].machine_name;
+                this.logger.log('info', `Loading diagram for ${firstMachine}`);
+                await this.diagramManager.loadDiagram(firstMachine);
+            } else {
+                this.logger.log('warning', 'No machines found to display diagram');
+            }
+        } catch (error) {
+            this.logger.log('error', `Failed to load initial diagram: ${error.message}`);
+        }
     }
 
     initializeUI() {

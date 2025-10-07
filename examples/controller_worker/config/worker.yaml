@@ -12,10 +12,15 @@ metadata:
   job_type: task
 
 states:
+  # === INITIALIZATION STATES ===
   - initializing
+  
+  # === MAIN PROCESSING STATES ===
   - waiting
   - processing
   - notifying
+  
+  # === COMPLETION STATES ===
   - stopped
 
 events:

@@ -1,0 +1,16 @@
+stateDiagram-v2
+    [*] --> INITIALIZATION
+
+    %% INITIALIZATION (1 states)
+    state INITIALIZATION
+
+    %% MONITORING (1 states)
+    state MONITORING
+
+    %% COMPLETION (1 states)
+    state COMPLETION
+
+    %% Transitions between composites
+    INITIALIZATION --> MONITORING : initialized
+
+    COMPLETION --> [*]

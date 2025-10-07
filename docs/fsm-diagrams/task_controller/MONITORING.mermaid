@@ -1,0 +1,14 @@
+stateDiagram-v2
+    %% Detailed view of MONITORING
+
+    [*] --> monitoring
+
+    %% Internal transitions
+    monitoring --> monitoring : no_events
+    monitoring --> monitoring : task_completed
+
+    %% External composites
+    state INITIALIZATION
+    state COMPLETION
+
+    %% Transitions to other composites

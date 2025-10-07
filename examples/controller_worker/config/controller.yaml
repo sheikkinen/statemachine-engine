@@ -12,8 +12,13 @@ metadata:
   job_type: monitoring
 
 states:
+  # === INITIALIZATION STATES ===
   - initializing
+  
+  # === MONITORING STATES ===
   - monitoring
+  
+  # === COMPLETION STATES ===
   - stopped
 
 events:

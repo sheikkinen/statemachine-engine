@@ -107,7 +107,11 @@ function getRecentErrors(limit = 10) {
 // Get FSM diagram for a specific machine (OLD FORMAT - for backward compatibility)
 app.get('/api/diagram/:machine_name', (req, res) => {
     const { machine_name } = req.params;
-    const fsmDocPath = path.join(PROJECT_ROOT, 'docs', `${machine_name}_fsm.md`);
+    // Check new location first, fall back to old location
+    let fsmDocPath = path.join(PROJECT_ROOT, 'docs', 'fsm-diagrams', machine_name, `${machine_name}_fsm.md`);
+    if (!fs.existsSync(fsmDocPath)) {
+        fsmDocPath = path.join(PROJECT_ROOT, 'docs', `${machine_name}_fsm.md`);
+    }
 
     try {
         // Check if FSM doc exists
@@ -141,7 +145,7 @@ app.get('/api/diagram/:machine_name/metadata', (req, res) => {
     const { machine_name } = req.params;
     
     try {
-        const metadataPath = path.join(PROJECT_ROOT, 'docs', 'fsm', machine_name, 'metadata.json');
+        const metadataPath = path.join(PROJECT_ROOT, 'docs', 'fsm-diagrams', machine_name, 'metadata.json');
         
         if (!fs.existsSync(metadataPath)) {
             return res.status(404).json({ 
@@ -163,7 +167,7 @@ app.get('/api/diagram/:machine_name/:diagram_name', (req, res) => {
     
     try {
         // Load metadata
-        const metadataPath = path.join(PROJECT_ROOT, 'docs', 'fsm', machine_name, 'metadata.json');
+        const metadataPath = path.join(PROJECT_ROOT, 'docs', 'fsm-diagrams', machine_name, 'metadata.json');
         
         if (!fs.existsSync(metadataPath)) {
             return res.status(404).json({ 
@@ -185,7 +189,7 @@ app.get('/api/diagram/:machine_name/:diagram_name', (req, res) => {
         
         // Read Mermaid file directly (no parsing!)
         const diagramInfo = metadata.diagrams[diagram_name];
-        const diagramPath = path.join(PROJECT_ROOT, 'docs', 'fsm', machine_name, diagramInfo.file);
+        const diagramPath = path.join(PROJECT_ROOT, 'docs', 'fsm-diagrams', machine_name, diagramInfo.file);
         
         if (!fs.existsSync(diagramPath)) {
             return res.status(500).json({ 

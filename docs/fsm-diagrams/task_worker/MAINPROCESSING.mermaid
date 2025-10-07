@@ -1,0 +1,16 @@
+stateDiagram-v2
+    %% Detailed view of MAINPROCESSING
+
+    [*] --> waiting
+
+    %% Internal transitions
+    waiting --> waiting : no_jobs
+    waiting --> processing : new_job
+    processing --> notifying : job_done
+    notifying --> waiting : notified
+
+    %% External composites
+    state INITIALIZATION
+    state COMPLETION
+
+    %% Transitions to other composites

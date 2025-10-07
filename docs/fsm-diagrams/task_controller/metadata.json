@@ -1,0 +1,54 @@
+{
+  "machine_name": "task_controller",
+  "diagrams": {
+    "main": {
+      "file": "main.mermaid",
+      "title": "Task Controller Machine Overview",
+      "description": "High-level state machine flow with composite states",
+      "composites": [
+        "INITIALIZATION",
+        "MONITORING",
+        "COMPLETION"
+      ]
+    },
+    "INITIALIZATION": {
+      "file": "INITIALIZATION.mermaid",
+      "title": "INITIALIZATION",
+      "description": "Detailed view of initialization",
+      "states": [
+        "initializing"
+      ],
+      "entry_states": [],
+      "exit_states": [
+        "initializing"
+      ],
+      "parent": "main"
+    },
+    "MONITORING": {
+      "file": "MONITORING.mermaid",
+      "title": "MONITORING",
+      "description": "Detailed view of monitoring",
+      "states": [
+        "monitoring"
+      ],
+      "entry_states": [
+        "monitoring"
+      ],
+      "exit_states": [],
+      "parent": "main"
+    },
+    "COMPLETION": {
+      "file": "COMPLETION.mermaid",
+      "title": "COMPLETION",
+      "description": "Detailed view of completion",
+      "states": [
+        "stopped"
+      ],
+      "entry_states": [
+        "stopped"
+      ],
+      "exit_states": [],
+      "parent": "main"
+    }
+  }
+}

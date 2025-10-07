@@ -1,0 +1,16 @@
+stateDiagram-v2
+    [*] --> INITIALIZATION
+
+    %% INITIALIZATION (1 states)
+    state INITIALIZATION
+
+    %% MAIN PROCESSING (3 states)
+    state MAINPROCESSING
+
+    %% COMPLETION (1 states)
+    state COMPLETION
+
+    %% Transitions between composites
+    INITIALIZATION --> MAINPROCESSING : initialized
+
+    COMPLETION --> [*]

@@ -1,0 +1,13 @@
+stateDiagram-v2
+    %% Detailed view of COMPLETION
+
+    [*] --> completed
+
+    %% Internal transitions
+
+    %% External composites
+    state INITIALIZATION
+    state MAINLOOP
+
+    %% Transitions to other composites
+    completed --> MAINLOOP : new_job

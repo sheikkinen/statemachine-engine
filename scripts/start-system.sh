@@ -80,22 +80,25 @@ echo ""
 # Generate FSM documentation
 echo "📚 Generating FSM documentation..."
 mkdir -p docs
+mkdir -p docs/fsm-diagrams
 for config in examples/**/config/*.yaml; do
     if [ -f "$config" ]; then
+        echo "📄 Processing $config..."
+
         # Extract machine_name from YAML metadata
         machine_name=$(python -c "import yaml; c=yaml.safe_load(open('$config')); print(c.get('metadata', {}).get('machine_name', 'unknown'))" 2>/dev/null)
         if [ "$machine_name" = "unknown" ]; then
             # Fallback to filename if no metadata
             machine_name=$(basename "$config" .yaml)
         fi
-        # Tool writes files directly, no output redirection needed
-        python -m statemachine_engine.tools.diagrams "$config" 2>&1 | grep -E "(✅|⚠️|❌)" || {
-            echo "  ⚠️  Failed to generate diagram for $machine_name"
+        # Use CLI to generate both formats
+        python -m statemachine_engine.tools.cli "$config" 2>&1 | grep -E "(✅|⚠️|❌|📁)" || {
+            echo "  ⚠️  Failed to generate diagrams for $machine_name"
         }
     fi
 done
-if ls docs/*_fsm.md 1> /dev/null 2>&1; then
-    echo "✓ FSM documentation generated in docs/"
+if ls docs/fsm-diagrams/*/*.md 1> /dev/null 2>&1 || ls docs/fsm-diagrams/*/metadata.json 1> /dev/null 2>&1; then
+    echo "✓ FSM documentation generated in docs/fsm-diagrams/"
 else
     echo "⚠️  No FSM docs generated (UI diagrams will not display)"
 fi
@@ -131,9 +134,9 @@ echo ""
 # Start example state machines
 echo "🤖 Starting example state machines..."
 echo "  📊 Starting simple worker..."
-statemachine examples/simple_worker/config/worker.yaml --machine-name worker &
+statemachine examples/simple_worker/config/worker.yaml &
 sleep 1
-echo "✓ Worker started"
+echo "✓ Simple worker started"
 echo ""
 
 # Start Web UI if Node.js is available

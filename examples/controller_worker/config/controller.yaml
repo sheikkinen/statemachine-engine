@@ -1,0 +1,17 @@
+name: "Task Controller"
+initial_state: monitoring
+
+states:
+  - monitoring
+
+events:
+  - task_completed
+
+transitions:
+  - from: monitoring
+    to: monitoring
+    event: task_completed
+    actions:
+      - type: bash
+        params:
+          command: "echo Job {payload.job_id} completed by {payload.machine}"

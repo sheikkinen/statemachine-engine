@@ -1,0 +1,37 @@
+name: "Task Worker"
+initial_state: waiting
+
+states:
+  - waiting
+  - processing
+  - notifying
+
+events:
+  - new_job
+  - job_done
+  - notified
+
+transitions:
+  - from: waiting
+    to: processing
+    event: new_job
+    actions:
+      - type: check_database_queue
+        params:
+          job_type: task
+
+  - from: processing
+    to: notifying
+    event: job_done
+    actions:
+      - type: send_event
+        params:
+          target: controller
+          event_type: task_completed
+          payload:
+            job_id: "{job_id}"
+            machine: "worker"
+
+  - from: notifying
+    to: waiting
+    event: notified

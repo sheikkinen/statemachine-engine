@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>State Machine Monitor</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#90EE90',
+                primaryTextColor: '#000',
+                primaryBorderColor: '#006400',
+                lineColor: '#333',
+                secondaryColor: '#E0E0E0',
+                tertiaryColor: '#fff'
+            }
+        });
+        window.mermaid = mermaid;
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 State Machine Monitor</h1>
+            <p>Real-time monitoring of face-changer pipeline state machines</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="label">Total Machines:</span>
+                <span id="total-machines" class="value">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Active:</span>
+                <span id="active-machines" class="value">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Last Update:</span>
+                <span id="last-update" class="value">-</span>
+            </div>
+        </div>
+
+        <div id="machines-container" class="machines-grid">
+            <!-- Machine cards will be populated by JavaScript -->
+        </div>
+
+        <div class="activity-section">
+            <h3>Activity Log</h3>
+            <div id="activity-log" class="activity-log">
+                <div class="log-entry info">
+                    <span class="timestamp">[Starting]</span>
+                    <span class="message">Connecting to state machine monitor...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="diagram-section">
+            <h3>State Machine Diagrams</h3>
+            <div class="diagram-tabs">
+                <button class="tab-button active" data-machine="controller">Controller</button>
+                <button class="tab-button" data-machine="sdxl_generator">SDXL Generator</button>
+                <button class="tab-button" data-machine="face_processor">Face Processor</button>
+                <button class="tab-button" data-machine="descriptor">Descriptor</button>
+                <button class="tab-button" data-machine="prompt_ideator">Prompt Ideator</button>
+            </div>
+            <div class="breadcrumb-nav">
+                <span class="breadcrumb-item active" data-diagram="main">Overview</span>
+            </div>
+            <div id="fsm-diagram" class="diagram-container">
+                <div class="loading">Loading diagram...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app-modular.js"></script>
+</body>
+</html>

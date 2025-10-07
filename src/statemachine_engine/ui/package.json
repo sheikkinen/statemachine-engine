@@ -1,0 +1,17 @@
+{
+  "name": "statemachine-ui-mvp",
+  "version": "1.0.0",
+  "description": "Web interface for monitoring face-changer state machines",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6"
+  },
+  "keywords": ["state-machine", "monitoring", "ui"],
+  "author": "Face Changer Pipeline",
+  "license": "MIT"
+}

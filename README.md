@@ -333,8 +333,13 @@ python -m statemachine_engine.database.cli send-event --target simple_worker --t
 When you use `send-event`, the CLI:
 1. **Writes event to database** - Persists the event in the `machine_events` table
 2. **Sends Unix socket wake-up** - Notifies the machine via `/tmp/statemachine-control-{machine_name}.sock`
-3. **Machine processes event** - State machine reads the event and executes the transition
-4. **Broadcasts state change** - Updates are sent via WebSocket to the UI
+3. **Machine processes event** - State machine reads the event from database and executes the transition
+4. **Broadcasts state change** - Updates are sent to `/tmp/statemachine-events.sock` → WebSocket → UI
+
+**Unix Socket Paths:**
+- Control sockets: `/tmp/statemachine-control-{machine_name}.sock` (wake-up signals to machines)
+- Event socket: `/tmp/statemachine-events.sock` (state changes from machines to WebSocket server)
+- WebSocket: `ws://localhost:3002/ws/events` (real-time updates to browser)
 
 This dual approach (database + Unix socket) ensures:
 - **Reliability**: Events are never lost (database persistence)

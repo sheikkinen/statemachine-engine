@@ -141,13 +141,37 @@ transitions:
 
 ## Real-Time Monitoring
 
-Start the WebSocket server for live monitoring:
+### WebSocket Server
+
+Start the WebSocket monitoring server:
 
 ```bash
+# Option 1: Direct Python
 python -m statemachine_engine.monitoring.websocket_server
+
+# Option 2: Using helper script
+./scripts/start-monitoring.sh
 ```
 
-Access the web UI at `http://localhost:3001`
+The server provides:
+- Real-time event streaming on `ws://localhost:3002/ws`
+- Health check endpoint at `http://localhost:3002/health`
+- State machine status monitoring
+
+### Web UI
+
+The package includes a web UI for visualizing state machines (located in `src/statemachine_engine/ui/`):
+
+```bash
+cd src/statemachine_engine/ui
+npm install  # First time only
+npm start    # Starts on http://localhost:3001
+```
+
+Features:
+- Real-time state visualization with Mermaid diagrams
+- Live machine status updates
+- Event history and logs
 
 ## Examples
 
@@ -157,6 +181,9 @@ Access the web UI at `http://localhost:3001`
 ```bash
 cd examples/simple_worker
 statemachine config/worker.yaml --machine-name worker
+
+# Or use the helper script:
+./scripts/start-worker.sh examples/simple_worker/config/worker.yaml worker
 
 # Or with debug logging:
 statemachine config/worker.yaml --machine-name worker --debug
@@ -180,6 +207,47 @@ statemachine config/worker.yaml --machine-name worker
 **Available Examples:**
 - [Simple Worker](examples/simple_worker/) - Basic job processing with database queue
 - [Controller/Worker](examples/controller_worker/) - Multi-machine event coordination
+
+## Helper Scripts
+
+The `scripts/` directory contains useful utilities:
+
+### Validate Configurations
+
+```bash
+# Validate a single config
+./scripts/validate-state-machines.py config/worker.yaml
+
+# Validate all configs
+./scripts/validate-state-machines.py examples/**/*.yaml
+
+# Strict mode (exit 1 on warnings)
+./scripts/validate-state-machines.py --strict config/*.yaml
+```
+
+The validator checks:
+- Event coverage (all events have transitions)
+- Action emissions (success/error events exist)
+- Orphaned/unreachable states
+- Missing event declarations
+- Self-loop patterns
+
+### Start Worker
+
+```bash
+# Start with defaults
+./scripts/start-worker.sh
+
+# Specify config and machine name
+./scripts/start-worker.sh examples/simple_worker/config/worker.yaml my_worker
+```
+
+### Start Monitoring
+
+```bash
+./scripts/start-monitoring.sh
+# Starts WebSocket server on http://localhost:3002
+```
 
 ## Documentation
 

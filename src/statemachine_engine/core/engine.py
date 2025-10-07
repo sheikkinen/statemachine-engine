@@ -349,28 +349,6 @@ class StateMachineEngine:
         
         # Update machine_state table for UI monitoring
         self._update_machine_state(to_state)
-        
-        # Existing database logging
-        if hasattr(self.context, 'job_model') and self.machine_name:
-            try:
-                self.context['job_model'].store_pipeline_result(
-                    job_id=f"machine_{self.machine_name}",
-                    step_name="state_change", 
-                    step_number=0,
-                    metadata=f'{{"state": "{self.current_state}", "machine": "{self.machine_name}", "timestamp": "{datetime.now().isoformat()}"}}'
-                )
-            except Exception as e:
-                logger.warning(f"[{self.machine_name}] Failed to log state change: {e}")
-        elif 'job_model' in self.context and self.machine_name:
-            try:
-                self.context['job_model'].store_pipeline_result(
-                    job_id=f"machine_{self.machine_name}",
-                    step_name="state_change", 
-                    step_number=0,
-                    metadata=f'{{"state": "{self.current_state}", "machine": "{self.machine_name}", "timestamp": "{datetime.now().isoformat()}"}}'
-                )
-            except Exception as e:
-                logger.warning(f"[{self.machine_name}] Failed to log state change: {e}")
     
     def _update_machine_state(self, current_state: str):
         """Update machine_state table for UI monitoring"""

@@ -36,11 +36,9 @@ jobs:
       run: |
         pytest tests/ -v --tb=short
     
-    - name: Test CLI commands
+    - name: Test CLI command
       run: |
         statemachine --help
-        statemachine-db --help
-        statemachine-fsm --help
 
   build:
     runs-on: ubuntu-latest

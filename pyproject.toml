@@ -51,6 +51,9 @@ dev = ["pytest>=7.0", "pytest-asyncio>=0.21"]
 
 [project.scripts]
 statemachine = "statemachine_engine.cli:main"
+statemachine-db = "statemachine_engine.database.cli:main"
+statemachine-fsm = "statemachine_engine.tools.diagrams:main"
+statemachine-ui = "statemachine_engine.tools.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

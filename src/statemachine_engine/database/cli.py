@@ -22,7 +22,7 @@ import socket
 def _send_wake_up_socket(target_machine: str) -> bool:
     """Send wake-up signal via Unix socket. Returns True if successful."""
     try:
-        socket_path = f'/tmp/face-changer-control-{target_machine}.sock'
+        socket_path = f'/tmp/statemachine-control-{target_machine}.sock'
         
         # Check if socket exists
         if not Path(socket_path).exists():

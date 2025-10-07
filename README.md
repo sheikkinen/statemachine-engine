@@ -313,6 +313,7 @@ The simple_worker example has these transitions:
 # Terminal 1: Start the worker
 statemachine examples/simple_worker/config/worker.yaml
 
+
 # Terminal 2: Test transitions
 # 1. Trigger a job (waiting → processing → completed)
 python -m statemachine_engine.database.cli send-event --target simple_worker --type new_job
@@ -326,6 +327,19 @@ python -m statemachine_engine.database.cli send-event --target simple_worker --t
 # 4. Stop the machine (any state → completed)
 python -m statemachine_engine.database.cli send-event --target simple_worker --type stop
 ```
+
+#### How Event Delivery Works
+
+When you use `send-event`, the CLI:
+1. **Writes event to database** - Persists the event in the `machine_events` table
+2. **Sends Unix socket wake-up** - Notifies the machine via `/tmp/statemachine-control-{machine_name}.sock`
+3. **Machine processes event** - State machine reads the event and executes the transition
+4. **Broadcasts state change** - Updates are sent via WebSocket to the UI
+
+This dual approach (database + Unix socket) ensures:
+- **Reliability**: Events are never lost (database persistence)
+- **Speed**: Immediate wake-up via Unix socket (no polling delay)
+- **Monitoring**: Real-time visibility via WebSocket broadcasting
 
 #### Available CLI Commands
 

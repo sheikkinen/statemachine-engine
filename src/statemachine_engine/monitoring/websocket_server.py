@@ -2,7 +2,7 @@
 WebSocket server for real-time state machine event streaming
 
 Listens on:
-- Unix socket: /tmp/face-changer-events.sock (from state machines)
+- Unix socket: /tmp/statemachine-events.sock (from state machines)
 - WebSocket: ws://localhost:3002/ws/events (to browsers)
 
 Fallback: Polls database every 500ms for events if socket messages stop
@@ -131,7 +131,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 async def unix_socket_listener():
     """Listen for events from state machines via Unix socket"""
-    socket_path = '/tmp/face-changer-events.sock'
+    socket_path = '/tmp/statemachine-events.sock'
 
     # Remove existing socket file
     if Path(socket_path).exists():
@@ -231,7 +231,7 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     """Cleanup on shutdown"""
-    socket_path = '/tmp/face-changer-events.sock'
+    socket_path = '/tmp/statemachine-events.sock'
     if Path(socket_path).exists():
         Path(socket_path).unlink()
 

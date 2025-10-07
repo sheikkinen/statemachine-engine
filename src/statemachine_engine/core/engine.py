@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 class EventSocketManager:
     """Manages Unix socket connection for real-time event emission"""
 
-    def __init__(self, socket_path: str = '/tmp/face-changer-events.sock'):
+    def __init__(self, socket_path: str = '/tmp/statemachine-events.sock'):
         self.socket_path = socket_path
         self.sock: Optional[socket.socket] = None
         self.logger = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ class StateMachineEngine:
     
     def _create_control_socket(self) -> None:
         """Create Unix socket for receiving control events"""
-        socket_path = f'/tmp/face-changer-control-{self.machine_name}.sock'
+        socket_path = f'/tmp/statemachine-control-{self.machine_name}.sock'
         
         try:
             # Remove stale socket file if it exists
@@ -567,7 +567,7 @@ class StateMachineEngine:
         """Clean up Unix sockets on shutdown"""
         if self.control_socket:
             try:
-                socket_path = f'/tmp/face-changer-control-{self.machine_name}.sock'
+                socket_path = f'/tmp/statemachine-control-{self.machine_name}.sock'
                 self.control_socket.close()
                 
                 # Remove socket file

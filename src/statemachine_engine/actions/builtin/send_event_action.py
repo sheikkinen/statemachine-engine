@@ -77,7 +77,7 @@ class SendEventAction(BaseAction):
     def _send_wake_up_socket(self, machine_name: str = 'unknown') -> bool:
         """Send wake-up signal via Unix socket. Returns True if successful."""
         try:
-            socket_path = f'/tmp/face-changer-control-{self.target_machine}.sock'
+            socket_path = f'/tmp/statemachine-control-{self.target_machine}.sock'
             
             # Check if socket exists
             if not Path(socket_path).exists():
@@ -99,7 +99,7 @@ class SendEventAction(BaseAction):
     def _send_via_socket(self, payload: Dict[str, Any], job_id: str = None, machine_name: str = 'unknown') -> bool:
         """Send event via Unix socket. Returns True if successful."""
         try:
-            socket_path = f'/tmp/face-changer-control-{self.target_machine}.sock'
+            socket_path = f'/tmp/statemachine-control-{self.target_machine}.sock'
             
             # Check if socket exists
             if not Path(socket_path).exists():

@@ -277,7 +277,72 @@ tail -f logs/*.log
 
 ## Development
 
-### Running Tests
+### Testing State Transitions
+
+You can manually test state transitions by sending events to running machines:
+
+```bash
+# Start a machine (in one terminal)
+statemachine examples/simple_worker/config/worker.yaml
+
+# Send events to trigger transitions (in another terminal)
+python -m statemachine_engine.database.cli send-event \
+  --target simple_worker \
+  --type new_job
+
+# Check machine state
+python -m statemachine_engine.database.cli machine-state --format json
+
+# List recent events
+python -m statemachine_engine.database.cli list-events \
+  --target simple_worker \
+  --limit 10
+```
+
+#### Testing Simple Worker Transitions
+
+The simple_worker example has these transitions:
+- `initializing` → `waiting` (event: `initialized`) - automatic on startup
+- `waiting` → `processing` (event: `new_job`) - trigger with send-event
+- `processing` → `completed` (event: `job_done`) - automatic after processing
+- `completed` → `waiting` (event: `new_job`) - trigger to loop back
+- `*` → `completed` (event: `stop`) - graceful shutdown from any state
+
+**Test scenario:**
+```bash
+# Terminal 1: Start the worker
+statemachine examples/simple_worker/config/worker.yaml
+
+# Terminal 2: Test transitions
+# 1. Trigger a job (waiting → processing → completed)
+python -m statemachine_engine.database.cli send-event --target simple_worker --type new_job
+
+# 2. Watch state changes in real-time
+watch -n 1 'python -m statemachine_engine.database.cli machine-state'
+
+# 3. Trigger another job (completed → waiting → processing → completed)
+python -m statemachine_engine.database.cli send-event --target simple_worker --type new_job
+
+# 4. Stop the machine (any state → completed)
+python -m statemachine_engine.database.cli send-event --target simple_worker --type stop
+```
+
+#### Available CLI Commands
+
+```bash
+# Machine management
+python -m statemachine_engine.database.cli machine-state [--format json]
+
+# Event management
+python -m statemachine_engine.database.cli send-event --target <machine> --type <event> [--job-id <id>] [--payload <json>]
+python -m statemachine_engine.database.cli list-events --target <machine> [--status pending|processed] [--limit N]
+
+# Job queue management
+python -m statemachine_engine.database.cli create-job --type <type> --data <json>
+python -m statemachine_engine.database.cli list-jobs [--status pending|processing|completed|failed] [--limit N]
+```
+
+### Running Unit Tests
 
 ```bash
 # Install dev dependencies first

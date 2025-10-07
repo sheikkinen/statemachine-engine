@@ -94,6 +94,13 @@ class StateMachineMonitor {
                     );
                 }
             },
+            activity_log: (data) => {
+                // Handle activity log events from state machine
+                const payload = data.payload || {};
+                const level = payload.level || 'info';
+                const message = payload.message || 'Activity log';
+                this.logger.log(level, `[${data.machine_name}] ${message}`);
+            },
             job_started: (data) => {
                 this.logger.logJobStarted(data);
             },

@@ -689,8 +689,23 @@ def cmd_send_event(args):
             payload=args.payload
         )
         
-        # Send wake-up signal via Unix socket (fast path)
-        _send_wake_up_socket(args.target)
+        # Send actual event via Unix socket (fast path) - not just wake_up!
+        socket_path = f'/tmp/statemachine-control-{args.target}.sock'
+        
+        if Path(socket_path).exists():
+            try:
+                # Send the actual event with payload
+                event_msg = json.dumps({
+                    'type': args.type,
+                    'payload': args.payload or {},
+                    'job_id': args.job_id
+                })
+                sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+                sock.sendto(event_msg.encode('utf-8'), socket_path)
+                sock.close()
+            except Exception as e:
+                # Socket error - machine will fall back to polling
+                pass
         
         print(f"✅ Event sent successfully!")
         print(f"   Event ID: {event_id}")

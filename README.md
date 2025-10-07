@@ -331,20 +331,22 @@ python -m statemachine_engine.database.cli send-event --target simple_worker --t
 #### How Event Delivery Works
 
 When you use `send-event`, the CLI:
-1. **Writes event to database** - Persists the event in the `machine_events` table
-2. **Sends Unix socket wake-up** - Notifies the machine via `/tmp/statemachine-control-{machine_name}.sock`
-3. **Machine processes event** - State machine reads the event from database and executes the transition
+1. **Writes event to database** - Logs the event in the `machine_events` table (audit trail)
+2. **Sends event via Unix socket** - Delivers the actual event with payload to `/tmp/statemachine-control-{machine_name}.sock`
+3. **Machine processes event** - State machine receives event from socket and executes the transition immediately
 4. **Broadcasts state change** - Updates are sent to `/tmp/statemachine-events.sock` → WebSocket → UI
 
+**Important:** The `machine_events` database table is an **audit log only**. The actual event delivery happens via Unix sockets in real-time. Events are not read from the database - they're delivered directly through the socket.
+
 **Unix Socket Paths:**
-- Control sockets: `/tmp/statemachine-control-{machine_name}.sock` (wake-up signals to machines)
-- Event socket: `/tmp/statemachine-events.sock` (state changes from machines to WebSocket server)
-- WebSocket: `ws://localhost:3002/ws/events` (real-time updates to browser)
+- Control sockets: `/tmp/statemachine-control-{machine_name}.sock` (receives events with full payload)
+- Event socket: `/tmp/statemachine-events.sock` (broadcasts state changes to WebSocket server)
+- WebSocket: `ws://localhost:3002/ws/events` (real-time updates to browser UI)
 
 This dual approach (database + Unix socket) ensures:
-- **Reliability**: Events are never lost (database persistence)
-- **Speed**: Immediate wake-up via Unix socket (no polling delay)
-- **Monitoring**: Real-time visibility via WebSocket broadcasting
+- **Reliability**: Events are logged for audit (database persistence)
+- **Speed**: Zero-latency event delivery via Unix socket (no polling)
+- **Monitoring**: Real-time visibility via WebSocket broadcasting to UI
 
 #### Available CLI Commands
 

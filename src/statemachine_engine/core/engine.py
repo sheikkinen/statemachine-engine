@@ -172,21 +172,11 @@ class StateMachineEngine:
                 })
                 
                 # Handle different event types
-                if event_type == 'new_job':
-                    # Wake up to check for new jobs
-                    await self.process_event('wake_up')
-                elif event_type == 'stop':
-                    # Stop the machine
-                    await self.process_event('stop')
-                elif event_type == 'wake_up':
-                    # Generic wake up
-                    await self.process_event('wake_up')
-                else:
-                    # Inter-machine events (e.g., sdxl_job_done_relay, face_job_started, etc.)
-                    # Store event data in context for actions to access
-                    self.context['event_data'] = event
-                    # Trigger the event in the state machine
-                    await self.process_event(event_type)
+                # Store event data in context for actions to access
+                self.context['event_data'] = event
+                
+                # Process the actual event type received
+                await self.process_event(event_type)
                     
         except BlockingIOError:
             # No data available, this is expected

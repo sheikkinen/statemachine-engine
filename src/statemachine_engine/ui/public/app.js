@@ -6,15 +6,14 @@ class StateMachineMonitor {
         this.reconnectAttempts = 0;
         this.maxReconnectDelay = 30000; // 30 seconds
         this.currentDiagram = null;
-        this.selectedMachine = 'controller';
+        this.selectedMachine = null;
         this.currentState = null;
         this.pingInterval = null;
         this.lastTransitions = new Map(); // Track last transition per machine
 
         this.initializeUI();
-        this.initializeDiagramTabs();
         this.connectWebSocket();
-        this.loadDiagram('controller');
+        this.initializeFromAPI(); // Load machines and create tabs dynamically
     }
 
     initializeUI() {
@@ -29,28 +28,64 @@ class StateMachineMonitor {
         this.logActivity('info', 'State Machine Monitor initialized');
     }
 
-    initializeDiagramTabs() {
-        const tabButtons = document.querySelectorAll('.tab-button');
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                // Update active state
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
+    async initializeFromAPI() {
+        try {
+            // Fetch machines from API
+            const response = await fetch('/api/machines');
+            if (!response.ok) {
+                throw new Error(`Failed to fetch machines: ${response.statusText}`);
+            }
 
-                // Load diagram for selected machine
-                const machineName = button.getAttribute('data-machine');
-                this.selectedMachine = machineName;
-                this.currentState = null; // Reset state tracking
+            const machines = await response.json();
 
-                // Load diagram and apply current state if available
-                this.loadDiagram(machineName).then(() => {
-                    const machine = this.machines.get(machineName);
-                    if (machine && machine.current_state) {
-                        this.renderDiagram(machine.current_state);
-                    }
+            // Create tabs dynamically
+            const tabsContainer = document.getElementById('diagram-tabs');
+            tabsContainer.innerHTML = '';
+
+            if (machines.length === 0) {
+                tabsContainer.innerHTML = '<div class="no-machines">No machines running. Start a machine to see diagrams.</div>';
+                return;
+            }
+
+            machines.forEach((machine, index) => {
+                const button = document.createElement('button');
+                button.className = 'tab-button';
+                if (index === 0) {
+                    button.classList.add('active');
+                    this.selectedMachine = machine.machine_name;
+                }
+                button.setAttribute('data-machine', machine.machine_name);
+                button.textContent = machine.machine_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+                button.addEventListener('click', () => {
+                    // Update active state
+                    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Load diagram for selected machine
+                    this.selectedMachine = machine.machine_name;
+                    this.currentState = null;
+
+                    this.loadDiagram(machine.machine_name).then(() => {
+                        const machineData = this.machines.get(machine.machine_name);
+                        if (machineData && machineData.current_state) {
+                            this.renderDiagram(machineData.current_state);
+                        }
+                    });
                 });
+
+                tabsContainer.appendChild(button);
             });
-        });
+
+            // Load first machine's diagram
+            if (machines.length > 0 && this.selectedMachine) {
+                await this.loadDiagram(this.selectedMachine);
+            }
+
+        } catch (error) {
+            this.logActivity('error', `Failed to initialize from API: ${error.message}`);
+            console.error('Initialization error:', error);
+        }
     }
 
     async loadDiagram(machineName) {

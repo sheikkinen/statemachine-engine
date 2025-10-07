@@ -10,13 +10,13 @@ const PORT = 3001;
 app.use(express.static('public'));
 app.use(express.json());
 
-// Path to the face-changer project
-const PROJECT_ROOT = path.join(__dirname, '..');
+// Path to the project root (assumes UI is in src/statemachine_engine/ui/)
+const PROJECT_ROOT = path.join(__dirname, '../../..');
 
 // Get machine states using existing CLI
 function getMachineStates() {
     return new Promise((resolve, reject) => {
-        const child = spawn('python', ['src/database/cli.py', 'machine-state', '--format', 'json'], {
+        const child = spawn('python', ['-m', 'statemachine_engine.database.cli', 'machine-state', '--format', 'json'], {
             cwd: PROJECT_ROOT
         });
         
@@ -57,7 +57,7 @@ function checkProcessRunning(machineName) {
         });
 
         child.on('close', () => {
-            const isRunning = output.includes(`state_machine/cli.py`) &&
+            const isRunning = output.includes(`statemachine`) &&
                              output.includes(machineName);
             resolve(isRunning);
         });
@@ -68,7 +68,7 @@ function checkProcessRunning(machineName) {
 function getRecentErrors(limit = 10) {
     return new Promise((resolve, reject) => {
         const child = spawn('python', [
-            'src/database/cli.py',
+            '-m', 'statemachine_engine.database.cli',
             'list-errors',
             '--format', 'json',
             '--limit', limit.toString()
@@ -245,7 +245,7 @@ app.get('/api/errors', async (req, res) => {
 
     try {
         const child = spawn('python', [
-            'src/database/cli.py',
+            '-m', 'statemachine_engine.database.cli',
             'list-errors',
             '--format', 'json',
             '--limit', limit.toString()
@@ -285,25 +285,19 @@ app.get('/api/errors', async (req, res) => {
 // Start a machine
 app.post('/api/machine/:name/start', async (req, res) => {
     const { name } = req.params;
-    
+    const { configPath } = req.body;
+
     try {
-        // Map machine names to config files
-        const configMap = {
-            'sdxl_generator': 'config/sdxl_generator.yaml',
-            'face_processor': 'config/face_processor.yaml',
-            'descriptor': 'config/descriptor.yaml',
-            'prompt_ideator': 'config/prompt_ideator.yaml'
-        };
-        
-        const configFile = configMap[name];
-        if (!configFile) {
-            return res.status(400).json({ error: `Unknown machine: ${name}` });
+        if (!configPath) {
+            return res.status(400).json({
+                error: 'Config path required',
+                message: 'Please provide configPath in request body'
+            });
         }
-        
+
         // Start the machine process in background
-        const child = spawn('python', [
-            'src/state_machine/cli.py', 
-            configFile, 
+        const child = spawn('statemachine', [
+            configPath,
             '--machine-name', name,
             '--debug'
         ], {
@@ -311,13 +305,13 @@ app.post('/api/machine/:name/start', async (req, res) => {
             detached: true,
             stdio: 'ignore'
         });
-        
+
         child.unref(); // Allow parent to exit
-        
-        res.json({ 
-            success: true, 
+
+        res.json({
+            success: true,
             message: `Started machine: ${name}`,
-            pid: child.pid 
+            pid: child.pid
         });
     } catch (error) {
         console.error(`Error starting machine ${name}:`, error);
@@ -332,7 +326,7 @@ app.post('/api/machine/:name/stop', async (req, res) => {
     try {
         // Send stop event using existing CLI
         const child = spawn('python', [
-            'src/database/cli.py', 
+            '-m', 'statemachine_engine.database.cli',
             'send-event',
             '--target', name,
             '--type', 'stop'

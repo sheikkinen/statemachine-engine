@@ -26,7 +26,7 @@
     <div class="container">
         <header>
             <h1>🤖 State Machine Monitor</h1>
-            <p>Real-time monitoring of face-changer pipeline state machines</p>
+            <p>Real-time monitoring of state machine workflows</p>
         </header>
 
         <div class="status-bar">
@@ -60,12 +60,8 @@
 
         <div class="diagram-section">
             <h3>State Machine Diagrams</h3>
-            <div class="diagram-tabs">
-                <button class="tab-button active" data-machine="controller">Controller</button>
-                <button class="tab-button" data-machine="sdxl_generator">SDXL Generator</button>
-                <button class="tab-button" data-machine="face_processor">Face Processor</button>
-                <button class="tab-button" data-machine="descriptor">Descriptor</button>
-                <button class="tab-button" data-machine="prompt_ideator">Prompt Ideator</button>
+            <div class="diagram-tabs" id="diagram-tabs">
+                <!-- Tabs will be populated dynamically from running machines -->
             </div>
             <div class="breadcrumb-nav">
                 <span class="breadcrumb-item active" data-diagram="main">Overview</span>

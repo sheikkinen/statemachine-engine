@@ -51,53 +51,53 @@ Development dependencies (optional):
 
 ## Quick Start
 
-### 1. Create a Configuration File
+### 1. Try the Included Examples
+
+The package includes working example configurations:
+
+```bash
+# Simple worker example
+cd examples/simple_worker
+statemachine config/worker.yaml --machine-name worker
+
+# Controller/worker multi-machine example
+cd examples/controller_worker
+./run.sh
+```
+
+See [examples/](examples/) directory for complete working configurations.
+
+### 2. Create Your Own Configuration
 
 ```yaml
-# worker.yaml
-name: "Simple Worker"
+# my_worker.yaml
+name: "My Worker"
 initial_state: waiting
-
-states:
-  - waiting
-  - processing
-  - completed
-
-events:
-  - new_job
-  - job_done
 
 transitions:
   - from: waiting
     to: processing
     event: new_job
     actions:
-      - type: check_database_queue
-        params:
-          job_type: task
-
-  - from: processing
-    to: completed
-    event: job_done
-    actions:
       - type: bash
         params:
-          command: "echo Processed {job_id}"
+          command: "echo Processing job"
           success: job_done
 ```
 
-### 2. Run the State Machine
+### 3. Run Your State Machine
 
 ```bash
-statemachine worker.yaml --machine-name worker
+statemachine my_worker.yaml --machine-name my_worker
 ```
 
-Or using Python:
+Or using Python directly:
 ```python
-from statemachine_engine import StateMachineEngine
+from statemachine_engine.core.engine import StateMachineEngine
 
-engine = StateMachineEngine('worker.yaml', machine_name='worker')
-engine.run()
+engine = StateMachineEngine(machine_name='my_worker')
+await engine.load_config('my_worker.yaml')
+await engine.execute_state_machine()
 ```
 
 ## Built-In Actions
@@ -156,21 +156,30 @@ Access the web UI at `http://localhost:3001`
 #### Simple Worker
 ```bash
 cd examples/simple_worker
+statemachine config/worker.yaml --machine-name worker
+
+# Or with debug logging:
 statemachine config/worker.yaml --machine-name worker --debug
 ```
 
 #### Controller/Worker (Multi-Machine)
 ```bash
 cd examples/controller_worker
+
+# Option 1: Use the run script
 ./run.sh
-# Or run in separate terminals:
-# Terminal 1: statemachine config/controller.yaml --machine-name controller --debug
-# Terminal 2: statemachine config/worker.yaml --machine-name worker --debug
+
+# Option 2: Run in separate terminals
+# Terminal 1:
+statemachine config/controller.yaml --machine-name controller
+
+# Terminal 2:
+statemachine config/worker.yaml --machine-name worker
 ```
 
-See the [examples/](examples/) directory for:
-- [Simple Worker](examples/simple_worker/) - Basic job processing
-- [Controller/Worker](examples/controller_worker/) - Multi-machine coordination
+**Available Examples:**
+- [Simple Worker](examples/simple_worker/) - Basic job processing with database queue
+- [Controller/Worker](examples/controller_worker/) - Multi-machine event coordination
 
 ## Documentation
 

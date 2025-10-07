@@ -120,9 +120,9 @@ class StateMachineEngine:
         logger.info(f"[{self.machine_name}] Initial state: {self.current_state}")
     
     async def _register_actions(self) -> None:
-        """Register action handlers"""
-        from .actions import ActionRegistry
-        self.action_registry = ActionRegistry()
+        """Register action handlers - uses ActionLoader dynamically"""
+        # Actions are loaded dynamically via ActionLoader when needed
+        pass
     
     def _create_control_socket(self) -> None:
         """Create Unix socket for receiving control events"""

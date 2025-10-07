@@ -9,11 +9,8 @@ import logging
 import sys
 from pathlib import Path
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from state_machine.engine import StateMachineEngine
-from database.models import get_job_model
+from statemachine_engine.core.engine import StateMachineEngine
+from statemachine_engine.database.models import get_job_model
 
 async def run_state_machine(config_path: str, debug: bool = False, machine_name: str = None):
     """Run the state machine with given configuration"""
@@ -47,16 +44,20 @@ async def run_state_machine(config_path: str, debug: bool = False, machine_name:
     
     return 0
 
-async def main():
-    """Main CLI entry point"""
+async def async_main():
+    """Async main CLI entry point"""
     parser = argparse.ArgumentParser(description="State Machine Engine")
     parser.add_argument('config', help='Path to YAML configuration file')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--machine-name', help='Override machine name (default: read from config)')
-    
+
     args = parser.parse_args()
-    
+
     return await run_state_machine(args.config, args.debug, args.machine_name)
 
+def main():
+    """Synchronous entry point for setuptools"""
+    sys.exit(asyncio.run(async_main()))
+
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    main()

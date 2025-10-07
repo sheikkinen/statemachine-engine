@@ -57,12 +57,19 @@ echo ""
 # Validate configurations
 echo "🔍 Validating state machine configurations..."
 if [ -x "./scripts/validate-state-machines.py" ]; then
-    if python ./scripts/validate-state-machines.py examples/**/*.yaml --quiet; then
-        echo "✓ All configurations validated successfully"
+    # Find all YAML config files
+    config_files=$(find examples -name "*.yaml" -type f 2>/dev/null)
+    if [ -n "$config_files" ]; then
+        if python ./scripts/validate-state-machines.py $config_files --quiet; then
+            echo "✓ All configurations validated successfully"
+        else
+            echo "❌ Configuration validation failed"
+            echo "   Please fix the errors above before starting"
+            exit 1
+        fi
     else
-        echo "❌ Configuration validation failed"
-        echo "   Please fix the errors above before starting"
-        exit 1
+        echo "⚠️  No configuration files found in examples/"
+        echo "   Skipping validation"
     fi
 else
     echo "⚠️  Validator not found at ./scripts/validate-state-machines.py"

@@ -11,3 +11,9 @@ dist/
 htmlcov/
 .env
 venv/
+
+# Database files
+*.db
+*.db-journal
+data/
+*.log

@@ -249,6 +249,39 @@ The validator checks:
 # Starts WebSocket server on http://localhost:3002
 ```
 
+### Integrated System Startup
+
+```bash
+./scripts/start-system.sh
+# Comprehensive startup that:
+# - Validates all YAML configurations
+# - Generates FSM documentation diagrams
+# - Starts WebSocket monitoring server
+# - Launches state machines
+# - Starts Web UI (if Node.js available)
+# - Handles graceful shutdown (Ctrl+C)
+```
+
+This script provides a complete system startup with:
+- Virtual environment activation and validation
+- Pre-flight configuration validation
+- FSM diagram generation from YAML configs
+- WebSocket server with health check polling
+- State machine launching
+- Web UI startup (optional, requires Node.js)
+- Cleanup trap for graceful shutdown
+
+**Usage:**
+```bash
+# Start the complete system
+./scripts/start-system.sh
+
+# View logs while running
+tail -f logs/*.log
+
+# Stop with Ctrl+C (automatic cleanup)
+```
+
 ## Documentation
 
 - [Quickstart Guide](docs/quickstart.md) - Get started in 5 minutes

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.10] - 2025-10-08
+
+### Added
+- New `statemachine-ui` command that properly starts the web UI server
+- Support for external projects via `--project-root` parameter
+- Automatic WebSocket server startup with UI server
+- New `statemachine-diagrams` command for diagram generation
+
+### Fixed
+- UI server now correctly finds diagrams in external projects
+- Fixed CLI entry point naming confusion (statemachine-ui now starts UI, not diagrams)
+- Web UI can now display state machines from any project directory
+
+### Changed
+- `statemachine-ui` now starts the web server instead of generating diagrams
+- Added `statemachine-diagrams` as an alias for the old `statemachine-ui` behavior
+- UI server uses PROJECT_ROOT environment variable for external project support
+
 ## [0.0.9] - 2025-10-08
 
 ### Fixed

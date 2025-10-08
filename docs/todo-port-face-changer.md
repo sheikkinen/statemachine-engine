@@ -215,7 +215,7 @@ git init
 # requirements.txt
 
 # State Machine Engine (core dependency)
-statemachine-engine>=1.0.0
+statemachine-engine>=0.0.0
 
 # AI/ML Libraries
 anthropic>=0.18.0

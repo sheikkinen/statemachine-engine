@@ -1,0 +1,117 @@
+# Task Worker Machine Configuration
+# Processes tasks and notifies controller upon completion
+
+name: "Task Worker Machine"
+description: "Job processing with controller notification"
+
+initial_state: initializing
+
+metadata:
+  machine_name: task_worker
+  version: "1.0.0"
+  job_type: task
+
+states:
+  # === INITIALIZATION STATES ===
+  - initializing
+  
+  # === MAIN PROCESSING STATES ===
+  - waiting
+  - processing
+  - notifying
+  
+  # === COMPLETION STATES ===
+  - stopped
+
+events:
+  - initialized
+  - new_job
+  - no_jobs
+  - job_done
+  - notified
+  - stop
+
+transitions:
+  # === INITIALIZATION ===
+  - from: initializing
+    to: waiting
+    event: initialized
+
+  # === MAIN WAITING LOOP ===
+  - from: waiting
+    to: waiting
+    event: no_jobs
+
+  - from: waiting
+    to: processing
+    event: new_job
+
+  # === PROCESSING ===
+  - from: processing
+    to: notifying
+    event: job_done
+
+  # === NOTIFICATION ===
+  - from: notifying
+    to: waiting
+    event: notified
+
+  # === STOP ===
+  - from: "*"
+    to: stopped
+    event: stop
+
+actions:
+  # === INITIALIZATION (runs once at startup) ===
+  initializing:
+    - type: log
+      message: "Task Worker initializing..."
+      level: info
+    - type: bash
+      description: "✅ Complete initialization"
+      command: "echo 'Task Worker initialization complete'"
+      timeout: 5
+      success: initialized
+
+  # === MAIN WAITING LOOP ===
+  waiting:
+    - type: log
+      message: "Task Worker ready - waiting for jobs"
+    - type: check_database_queue
+      description: "📋 Check database queue for pending tasks"
+      job_type: task
+      machine_type: task_worker
+
+  # === PROCESSING ===
+  processing:
+    - type: log
+      message: "🔄 Processing job {id}"
+      level: info
+    - type: bash
+      description: "🔄 Process the task"
+      command: "echo 'Processing task {id}' && sleep 3 && echo 'Task {id} completed'"
+      timeout: 30
+      success: job_done
+
+  # === NOTIFICATION ===
+  notifying:
+    - type: log
+      message: "📡 Notifying controller of task completion for job {id}"
+    - type: send_event
+      description: "📡 Send completion event to controller"
+      target_machine: "task_controller"
+      event_type: "task_completed"
+      payload:
+        job_id: "{id}"
+        machine: "task_worker"
+    - type: bash
+      description: "✅ Notification sent"
+      command: "echo 'Task completion notification sent for job {id}'"
+      timeout: 5
+      success: notified
+
+  # === STOPPED ===
+  stopped:
+    - type: log
+      message: "🛑 Task Worker stopped"
+      level: info

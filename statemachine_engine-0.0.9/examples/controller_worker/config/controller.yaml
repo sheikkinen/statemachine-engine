@@ -1,0 +1,79 @@
+# Task Controller Machine Configuration
+# Monitors and coordinates task completion events
+
+name: "Task Controller Machine"
+description: "Event monitoring and coordination for multi-machine workflows"
+
+initial_state: initializing
+
+metadata:
+  machine_name: task_controller
+  version: "1.0.0"
+  job_type: monitoring
+
+states:
+  # === INITIALIZATION STATES ===
+  - initializing
+  
+  # === MONITORING STATES ===
+  - monitoring
+  
+  # === COMPLETION STATES ===
+  - stopped
+
+events:
+  - initialized
+  - task_completed
+  - no_events
+  - stop
+
+transitions:
+  # === INITIALIZATION ===
+  - from: initializing
+    to: monitoring
+    event: initialized
+
+  # === MONITORING LOOP ===
+  - from: monitoring
+    to: monitoring
+    event: no_events
+
+  - from: monitoring
+    to: monitoring
+    event: task_completed
+
+  # === STOP ===
+  - from: "*"
+    to: stopped
+    event: stop
+
+actions:
+  # === INITIALIZATION (runs once at startup) ===
+  initializing:
+    - type: log
+      message: "Task Controller initializing..."
+      level: info
+    - type: bash
+      description: "✅ Complete initialization"
+      command: "echo 'Task Controller initialization complete'"
+      timeout: 5
+      success: initialized
+
+  # === MONITORING LOOP ===
+  monitoring:
+    - type: log
+      message: "📊 Task Controller monitoring for events"
+    - type: check_events
+      description: "📡 Check for task completion events"
+      event_types: ["task_completed", "stop"]
+      target_machine: "task_controller"
+    - type: bash
+      description: "📝 Log task completion"
+      command: "echo 'Job {payload.job_id} completed by {payload.machine}'"
+      timeout: 5
+
+  # === STOPPED ===
+  stopped:
+    - type: log
+      message: "🛑 Task Controller stopped"
+      level: info

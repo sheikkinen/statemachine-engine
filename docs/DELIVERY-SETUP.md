@@ -1,4 +1,4 @@
-# Delivery & Release Setup Summary
+4# Delivery & Release Setup Summary
 
 **Date:** October 7, 2025  
 **Status:** ✅ Complete - Ready for First Release
@@ -98,7 +98,7 @@ Once released to PyPI, face-changer can install as dependency:
 
 ```txt
 # face-changer/requirements.txt
-statemachine-engine>=1.0.0
+statemachine-engine>=0.0.4
 ```
 
 Or in `pyproject.toml`:

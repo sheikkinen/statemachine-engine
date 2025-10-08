@@ -4,14 +4,14 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(express.static('public'));
 app.use(express.json());
 
-// Path to the project root (assumes UI is in src/statemachine_engine/ui/)
-const PROJECT_ROOT = path.join(__dirname, '../../..');
+// Path to the project root - use environment variable if set, otherwise assume UI is in src/statemachine_engine/ui/
+const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(__dirname, '../../..');
 
 // Get machine states using existing CLI
 function getMachineStates() {

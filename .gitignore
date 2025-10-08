@@ -12,6 +12,10 @@ htmlcov/
 .env
 venv/
 
+# MCP garbage
+audio/
+docs/forge.md
+
 # Database files
 *.db
 *.db-journal

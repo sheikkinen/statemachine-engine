@@ -10,5 +10,7 @@ recursive-include src/statemachine_engine/database/schema *.sql
 recursive-include src/statemachine_engine/ui *.js *.json *.html *.css
 recursive-include docs quickstart.md
 recursive-include examples *.yaml *.sh *.md
+include templates/start-system.sh
+include templates/README.md
 prune tests/__pycache__
 prune src/**/__pycache__

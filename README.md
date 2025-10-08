@@ -382,15 +382,25 @@ The `scripts/` directory contains useful utilities:
 
 ### Validate Configurations
 
+**Production command (recommended):**
 ```bash
-# Validate a single config
-./scripts/validate-state-machines.py config/worker.yaml
+# Validate single config
+statemachine-validate config/worker.yaml
 
-# Validate all configs
-./scripts/validate-state-machines.py examples/**/*.yaml
+# Validate all configs  
+statemachine-validate config/*.yaml
 
 # Strict mode (exit 1 on warnings)
-./scripts/validate-state-machines.py --strict config/*.yaml
+statemachine-validate --strict config/*.yaml
+
+# Quiet mode (errors only)
+statemachine-validate --quiet config/*.yaml
+```
+
+**Development script (repository only):**
+```bash
+# For contributors/developers
+./scripts/validate-state-machines.py config/worker.yaml
 ```
 
 The validator checks:
@@ -399,6 +409,25 @@ The validator checks:
 - Orphaned/unreachable states
 - Missing event declarations
 - Self-loop patterns
+
+### Production Templates
+
+The `templates/` directory contains production-ready templates:
+
+**Production startup script:**
+```bash
+# Copy template to your project
+cp templates/start-system.sh ./
+chmod +x start-system.sh
+
+# Customize for your configs
+vim start-system.sh  # Edit CONFIG_FILES and MACHINE_CONFIGS
+
+# Run your system
+./start-system.sh
+```
+
+See [templates/README.md](templates/README.md) for full customization guide.
 
 ### Start Worker
 
@@ -410,7 +439,9 @@ The validator checks:
 ./scripts/start-worker.sh examples/simple_worker/config/worker.yaml my_worker
 ```
 
-### Integrated System Startup
+### Development System Startup
+
+**Development/testing script (repository only):**
 
 ```bash
 ./scripts/start-system.sh
@@ -523,7 +554,7 @@ This dual approach (database + Unix socket) ensures:
 
 #### CLI Command Summary
 
-The statemachine-engine package provides five main CLI commands:
+The statemachine-engine package provides six main CLI commands:
 
 ```bash
 statemachine         # Run state machines
@@ -531,6 +562,7 @@ statemachine-ui      # Start web UI server
 statemachine-db      # Database operations (events, jobs, state)
 statemachine-diagrams # Generate FSM diagrams
 statemachine-fsm     # Validate state machine configurations
+statemachine-validate # Validate YAML configurations with detailed analysis
 ```
 
 #### Available CLI Commands
@@ -546,6 +578,9 @@ statemachine-db list-events --target <machine> [--status pending|processed] [--l
 # Job queue management
 statemachine-db create-job --type <type> --data <json>
 statemachine-db list-jobs [--status pending|processing|completed|failed] [--limit N]
+
+# Configuration validation
+statemachine-validate config/*.yaml [--strict] [--quiet] [--no-color]
 ```
 
 ### Running Unit Tests

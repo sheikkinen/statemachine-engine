@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "statemachine-engine"
-version = "0.0.10"
+version = "0.0.11"
 description = "Event-driven state machine framework with real-time monitoring"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -56,6 +56,13 @@ statemachine-db = "statemachine_engine.database.cli:main"
 statemachine-fsm = "statemachine_engine.tools.diagrams:main"
 statemachine-diagrams = "statemachine_engine.tools.cli:main"
 statemachine-ui = "statemachine_engine.ui.cli:main"
+statemachine-validate = "statemachine_engine.tools.validate:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["templates/*"]
+
+[tool.setuptools.data-files]
+"." = ["templates/start-system.sh", "templates/README.md"]

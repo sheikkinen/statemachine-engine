@@ -100,6 +100,168 @@ await engine.load_config('my_worker.yaml')
 await engine.execute_state_machine()
 ```
 
+## Starting Services
+
+The statemachine-engine system consists of several components that work together. Here's how to start each service:
+
+### Complete System Startup (Recommended)
+
+For development and testing, use the integrated startup script:
+
+```bash
+# Start everything at once
+./scripts/start-system.sh
+
+# This automatically starts:
+# - WebSocket monitoring server
+# - Web UI (if Node.js is available)
+# - Example state machines
+# - Generates FSM diagrams
+```
+
+### Individual Service Startup
+
+For production or custom setups, start services individually:
+
+#### 1. State Machine (Core Service)
+
+```bash
+# Basic usage
+statemachine config/worker.yaml --machine-name my_worker
+
+# With debug logging
+statemachine config/worker.yaml --machine-name my_worker --debug
+
+# Multiple machines (run in separate terminals)
+statemachine config/controller.yaml --machine-name controller
+statemachine config/worker.yaml --machine-name worker
+```
+
+#### 2. Web UI Server (Visualization)
+
+```bash
+# Start web UI with current project
+statemachine-ui
+
+# Start with custom project root
+statemachine-ui --project-root /path/to/your/project
+
+# Start on custom port
+statemachine-ui --port 8080
+
+# Skip WebSocket server (if already running)
+statemachine-ui --no-websocket
+```
+
+**Access at:** http://localhost:3001
+
+#### 3. WebSocket Server (Real-time Monitoring)
+
+```bash
+# Start WebSocket server
+python -m statemachine_engine.monitoring.websocket_server
+
+# Custom port
+python -m statemachine_engine.monitoring.websocket_server --port 8765
+```
+
+**Endpoints:**
+- WebSocket: `ws://localhost:8765/ws`
+- Health check: `http://localhost:8765/health`
+
+#### 4. Generate Diagrams
+
+```bash
+# Generate diagrams for UI
+statemachine-diagrams config/worker.yaml
+
+# Or use the alias
+statemachine-fsm config/worker.yaml
+```
+
+### External Project Setup
+
+If you're using statemachine-engine in your own project:
+
+```bash
+# In your project directory
+cd /path/to/your/project
+
+# 1. Generate diagrams for your config
+statemachine-diagrams config/worker.yaml
+
+# 2. Start UI with your project root
+statemachine-ui --project-root $(pwd)
+
+# 3. Start your state machine
+statemachine config/worker.yaml --machine-name my_worker
+
+# 4. Test with events
+statemachine-db send-event --target my_worker --type new_job
+```
+
+### Database Commands
+
+```bash
+# Send events to trigger state transitions
+statemachine-db send-event --target my_worker --type new_job
+
+# Check machine states
+statemachine-db machine-state
+
+# List recent events
+statemachine-db list-events --target my_worker --limit 10
+
+# View job queue
+statemachine-db list-jobs --status pending
+```
+
+### Service Dependencies
+
+**Minimum Setup:**
+- State machine: `statemachine config.yaml --machine-name name`
+
+**With Monitoring:**
+- State machine + WebSocket server
+- Access real-time events at `ws://localhost:8765/ws`
+
+**With Visualization:**
+- State machine + WebSocket server + Web UI
+- Full visual interface at `http://localhost:3001`
+
+**Requirements:**
+- Python 3.9+ (required)
+- Node.js (optional, for Web UI)
+- npm (optional, for Web UI dependencies)
+
+### Troubleshooting
+
+**Web UI can't find diagrams:**
+```bash
+# Ensure diagrams are generated in your project
+statemachine-diagrams config/worker.yaml
+
+# Start UI with correct project root
+statemachine-ui --project-root $(pwd)
+```
+
+**Port conflicts:**
+```bash
+# Use custom ports
+statemachine-ui --port 8080
+python -m statemachine_engine.monitoring.websocket_server --port 9000
+```
+
+**Missing dependencies:**
+```bash
+# Install with all dependencies
+pip install statemachine-engine[dev]
+
+# Or install Node.js for Web UI
+# macOS: brew install node
+# Ubuntu: apt install nodejs npm
+```
+
 ## Built-In Actions
 
 - **bash**: Execute shell commands
@@ -143,33 +305,44 @@ transitions:
 
 ### WebSocket Server
 
-Start the WebSocket monitoring server:
+The WebSocket server provides real-time monitoring capabilities:
 
 ```bash
-# Direct Python
+# Start WebSocket server
 python -m statemachine_engine.monitoring.websocket_server
 
+# Or use the integrated UI command (starts both WebSocket + Web UI)
+statemachine-ui
 ```
 
-The server provides:
-- Real-time event streaming on `ws://localhost:3002/ws`
-- Health check endpoint at `http://localhost:3002/health`
-- State machine status monitoring
+**Endpoints:**
+- WebSocket stream: `ws://localhost:8765/ws`
+- Health check: `http://localhost:8765/health`
 
 ### Web UI
 
-The package includes a web UI for visualizing state machines (located in `src/statemachine_engine/ui/`):
+The package includes a comprehensive web UI for visualizing and monitoring state machines:
 
 ```bash
-cd src/statemachine_engine/ui
-npm install  # First time only
-npm start    # Starts on http://localhost:3001
+# Start Web UI (includes WebSocket server)
+statemachine-ui
+
+# Start with custom settings
+statemachine-ui --port 3001 --project-root /path/to/project
 ```
 
-Features:
-- Real-time state visualization with Mermaid diagrams
-- Live machine status updates
-- Event history and logs
+**Features:**
+- Real-time state machine visualization with Mermaid diagrams
+- Live machine status updates and event streaming
+- Interactive state transition monitoring
+- Event history and activity logs
+- Multi-machine coordination display
+
+**Access:** http://localhost:3001
+
+**Requirements:**
+- Node.js (for Web UI functionality)
+- Generated diagrams (run `statemachine-diagrams config.yaml` first)
 
 ## Examples
 
@@ -286,15 +459,15 @@ You can manually test state transitions by sending events to running machines:
 statemachine examples/simple_worker/config/worker.yaml
 
 # Send events to trigger transitions (in another terminal)
-python -m statemachine_engine.database.cli send-event \
+statemachine-db send-event \
   --target simple_worker \
   --type new_job
 
 # Check machine state
-python -m statemachine_engine.database.cli machine-state --format json
+statemachine-db machine-state --format json
 
 # List recent events
-python -m statemachine_engine.database.cli list-events \
+statemachine-db list-events \
   --target simple_worker \
   --limit 10
 ```
@@ -316,16 +489,16 @@ statemachine examples/simple_worker/config/worker.yaml
 
 # Terminal 2: Test transitions
 # 1. Trigger a job (waiting → processing → completed)
-python -m statemachine_engine.database.cli send-event --target simple_worker --type new_job
+statemachine-db send-event --target simple_worker --type new_job
 
 # 2. Watch state changes in real-time
-watch -n 1 'python -m statemachine_engine.database.cli machine-state'
+watch -n 1 'statemachine-db machine-state'
 
 # 3. Trigger another job (completed → waiting → processing → completed)
-python -m statemachine_engine.database.cli send-event --target simple_worker --type new_job
+statemachine-db send-event --target simple_worker --type new_job
 
 # 4. Stop the machine (any state → completed)
-python -m statemachine_engine.database.cli send-event --target simple_worker --type stop
+statemachine-db send-event --target simple_worker --type stop
 ```
 
 #### How Event Delivery Works
@@ -348,19 +521,31 @@ This dual approach (database + Unix socket) ensures:
 - **Speed**: Zero-latency event delivery via Unix socket (no polling)
 - **Monitoring**: Real-time visibility via WebSocket broadcasting to UI
 
+#### CLI Command Summary
+
+The statemachine-engine package provides five main CLI commands:
+
+```bash
+statemachine         # Run state machines
+statemachine-ui      # Start web UI server  
+statemachine-db      # Database operations (events, jobs, state)
+statemachine-diagrams # Generate FSM diagrams
+statemachine-fsm     # Validate state machine configurations
+```
+
 #### Available CLI Commands
 
 ```bash
 # Machine management
-python -m statemachine_engine.database.cli machine-state [--format json]
+statemachine-db machine-state [--format json]
 
 # Event management
-python -m statemachine_engine.database.cli send-event --target <machine> --type <event> [--job-id <id>] [--payload <json>]
-python -m statemachine_engine.database.cli list-events --target <machine> [--status pending|processed] [--limit N]
+statemachine-db send-event --target <machine> --type <event> [--job-id <id>] [--payload <json>]
+statemachine-db list-events --target <machine> [--status pending|processed] [--limit N]
 
 # Job queue management
-python -m statemachine_engine.database.cli create-job --type <type> --data <json>
-python -m statemachine_engine.database.cli list-jobs [--status pending|processing|completed|failed] [--limit N]
+statemachine-db create-job --type <type> --data <json>
+statemachine-db list-jobs [--status pending|processing|completed|failed] [--limit N]
 ```
 
 ### Running Unit Tests

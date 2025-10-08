@@ -27,6 +27,7 @@ events:
   - new_job
   - no_jobs
   - job_done
+  - continue_work
   - stop
 
 transitions:
@@ -51,7 +52,7 @@ transitions:
   # === COMPLETION ===
   - from: completed
     to: waiting
-    event: new_job
+    event: continue_work
 
   # === STOP ===
   - from: "*"
@@ -99,4 +100,4 @@ actions:
       description: "✅ Mark completion and continue"
       command: "echo 'Job {id} marked as completed'"
       timeout: 5
-      success: new_job
+      success: continue_work

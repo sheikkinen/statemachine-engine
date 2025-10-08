@@ -12,6 +12,8 @@ export class DiagramManager {
         this.diagramMetadata = null;
         this.selectedMachine = null;
         this.currentState = null;
+        this.currentHighlightedEdge = null;
+        this.highlightTimestamp = null;
     }
 
     async loadDiagram(machineName, diagramName = 'main') {
@@ -156,11 +158,12 @@ export class DiagramManager {
             // Always attach composite click handlers after rendering
             this.attachCompositeClickHandlers();
 
-            // Highlight transition arrow if provided
+            // Highlight transition arrow immediately if provided
             if (transition && transition.from && transition.to) {
-                setTimeout(() => {
-                    this.highlightTransitionArrow(transition.from, transition.to);
-                }, 100);
+                console.log(`[DiagramManager] Will highlight arrow for transition:`, transition);
+                this.highlightTransitionArrowDirect(transition);
+            } else {
+                console.log(`[DiagramManager] No valid transition to highlight:`, transition);
             }
         } catch (error) {
             console.error('Error rendering diagram:', error);
@@ -297,27 +300,245 @@ export class DiagramManager {
     }
 
     updateState(currentState, transition = null) {
-        if (this.currentState === currentState) return;
+        console.log(`[DiagramManager] updateState called with:`);
+        console.log(`  currentState: ${currentState}`);
+        console.log(`  transition:`, transition);
+        
+        if (this.currentState === currentState) {
+            console.log(`[DiagramManager] State unchanged, but still processing transition`);
+        }
 
         this.currentState = currentState;
         this.renderDiagram(currentState, transition);
     }
 
-    highlightTransitionArrow(fromState, toState) {
-        // Import existing arrow highlighting logic
-        // (keeping the same complex logic from original)
-        console.log(`[Arrow Highlight] Looking for transition: ${fromState} → ${toState}`);
-        // ... (complete implementation would go here)
-        // For now, simplified version:
+    highlightTransitionArrowDirect(transition) {
+        const timestamp = Date.now();
+        console.log(`[Arrow Highlight Direct] ${timestamp} - Highlighting transition:`, transition);
+        
         const svg = this.container.querySelector('svg');
         if (!svg) return;
 
-        const edges = svg.querySelectorAll('path[class*="edge"][class*="transition"]');
-        if (edges.length > 0 && edges[0]) {
-            edges[0].classList.add('last-transition-arrow');
-            setTimeout(() => {
-                edges[0].classList.remove('last-transition-arrow');
-            }, 2000);
+        // Clear any existing arrow highlights first
+        this.clearArrowHighlights(svg);
+
+        const eventTrigger = transition.event;
+        const fromState = transition.from;
+        const toState = transition.to;
+        
+        console.log(`[Arrow Highlight Direct] ${timestamp} - Event trigger: "${eventTrigger}" (${fromState} → ${toState})`);
+        
+        if (eventTrigger && eventTrigger !== 'unknown') {
+            console.log(`[Arrow Highlight Direct] ${timestamp} - Searching by event trigger: "${eventTrigger}"`);
+            
+            // Find edge by matching label text with data-id
+            const edge = this.findEdgeByLabel(svg, eventTrigger);
+            
+            if (edge) {
+                console.log(`[Arrow Highlight Direct] ${timestamp} - ✓ Found edge by label matching for "${eventTrigger}"`);
+                edge.classList.add('last-transition-arrow');
+                
+                // Store reference to clear later with timestamp
+                this.currentHighlightedEdge = edge;
+                this.highlightTimestamp = timestamp;
+                
+                setTimeout(() => {
+                    // Only clear if this is still the current highlight and hasn't been replaced
+                    if (edge === this.currentHighlightedEdge && this.highlightTimestamp === timestamp) {
+                        console.log(`[Arrow Highlight Direct] ${timestamp} - Clearing highlight after timeout`);
+                        edge.classList.remove('last-transition-arrow');
+                        this.currentHighlightedEdge = null;
+                        this.highlightTimestamp = null;
+                    } else {
+                        console.log(`[Arrow Highlight Direct] ${timestamp} - Skipping clear - highlight was replaced`);
+                    }
+                }, 2000);
+                return;
+            } else {
+                console.log(`[Arrow Highlight Direct] ${timestamp} - ✗ Could not find edge by label for "${eventTrigger}"`);
+            }
+        } else {
+            console.log(`[Arrow Highlight Direct] ${timestamp} - No valid event trigger found`);
         }
+        
+        // No fallback - only highlight if we found the correct edge
+        console.log(`[Arrow Highlight Direct] ${timestamp} - ✗ Skipping animation - no specific edge found`);
+    }
+
+    highlightTransitionArrow(fromState, toState) {
+        console.log(`[Arrow Highlight] Looking for transition: ${fromState} → ${toState}`);
+        
+        const svg = this.container.querySelector('svg');
+        if (!svg) return;
+
+        // Clear any existing arrow highlights first
+        this.clearArrowHighlights(svg);
+
+        // Get the event trigger for this transition from stored transitions
+        const transition = this.getStoredTransition(fromState, toState);
+        const eventTrigger = transition?.event;
+        
+        console.log(`[Arrow Highlight] Retrieved transition:`, transition);
+        console.log(`[Arrow Highlight] Event trigger: "${eventTrigger}"`);
+        
+        if (eventTrigger && eventTrigger !== 'unknown') {
+            console.log(`[Arrow Highlight] Searching by event trigger: "${eventTrigger}"`);
+            
+            // Find edge by matching label text with data-id
+            const edge = this.findEdgeByLabel(svg, eventTrigger);
+            
+            if (edge) {
+                console.log(`[Arrow Highlight] ✓ Found edge by label matching for "${eventTrigger}"`);
+                edge.classList.add('last-transition-arrow');
+                
+                // Store reference to clear later
+                this.currentHighlightedEdge = edge;
+                
+                setTimeout(() => {
+                    if (edge === this.currentHighlightedEdge) {
+                        edge.classList.remove('last-transition-arrow');
+                        this.currentHighlightedEdge = null;
+                    }
+                }, 2000);
+                return;
+            } else {
+                console.log(`[Arrow Highlight] ✗ Could not find edge by label for "${eventTrigger}"`);
+            }
+        } else {
+            console.log(`[Arrow Highlight] No valid event trigger found`);
+        }
+        
+        // No fallback - only highlight if we found the correct edge
+        console.log(`[Arrow Highlight] ✗ Skipping animation - no specific edge found`);
+    }
+
+    clearArrowHighlights(svg) {
+        // Remove highlight class from all edges
+        const highlightedEdges = svg.querySelectorAll('.last-transition-arrow');
+        if (highlightedEdges.length > 0) {
+            console.log(`[Clear Highlights] Clearing ${highlightedEdges.length} existing highlights`);
+            highlightedEdges.forEach(edge => {
+                edge.classList.remove('last-transition-arrow');
+            });
+        }
+        
+        // Clear current reference
+        this.currentHighlightedEdge = null;
+        this.highlightTimestamp = null;
+    }
+
+    findEdgeByLabel(svg, eventTrigger) {
+        // Look for edge labels containing the event trigger text
+        const edgeLabels = svg.querySelectorAll('g.edgeLabels g.label');
+        
+        for (const label of edgeLabels) {
+            // Check if this label contains the event trigger text
+            const labelText = label.textContent || '';
+            if (labelText.includes(eventTrigger)) {
+                // Get the data-id from this label
+                const dataId = label.getAttribute('data-id');
+                if (dataId) {
+                    console.log(`[Arrow Highlight] Found label with event "${eventTrigger}", data-id: "${dataId}"`);
+                    
+                    // Find the corresponding path with matching data-id
+                    const correspondingPath = svg.querySelector(`path[data-id="${dataId}"]`);
+                    if (correspondingPath) {
+                        return correspondingPath;
+                    }
+                    
+                    // Alternative: try finding by ID if data-id doesn't work
+                    const pathById = svg.querySelector(`path[id="${dataId}"]`) || 
+                                   svg.querySelector(`#${dataId}`);
+                    if (pathById) {
+                        return pathById;
+                    }
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    getStoredTransition(fromState, toState) {
+        // Look up transition info from the machine state manager's stored transitions
+        if (!this.selectedMachine) return null;
+        
+        // Try to access the stored transition from localStorage or from the machine manager
+        try {
+            const persistedTransitions = localStorage.getItem('machineTransitions');
+            if (persistedTransitions) {
+                const transitions = JSON.parse(persistedTransitions);
+                const transitionEntry = transitions.find(([name]) => name === this.selectedMachine);
+                if (transitionEntry && transitionEntry[1]) {
+                    const transition = transitionEntry[1];
+                    if (transition.from === fromState && transition.to === toState) {
+                        return transition;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[Arrow Highlight] Failed to get stored transition:', error);
+        }
+        
+        return null;
+
+        if (edge) {
+            console.log(`[Arrow Highlight] ✓ Found transition arrow`);
+            edge.classList.add('last-transition-arrow');
+            setTimeout(() => {
+                edge.classList.remove('last-transition-arrow');
+            }, 2000);
+        } else {
+            console.log(`[Arrow Highlight] ✗ No edges found, debugging available elements...`);
+            this.debugSvgElements(svg);
+        }
+    }
+
+    debugSvgElements(svg) {
+        console.log(`[SVG Debug] Available elements:`);
+        
+        // Check edge labels specifically
+        const edgeLabels = svg.querySelectorAll('g.edgeLabels g.label');
+        console.log(`[SVG Debug] Found ${edgeLabels.length} edge label elements:`);
+        edgeLabels.forEach((label, index) => {
+            const dataId = label.getAttribute('data-id');
+            const text = label.textContent?.trim() || 'No text';
+            console.log(`  Label ${index}: data-id="${dataId}", text="${text}"`);
+        });
+        
+        // Check all paths
+        const paths = svg.querySelectorAll('path');
+        console.log(`[SVG Debug] Found ${paths.length} path elements:`);
+        paths.forEach((path, index) => {
+            const dataId = path.getAttribute('data-id');
+            const id = path.id;
+            const className = path.className.baseVal || path.getAttribute('class');
+            console.log(`  Path ${index}: id="${id}", data-id="${dataId}", class="${className}"`);
+        });
+        
+        // Check for common Mermaid edge classes
+        const commonSelectors = [
+            'path.edge',
+            'path[class*="edge"]', 
+            '.flowchart-link',
+            'path[class*="link"]',
+            'path[class*="transition"]',
+            '[data-id*="new_job"]',
+            '[data-id*="initialized"]',
+            '[data-id*="no_jobs"]'
+        ];
+        
+        commonSelectors.forEach(selector => {
+            const elements = svg.querySelectorAll(selector);
+            if (elements.length > 0) {
+                console.log(`[SVG Debug] Found ${elements.length} elements with selector "${selector}"`);
+                elements.forEach((el, i) => {
+                    const dataId = el.getAttribute('data-id');
+                    const id = el.id;
+                    const className = el.className.baseVal || el.getAttribute('class');
+                    console.log(`    Element ${i}: id="${id}", data-id="${dataId}", class="${className}"`);
+                });
+            }
+        });
     }
 }

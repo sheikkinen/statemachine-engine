@@ -13,4 +13,4 @@ stateDiagram-v2
     %% Transitions between composites
     INITIALIZATION --> MAINLOOP : initialized
     MAINLOOP --> COMPLETION : job_done
-    COMPLETION --> MAINLOOP : new_job
+    COMPLETION --> MAINLOOP : continue_work

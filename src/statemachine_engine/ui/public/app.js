@@ -402,7 +402,7 @@ class StateMachineMonitor {
             const activityEl = cardEl.querySelectorAll('.info-value')[1];
             if (activityEl) {
                 const lastActivity = machine.last_activity ? 
-                    new Date(machine.last_activity).toLocaleString() : 'Never';
+                    new Date(machine.last_activity * 1000).toLocaleString() : 'Never';
                 activityEl.textContent = lastActivity;
             }
         }
@@ -691,7 +691,7 @@ class StateMachineMonitor {
         
         // Format last activity time
         const lastActivity = machine.last_activity ? 
-            new Date(machine.last_activity).toLocaleString() : 'Never';
+            new Date(machine.last_activity * 1000).toLocaleString() : 'Never';
 
         card.innerHTML = `
             <div class="machine-header">

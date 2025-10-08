@@ -17,6 +17,9 @@ class StateMachineMonitor {
         // Start connections
         this.wsManager.connect();
         
+        // Fetch initial machine states from API
+        this.fetchInitialMachineStates();
+        
         // Load diagram for first available machine after machines are loaded
         this.loadInitialDiagram();
     }
@@ -38,6 +41,26 @@ class StateMachineMonitor {
             }
         } catch (error) {
             this.logger.log('error', `Failed to load initial diagram: ${error.message}`);
+        }
+    }
+
+    async fetchInitialMachineStates() {
+        try {
+            this.logger.log('info', 'Fetching initial machine states...');
+            const response = await fetch('/api/machines');
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch machines: ${response.statusText}`);
+            }
+
+            const machines = await response.json();
+            this.logger.log('info', `Loaded ${machines.length} machine(s) from API`);
+            
+            // Update machine manager with initial data
+            this.machineManager.updateMachines(machines);
+            
+        } catch (error) {
+            this.logger.log('error', `Failed to fetch initial machine states: ${error.message}`);
         }
     }
 
@@ -84,14 +107,23 @@ class StateMachineMonitor {
                 }
             },
             state_change: (data) => {
+                const timestamp = Date.now();
+                console.log(`[App] ${timestamp} - Processing state_change event:`, data);
+                
                 const { machine, transition } = this.machineManager.handleStateChange(data);
+                
+                console.log(`[App] ${timestamp} - Extracted machine:`, machine);
+                console.log(`[App] ${timestamp} - Extracted transition:`, transition);
                 
                 // Update diagram if this is the selected machine
                 if (data.machine_name === this.diagramManager.selectedMachine) {
+                    console.log(`[App] ${timestamp} - Updating diagram for selected machine: ${data.machine_name}`);
                     this.diagramManager.updateState(
                         machine.current_state,
                         transition
                     );
+                } else {
+                    console.log(`[App] ${timestamp} - Skipping diagram update - not selected machine (${data.machine_name} vs ${this.diagramManager.selectedMachine})`);
                 }
             },
             activity_log: (data) => {

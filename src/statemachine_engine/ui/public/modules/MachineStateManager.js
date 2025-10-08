@@ -83,15 +83,20 @@ export class MachineStateManager {
         const machineName = data.machine_name;
         const payload = data.payload || {};
         
+        // Debug: log the full payload structure
+        console.log(`[StateChange Debug] Full payload:`, payload);
+        console.log(`[StateChange Debug] Available keys:`, Object.keys(payload));
+        
         // Store last transition
         if (payload.from_state && payload.to_state) {
             this.lastTransitions.set(machineName, {
                 from: payload.from_state,
                 to: payload.to_state,
-                event: payload.event || 'unknown',
+                event: payload.event_trigger || payload.event || payload.event_name || payload.trigger || 'unknown',
                 timestamp: payload.timestamp || Date.now() / 1000
             });
             console.log(`[Transition] ${machineName}: ${payload.from_state} → ${payload.to_state}`);
+            console.log(`[Transition Debug] Event trigger: "${payload.event_trigger}"`);
         }
         
         // Update machine state in map
@@ -123,7 +128,10 @@ export class MachineStateManager {
         // Persist updated state to localStorage
         this.persistState();
 
-        return { machine, transition: this.lastTransitions.get(machineName) };
+        const returnedTransition = this.lastTransitions.get(machineName);
+        console.log(`[StateManager] Returning transition:`, returnedTransition);
+
+        return { machine, transition: returnedTransition };
     }
 
     getMachine(machineName) {
@@ -144,7 +152,7 @@ export class MachineStateManager {
             const activityEl = cardEl.querySelectorAll('.info-value')[1];
             if (activityEl) {
                 const lastActivity = machine.last_activity ? 
-                    new Date(machine.last_activity).toLocaleString() : 'Never';
+                    new Date(machine.last_activity * 1000).toLocaleString() : 'Never';
                 activityEl.textContent = lastActivity;
             }
         }
@@ -168,7 +176,7 @@ export class MachineStateManager {
         const statusText = machine.running ? 'Running' : 'Stopped';
         
         const lastActivity = machine.last_activity ? 
-            new Date(machine.last_activity).toLocaleString() : 'Never';
+            new Date(machine.last_activity * 1000).toLocaleString() : 'Never';
 
         card.innerHTML = `
             <div class="machine-header">

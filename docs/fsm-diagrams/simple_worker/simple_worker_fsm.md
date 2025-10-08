@@ -31,13 +31,13 @@ stateDiagram-v2
     %% COMPLETION
     state COMPLETION {
         [*] --> completed
-        completed --> [*] : new_job
+        completed --> [*] : continue_work
     }
 
     %% Transitions
     INITIALIZATION --> MAINLOOP : initialized
     MAINLOOP --> COMPLETION : job_done
-    COMPLETION --> MAINLOOP : new_job
+    COMPLETION --> MAINLOOP : continue_work
 
 ```
 
@@ -76,6 +76,7 @@ stateDiagram-v2
 | `new_job` | Job | New Job |
 | `no_jobs` | Job | No Jobs |
 | `job_done` | Success | Job Done |
+| `continue_work` | Internal | Continue Work |
 | `stop` | Control | Stop |
 
 ---
@@ -83,7 +84,7 @@ stateDiagram-v2
 ## Configuration Summary
 
 - **States:** 4
-- **Events:** 5
+- **Events:** 6
 - **Transitions:** 6
 - **Initial State:** `initializing`
 

@@ -133,6 +133,20 @@ class SendEventAction(BaseAction):
         if not template:
             return {}
 
+        # Support forwarding entire payload as template string
+        # If template is a string like "{event_data.payload}", return the dict directly
+        if isinstance(template, str):
+            if template == '{event_data.payload}':
+                event_data = context.get('event_data', {})
+                return event_data.get('payload', {}) if event_data else {}
+            # Could expand to other {context.var} whole-dict forwards in future
+            logger.warning(
+                f"[{context.get('machine_name', 'unknown')}] "
+                f"Payload template is string '{template}' but not '{event_data.payload}'. "
+                f"Treating as empty payload."
+            )
+            return {}
+
         processed = {}
         current_job = context.get('current_job', {})
         job_data = current_job.get('data', {}) if current_job else {}
@@ -159,23 +173,33 @@ class SendEventAction(BaseAction):
 
         for key, value in template.items():
             if isinstance(value, str):
-                # Handle event_data.payload.* substitution
+                # Handle event_data.payload.* substitution (with nested field support)
                 if value.startswith('{event_data.payload.') and value.endswith('}'):
-                    payload_key = value[20:-1]  # Remove '{event_data.payload.' and '}'
-                    # Use the value from event payload even if it's None/null
-                    # Only fall back to placeholder string if key doesn't exist at all
-                    if payload_key in event_payload:
-                        extracted_value = event_payload[payload_key]
-                        # Recursively substitute placeholders in extracted value
-                        if isinstance(extracted_value, str) and '{id}' in extracted_value:
-                            # Use event job_id if available, otherwise current job_id
-                            substitute_id = event_job_id or job_id
-                            extracted_value = extracted_value.replace('{id}', substitute_id if substitute_id else '{id}')
-                        processed[key] = extracted_value
-                    else:
-                        machine_name = context.get('machine_name', 'unknown')
-                        logger.warning(f"[{machine_name}] Event payload missing key '{payload_key}', using None")
-                        processed[key] = None
+                    payload_path = value[20:-1]  # Remove '{event_data.payload.' and '}'
+                    
+                    # Support nested access via dot notation (e.g., user.id, result.image_path)
+                    extracted_value = event_payload
+                    path_parts = payload_path.split('.')
+                    
+                    for part in path_parts:
+                        if isinstance(extracted_value, dict) and part in extracted_value:
+                            extracted_value = extracted_value[part]
+                        else:
+                            machine_name = context.get('machine_name', 'unknown')
+                            logger.warning(
+                                f"[{machine_name}] Nested payload path '{payload_path}' not found "
+                                f"(failed at '{part}'), using None"
+                            )
+                            extracted_value = None
+                            break
+                    
+                    # Recursively substitute placeholders in extracted value
+                    if isinstance(extracted_value, str) and '{id}' in extracted_value:
+                        # Use event job_id if available, otherwise current job_id
+                        substitute_id = event_job_id or job_id
+                        extracted_value = extracted_value.replace('{id}', substitute_id if substitute_id else '{id}')
+                    
+                    processed[key] = extracted_value
                 # Simple string substitution
                 elif value == '{id}':
                     processed[key] = job_id

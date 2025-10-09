@@ -159,6 +159,23 @@ class StateMachineEngine:
                 event_type = event.get('type', 'unknown')
                 event_payload = event.get('payload', {})
                 
+                # Auto-parse JSON string payloads to dicts
+                if isinstance(event_payload, str):
+                    try:
+                        event_payload = json.loads(event_payload)
+                        event['payload'] = event_payload  # Update the event dict
+                        logger.debug(
+                            f"[{self.machine_name}] 📦 Parsed JSON payload: "
+                            f"{len(event_payload)} fields"
+                        )
+                    except json.JSONDecodeError as e:
+                        logger.warning(
+                            f"[{self.machine_name}] ⚠️  Invalid JSON payload for {event_type}: {e}. "
+                            f"Using empty dict. Raw: {str(event_payload)[:100]}..."
+                        )
+                        event_payload = {}
+                        event['payload'] = {}
+                
                 # Log received message
                 logger.info(f"[{self.machine_name}] 📥 Received event: {event_type}")
                 logger.debug(f"[{self.machine_name}] 📥 Event payload: {event_payload}")

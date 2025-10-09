@@ -273,16 +273,53 @@ pip install statemachine-engine[dev]
 
 ## Custom Actions
 
-Create custom actions by extending `BaseAction`:
+### Creating Custom Actions
+
+Extend the framework with your own actions by inheriting from `BaseAction`:
+
+**1. Create action file** (e.g., `my_custom_action.py`):
 
 ```python
 from statemachine_engine.actions import BaseAction
 
-class MyAction(BaseAction):
+class MyCustomAction(BaseAction):
     async def execute(self, context):
-        # Your logic here
-        return 'success'  # Return event name
+        # Access config parameters from YAML
+        param_value = self.config.get('params', {}).get('my_param')
+
+        # Access execution context (job_id, machine_name, etc.)
+        job_id = context.get('job_id')
+        machine = self.get_machine_name(context)
+
+        # Your custom logic
+        self.logger.info(f"Processing {job_id} on {machine}")
+
+        # Return event name to trigger next transition
+        return self.config.get('params', {}).get('success', 'success')
 ```
+
+**2. Place in project directory** alongside your YAML configs or in a Python package.
+
+**3. Use in YAML configuration**:
+
+```yaml
+actions:
+  - type: my_custom  # Maps to my_custom_action.py → MyCustomAction class
+    params:
+      my_param: "value"
+      success: job_done
+```
+
+### Action Discovery
+
+The `ActionLoader` automatically discovers actions following these conventions:
+
+- **File naming**: `{action_type}_action.py`
+- **Class naming**: `{ActionType}Action` (PascalCase)
+- **Example**: `my_custom_action.py` → `MyCustomAction` class
+- **YAML reference**: `type: my_custom`
+
+Actions are discovered from the installed package's `actions/` directory and subdirectories. For development, place custom actions in your local module structure and ensure they're importable.
 
 ## Multi-Machine Setup
 

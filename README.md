@@ -413,39 +413,28 @@ statemachine config/worker.yaml --machine-name worker
 - [Simple Worker](examples/simple_worker/) - Basic job processing with database queue
 - [Controller/Worker](examples/controller_worker/) - Multi-machine event coordination
 
-## Helper Scripts
-
-The `scripts/` directory contains useful utilities:
+## Tools & Utilities
 
 ### Validate Configurations
 
-**Production command (recommended):**
 ```bash
-# Validate single config
-statemachine-validate config/worker.yaml
-
-# Validate all configs  
-statemachine-validate config/*.yaml
-
-# Strict mode (exit 1 on warnings)
-statemachine-validate --strict config/*.yaml
-
-# Quiet mode (errors only)
-statemachine-validate --quiet config/*.yaml
+statemachine-validate config/worker.yaml         # Single file
+statemachine-validate config/*.yaml              # All configs
+statemachine-validate --strict config/*.yaml     # Fail on warnings
 ```
 
-**Development script (repository only):**
+Checks: event coverage, action emissions, unreachable states, self-loops
+
+### Monitor Real-Time Events
+
 ```bash
-# For contributors/developers
-./scripts/validate-state-machines.py config/worker.yaml
+statemachine-events                              # All machines, human format
+statemachine-events --machine simple_worker      # Filter by machine
+statemachine-events --format json > events.log   # JSON output
+statemachine-events --duration 60                # Time limit
 ```
 
-The validator checks:
-- Event coverage (all events have transitions)
-- Action emissions (success/error events exist)
-- Orphaned/unreachable states
-- Missing event declarations
-- Self-loop patterns
+Connects to `/tmp/statemachine-events.sock` to display all state changes in real-time
 
 ### Production Templates
 
@@ -589,35 +578,30 @@ This dual approach (database + Unix socket) ensures:
 - **Speed**: Zero-latency event delivery via Unix socket (no polling)
 - **Monitoring**: Real-time visibility via WebSocket broadcasting to UI
 
-#### CLI Command Summary
-
-The statemachine-engine package provides six main CLI commands:
+#### CLI Commands
 
 ```bash
-statemachine         # Run state machines
-statemachine-ui      # Start web UI server  
-statemachine-db      # Database operations (events, jobs, state)
-statemachine-diagrams # Generate FSM diagrams
-statemachine-fsm     # Validate state machine configurations
-statemachine-validate # Validate YAML configurations with detailed analysis
+statemachine          # Run state machines
+statemachine-ui       # Web UI server with real-time visualization
+statemachine-db       # Database operations (events, jobs, state)
+statemachine-diagrams # Generate FSM diagrams from YAML
+statemachine-validate # Validate YAML configurations
+statemachine-events   # Monitor real-time events from Unix socket
 ```
 
-#### Available CLI Commands
+#### Database Commands
 
 ```bash
-# Machine management
-statemachine-db machine-state [--format json]
+# Events
+statemachine-db send-event --target <machine> --type <event>
+statemachine-db list-events --target <machine> --limit 10
 
-# Event management
-statemachine-db send-event --target <machine> --type <event> [--job-id <id>] [--payload <json>]
-statemachine-db list-events --target <machine> [--status pending|processed] [--limit N]
-
-# Job queue management
+# Jobs  
 statemachine-db create-job --type <type> --data <json>
-statemachine-db list-jobs [--status pending|processing|completed|failed] [--limit N]
+statemachine-db list-jobs --status pending
 
-# Configuration validation
-statemachine-validate config/*.yaml [--strict] [--quiet] [--no-color]
+# State
+statemachine-db machine-state
 ```
 
 ### Running Unit Tests

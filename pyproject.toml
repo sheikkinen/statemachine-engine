@@ -57,6 +57,7 @@ statemachine-fsm = "statemachine_engine.tools.diagrams:main"
 statemachine-diagrams = "statemachine_engine.tools.cli:main"
 statemachine-ui = "statemachine_engine.ui.cli:main"
 statemachine-validate = "statemachine_engine.tools.validate:main"
+statemachine-events = "statemachine_engine.tools.event_monitor:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

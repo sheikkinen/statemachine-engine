@@ -43,8 +43,9 @@ TDD. DRY. KISS. YAGNI.
    - Database fallback polling
 
 5. **Tools** (`src/statemachine_engine/tools/`)
-   - FSM diagram generator
-   - YAML configuration validator
+   - FSM diagram generator (`statemachine-diagrams`)
+   - YAML configuration validator (`statemachine-validate`)
+   - Real-time event monitor (`statemachine-events`)
 
 ## Development Guidelines
 

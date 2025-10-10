@@ -197,12 +197,128 @@ class ProjectSpecificAction(BaseAction):
         assert 'project_specific' in available
     
     def test_builtin_actions_not_available_in_custom_loader(self, mixed_actions_dir):
-        """Test that built-in actions aren't discovered when using custom dir"""
+        """
+        DOCUMENTS CURRENT (BROKEN) BEHAVIOR:
+        When using custom actions directory, built-in actions are NOT available.
+        
+        This is a design flaw - users lose access to bash, log, send_event, etc.
+        Expected behavior: Both custom AND built-in actions should be available.
+        """
         loader = ActionLoader(actions_root=mixed_actions_dir)
         
-        # Built-in actions shouldn't be in custom loader
+        # CURRENT BROKEN BEHAVIOR: Built-in actions are NOT available
         bash_action = loader.load_action_class('bash')
         assert bash_action is None
+        
+        log_action = loader.load_action_class('log')
+        assert log_action is None
+        
+        send_event_action = loader.load_action_class('send_event')
+        assert send_event_action is None
+    
+    def test_only_custom_actions_in_discovery(self, mixed_actions_dir):
+        """
+        DOCUMENTS CURRENT (BROKEN) BEHAVIOR:
+        Custom actions directory completely replaces built-in discovery.
+        
+        This breaks workflows that need both custom actions AND built-ins.
+        """
+        loader = ActionLoader(actions_root=mixed_actions_dir)
+        
+        available = loader.get_available_actions()
+        
+        # Only custom action is discovered
+        assert 'project_specific' in available
+        
+        # Built-in actions are NOT discovered (this is the bug)
+        assert 'bash' not in available
+        assert 'log' not in available
+        assert 'send_event' not in available
+        assert 'check_database_queue' not in available
+        assert 'clear_events' not in available
+
+
+class TestExpectedBehavior:
+    """
+    Tests for EXPECTED behavior - these should FAIL until the bug is fixed.
+    Tests document what the correct behavior should be.
+    """
+    
+    @pytest.fixture
+    def custom_actions_dir(self):
+        """Create custom actions directory"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            actions_dir = Path(tmpdir) / "actions"
+            actions_dir.mkdir()
+            
+            # Create custom action
+            custom_action = actions_dir / "custom_action.py"
+            custom_action.write_text("""
+from statemachine_engine.actions.base import BaseAction
+
+class CustomAction(BaseAction):
+    async def execute(self, context):
+        return 'custom_success'
+""")
+            
+            yield str(actions_dir)
+    
+    @pytest.mark.xfail(reason="BUG: Custom actions dir should supplement, not replace built-ins")
+    def test_builtin_actions_should_be_available_with_custom_dir(self, custom_actions_dir):
+        """
+        EXPECTED BEHAVIOR (currently fails):
+        When using --actions-dir, built-in actions should STILL be available.
+        Custom actions should SUPPLEMENT built-ins, not REPLACE them.
+        """
+        loader = ActionLoader(actions_root=custom_actions_dir)
+        
+        # Built-in actions SHOULD be available
+        bash_action = loader.load_action_class('bash')
+        assert bash_action is not None, "bash action should be available"
+        
+        log_action = loader.load_action_class('log')
+        assert log_action is not None, "log action should be available"
+        
+        send_event_action = loader.load_action_class('send_event')
+        assert send_event_action is not None, "send_event action should be available"
+    
+    @pytest.mark.xfail(reason="BUG: Custom actions dir should supplement, not replace built-ins")
+    def test_both_custom_and_builtin_actions_in_discovery(self, custom_actions_dir):
+        """
+        EXPECTED BEHAVIOR (currently fails):
+        Discovery should include BOTH custom and built-in actions.
+        """
+        loader = ActionLoader(actions_root=custom_actions_dir)
+        
+        available = loader.get_available_actions()
+        
+        # Custom action should be discovered
+        assert 'custom' in available, "Custom action should be discovered"
+        
+        # Built-in actions should ALSO be discovered
+        assert 'bash' in available, "bash should be available"
+        assert 'log' in available, "log should be available"
+        assert 'send_event' in available, "send_event should be available"
+    
+    @pytest.mark.xfail(reason="BUG: Custom actions dir should supplement, not replace built-ins")
+    def test_custom_actions_can_use_builtin_actions(self, custom_actions_dir):
+        """
+        EXPECTED BEHAVIOR (currently fails):
+        A workflow should be able to use both custom actions AND built-in actions
+        in the same state machine configuration.
+        """
+        loader = ActionLoader(actions_root=custom_actions_dir)
+        
+        # Should be able to load custom action
+        custom = loader.load_action_class('custom')
+        assert custom is not None
+        
+        # Should ALSO be able to load built-in bash action
+        bash = loader.load_action_class('bash')
+        assert bash is not None
+        
+        # Both should be usable in the same workflow
+        assert custom is not None and bash is not None
 
 
 class TestEdgeCases:

@@ -348,14 +348,21 @@ The `ActionLoader` automatically discovers actions following these conventions:
 - **YAML reference**: `type: my_custom`
 
 **Discovery Locations:**
-- **With `--actions-dir`**: Discovers actions from the specified custom directory
-- **Without `--actions-dir`**: Discovers actions from the installed package's `actions/` directory
+- **With `--actions-dir`**: Discovers from BOTH custom directory AND built-in actions
+- **Without `--actions-dir`**: Discovers only from the installed package's `actions/` directory
+
+**Action Precedence:**
+- Custom actions can override built-in actions with the same name
+- Custom actions take precedence when name conflicts occur
+- Both custom and built-in actions are available in the same workflow
 
 **Benefits of `--actions-dir`:**
 - ✅ No package installation required for custom actions
 - ✅ Fast iteration: edit action → test immediately
 - ✅ Simple project structure without setup.py/pyproject.toml
 - ✅ Keep actions alongside your YAML configs where they belong
+- ✅ Use both custom actions AND built-in actions (bash, log, send_event, etc.)
+- ✅ Override built-in actions with custom implementations when needed
 
 ## Multi-Machine Setup
 

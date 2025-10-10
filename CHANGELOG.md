@@ -13,30 +13,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic sys.path manipulation for custom action imports
 - Dynamic action loading from custom directories using importlib.util
 - Path validation and clear error messages for non-existent or invalid directories
-- Comprehensive test suite: 17 tests covering discovery, loading, execution, edge cases
+- Comprehensive test suite: 21 tests covering discovery, loading, execution, precedence, edge cases
 - Support for nested custom action directories
 
 ### Changed
-- `ActionLoader` now supports both package-based (default) and file-based (custom) action discovery
+- `ActionLoader` now discovers from BOTH custom directory AND built-in actions (fixed critical bug)
+- Custom actions supplement built-ins instead of replacing them
+- Custom actions take precedence over built-ins with same name (override capability)
 - Engine initialization accepts optional `actions_root` parameter
 - CLI validates and resolves action directory paths before passing to engine
+
+### Fixed
+- **CRITICAL BUG**: Custom actions now supplement built-ins instead of replacing them
+  - Previous behavior: `--actions-dir` made built-in actions (bash, log, send_event) unavailable
+  - Fixed behavior: Both custom and built-in actions available simultaneously
+  - Workflows can now use custom actions alongside bash, log, send_event, etc.
 
 ### Developer Experience
 - No package installation required for custom actions (eliminates setup.py/pyproject.toml overhead)
 - Fast iteration: edit action → test immediately (no reinstall cycle)
 - Actions can live alongside YAML configs in project directory structure
 - Simplified project setup for domain-specific state machine implementations
+- Full access to built-in actions even when using custom actions
 
 ### Documentation
 - Updated README with `--actions-dir` usage examples and benefits
+- Documented action precedence rules (custom overrides built-in)
 - Added examples for relative/absolute/~ path specifications
-- Documented action discovery behavior with and without custom directory
+- Documented discovery behavior: BOTH custom and built-in actions available
 - Feature request analysis and implementation notes in docs/
 
 ### Testing
-- All 86 existing tests passing (no regressions)
-- 17 new tests for custom actions feature
-- Tests cover: discovery, loading, execution, caching, path resolution, error handling
+- All 90 tests passing (no regressions)
+- 21 tests for custom actions feature (4 tests added for bug fix verification)
+- Tests cover: discovery, loading, execution, caching, path resolution, precedence, error handling
+- Tests document expected behavior: custom actions supplement (not replace) built-ins
 
 ## [0.0.15] - 2025-10-09
 

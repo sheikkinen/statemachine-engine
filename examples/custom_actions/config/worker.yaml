@@ -1,0 +1,62 @@
+metadata:
+  name: "Custom Actions Worker"
+  machine_name: custom_worker
+
+initial_state: waiting
+
+transitions:
+  # Greeting flow
+  - from: waiting
+    to: greeting
+    event: greet
+  
+  - from: greeting
+    to: waiting
+    event: greeted
+  
+  # Calculation flow
+  - from: waiting
+    to: calculating
+    event: calculate
+  
+  - from: calculating
+    to: waiting
+    event: calculated
+  
+  # Shutdown
+  - from: "*"
+    to: completed
+    event: stop
+
+actions:
+  greeting:
+    - type: log
+      params:
+        message: "Processing greeting..."
+        level: info
+    
+    - type: greet
+      params:
+        success: greeted
+  
+  calculating:
+    - type: log
+      params:
+        message: "Processing calculation..."
+        level: info
+    
+    - type: calculate
+      params:
+        operation: add  # Can be overridden by payload
+        success: calculated
+    
+    - type: log
+      params:
+        message: "Calculation result: {calculation_result}"
+        level: info
+  
+  completed:
+    - type: log
+      params:
+        message: "Worker shutting down"
+        level: info

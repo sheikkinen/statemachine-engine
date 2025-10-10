@@ -298,7 +298,16 @@ class MyCustomAction(BaseAction):
         return self.config.get('params', {}).get('success', 'success')
 ```
 
-**2. Place in project directory** alongside your YAML configs or in a Python package.
+**2. Place in your project's actions directory**:
+
+```bash
+my_project/
+├── actions/
+│   ├── my_custom_action.py
+│   └── another_action.py
+└── config/
+    └── worker.yaml
+```
 
 **3. Use in YAML configuration**:
 
@@ -310,6 +319,25 @@ actions:
       success: job_done
 ```
 
+**4. Run with custom actions directory**:
+
+```bash
+# Use --actions-dir to specify your custom actions directory
+statemachine config/worker.yaml \
+  --machine-name my_worker \
+  --actions-dir ./actions
+
+# Supports absolute and relative paths
+statemachine config/worker.yaml \
+  --machine-name my_worker \
+  --actions-dir /path/to/my_project/actions
+
+# Supports ~ (home directory) expansion
+statemachine config/worker.yaml \
+  --machine-name my_worker \
+  --actions-dir ~/projects/my_worker/actions
+```
+
 ### Action Discovery
 
 The `ActionLoader` automatically discovers actions following these conventions:
@@ -319,7 +347,15 @@ The `ActionLoader` automatically discovers actions following these conventions:
 - **Example**: `my_custom_action.py` → `MyCustomAction` class
 - **YAML reference**: `type: my_custom`
 
-Actions are discovered from the installed package's `actions/` directory and subdirectories. For development, place custom actions in your local module structure and ensure they're importable.
+**Discovery Locations:**
+- **With `--actions-dir`**: Discovers actions from the specified custom directory
+- **Without `--actions-dir`**: Discovers actions from the installed package's `actions/` directory
+
+**Benefits of `--actions-dir`:**
+- ✅ No package installation required for custom actions
+- ✅ Fast iteration: edit action → test immediately
+- ✅ Simple project structure without setup.py/pyproject.toml
+- ✅ Keep actions alongside your YAML configs where they belong
 
 ## Multi-Machine Setup
 

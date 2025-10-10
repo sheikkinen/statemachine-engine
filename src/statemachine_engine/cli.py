@@ -12,7 +12,7 @@ from pathlib import Path
 from statemachine_engine.core.engine import StateMachineEngine
 from statemachine_engine.database.models import get_job_model
 
-async def run_state_machine(config_path: str, debug: bool = False, machine_name: str = None):
+async def run_state_machine(config_path: str, debug: bool = False, machine_name: str = None, actions_dir: str = None):
     """Run the state machine with given configuration"""
     # Set up logging
     level = logging.DEBUG if debug else logging.INFO
@@ -24,8 +24,20 @@ async def run_state_machine(config_path: str, debug: bool = False, machine_name:
     logger = logging.getLogger(__name__)
     logger.info(f"Starting state machine with config: {config_path}")
     
+    # Validate and resolve actions directory if provided
+    if actions_dir:
+        actions_path = Path(actions_dir).expanduser().resolve()
+        if not actions_path.exists():
+            logger.error(f"Actions directory not found: {actions_path}")
+            sys.exit(1)
+        if not actions_path.is_dir():
+            logger.error(f"Actions path is not a directory: {actions_path}")
+            sys.exit(1)
+        logger.info(f"Using custom actions directory: {actions_path}")
+        actions_dir = str(actions_path)
+    
     # Create and configure state machine
-    engine = StateMachineEngine(machine_name=machine_name)
+    engine = StateMachineEngine(machine_name=machine_name, actions_root=actions_dir)
     
     try:
         await engine.load_config(config_path)
@@ -50,10 +62,11 @@ async def async_main():
     parser.add_argument('config', help='Path to YAML configuration file')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--machine-name', help='Override machine name (default: read from config)')
+    parser.add_argument('--actions-dir', help='Custom actions directory (absolute or relative path)')
 
     args = parser.parse_args()
 
-    return await run_state_machine(args.config, args.debug, args.machine_name)
+    return await run_state_machine(args.config, args.debug, args.machine_name, args.actions_dir)
 
 def main():
     """Synchronous entry point for setuptools"""

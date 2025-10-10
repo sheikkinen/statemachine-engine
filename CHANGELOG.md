@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.16] - 2025-10-10
+
+### Added
+- **Custom Actions Directory**: New `--actions-dir` CLI parameter allows specifying custom actions directory without package installation
+- Support for absolute, relative, and ~ (home directory) paths in `--actions-dir`
+- Automatic sys.path manipulation for custom action imports
+- Dynamic action loading from custom directories using importlib.util
+- Path validation and clear error messages for non-existent or invalid directories
+- Comprehensive test suite: 17 tests covering discovery, loading, execution, edge cases
+- Support for nested custom action directories
+
+### Changed
+- `ActionLoader` now supports both package-based (default) and file-based (custom) action discovery
+- Engine initialization accepts optional `actions_root` parameter
+- CLI validates and resolves action directory paths before passing to engine
+
+### Developer Experience
+- No package installation required for custom actions (eliminates setup.py/pyproject.toml overhead)
+- Fast iteration: edit action → test immediately (no reinstall cycle)
+- Actions can live alongside YAML configs in project directory structure
+- Simplified project setup for domain-specific state machine implementations
+
+### Documentation
+- Updated README with `--actions-dir` usage examples and benefits
+- Added examples for relative/absolute/~ path specifications
+- Documented action discovery behavior with and without custom directory
+- Feature request analysis and implementation notes in docs/
+
+### Testing
+- All 86 existing tests passing (no regressions)
+- 17 new tests for custom actions feature
+- Tests cover: discovery, loading, execution, caching, path resolution, error handling
+
 ## [0.0.15] - 2025-10-09
 
 ### Added

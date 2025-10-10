@@ -82,12 +82,13 @@ class StateMachineEngine:
     
     """
     
-    def __init__(self, machine_name: str = None):
+    def __init__(self, machine_name: str = None, actions_root: str = None):
         self.config = None
         self.current_state = None
         self.context = {}
         self.actions = {}
         self.machine_name = machine_name
+        self.actions_root = actions_root  # Custom actions directory
         self.event_socket = EventSocketManager()  # NEW: Unix socket for real-time events
         self.control_socket: Optional[socket.socket] = None  # Control socket for receiving events
         self.is_running = True
@@ -527,7 +528,7 @@ class StateMachineEngine:
         """Execute pluggable action from actions module using ActionLoader"""
         try:
             # Import ActionLoader
-            from .action_loader import load_action_class
+            from .action_loader import ActionLoader
             
             # Add queue to context for actions to use
             if hasattr(self, '_queue'):
@@ -536,8 +537,9 @@ class StateMachineEngine:
             # Add global config to context so actions can access configuration parameters
             self.context['config'] = self.config
             
-            # Load action class dynamically using ActionLoader
-            action_class = load_action_class(action_type)
+            # Load action class dynamically using ActionLoader with custom actions_root if provided
+            loader = ActionLoader(actions_root=self.actions_root)
+            action_class = loader.load_action_class(action_type)
             
             if action_class is None:
                 error_msg = f"Could not load action '{action_type}' - not found in actions directory"

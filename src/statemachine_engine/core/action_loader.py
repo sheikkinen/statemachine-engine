@@ -13,6 +13,7 @@ KEY FEATURES:
 - Class name caching for performance
 - Graceful ImportError handling with fallback
 - Support for flat and nested action module structure
+- Custom actions directories via --actions-dir CLI parameter
 
 KEY FILES:
 - src/actions/base.py - BaseAction interface definition
@@ -27,6 +28,8 @@ KEY FUNCTIONS:
 
 import logging
 import importlib
+import importlib.util
+import sys
 from pathlib import Path
 from typing import Dict, Type, Optional
 
@@ -48,13 +51,15 @@ class ActionLoader:
         Args:
             actions_root: Root directory for actions (default: auto-detect from this file)
         """
+        self.is_custom_root = actions_root is not None
+        
         if actions_root is None:
             # Auto-detect: src/actions relative to this file
             this_file = Path(__file__)
             actions_root = str(this_file.parent.parent / 'actions')
         
-        self.actions_root = Path(actions_root)
-        self._action_map: Dict[str, str] = {}  # action_type -> module_path
+        self.actions_root = Path(actions_root).resolve()
+        self._action_map: Dict[str, str] = {}  # action_type -> module_path or file_path
         self._class_cache: Dict[str, Type] = {}  # action_type -> loaded class
         
         # Action type aliases (for backward compatibility)
@@ -62,13 +67,18 @@ class ActionLoader:
             'activity_log': 'log',  # activity_log maps to log_action.py
         }
         
+        # Add custom actions directory to sys.path if it's not in a package
+        if self.is_custom_root and str(self.actions_root.parent) not in sys.path:
+            sys.path.insert(0, str(self.actions_root.parent))
+            logger.debug(f"Added to sys.path: {self.actions_root.parent}")
+        
         self._discover_action_modules()
     
     def _discover_action_modules(self) -> None:
         """
         Discover all action modules in the actions directory tree.
         
-        Searches for *_action.py files and maps action_type to module path.
+        Searches for *_action.py files and maps action_type to module path or file path.
         """
         if not self.actions_root.exists():
             logger.warning(f"Actions root not found: {self.actions_root}")
@@ -80,17 +90,20 @@ class ActionLoader:
             if '__pycache__' in str(action_file):
                 continue
             
-            # Get relative path from actions root
-            rel_path = action_file.relative_to(self.actions_root.parent)
-
-            # Convert path to module notation: actions/builtin/bash_action.py
-            # -> statemachine_engine.actions.builtin.bash_action
-            module_path = 'statemachine_engine.' + str(rel_path.with_suffix('')).replace('/', '.')
-            
             # Extract action type from filename: generate_concepts_action.py -> generate_concepts
             action_type = action_file.stem.replace('_action', '')
             
-            self._action_map[action_type] = module_path
+            if self.is_custom_root:
+                # For custom directories, store absolute file path for direct import
+                self._action_map[action_type] = str(action_file)
+            else:
+                # For package actions, use module path
+                rel_path = action_file.relative_to(self.actions_root.parent)
+                # Convert path to module notation: actions/builtin/bash_action.py
+                # -> statemachine_engine.actions.builtin.bash_action
+                module_path = 'statemachine_engine.' + str(rel_path.with_suffix('')).replace('/', '.')
+                self._action_map[action_type] = module_path
+            
             # Removed per-action logging - too verbose
         
         # Single INFO log summarizing discovery
@@ -117,7 +130,7 @@ class ActionLoader:
         """
         Load action class by action type.
         
-        First checks cache, then tries to import from discovered modules.
+        First checks cache, then tries to import from discovered modules or files.
         If action not found in discovery, attempts generic fallback loading.
         
         Args:
@@ -138,12 +151,25 @@ class ActionLoader:
             logger.warning(f"Action type '{action_type}' not discovered. Available: {list(self._action_map.keys())}")
             return None
         
-        module_path = self._action_map[resolved_action_type]
+        path_or_module = self._action_map[resolved_action_type]
         class_name = self._build_class_name(resolved_action_type)
         
         try:
-            # Import the module
-            module = importlib.import_module(module_path)
+            if self.is_custom_root:
+                # Load from file path using importlib.util
+                spec = importlib.util.spec_from_file_location(
+                    f"custom_action_{resolved_action_type}",
+                    path_or_module
+                )
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Failed to create module spec for {path_or_module}")
+                
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[spec.name] = module
+                spec.loader.exec_module(module)
+            else:
+                # Load from module path (package actions)
+                module = importlib.import_module(path_or_module)
             
             # Get the action class
             action_class = getattr(module, class_name)
@@ -159,8 +185,8 @@ class ActionLoader:
             
             return action_class
             
-        except (ImportError, AttributeError) as e:
-            logger.error(f"Failed to load action '{action_type}' from {module_path}.{class_name}: {e}")
+        except (ImportError, AttributeError, SyntaxError) as e:
+            logger.error(f"Failed to load action '{action_type}' from {path_or_module}.{class_name}: {e}")
             return None
     
     def get_available_actions(self) -> list:

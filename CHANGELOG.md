@@ -5,7 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.0.16] - 2025-10-10
+## [0.0.17] - 2025-10-10
+
+### Fixed
+- **CRITICAL BUG FIX**: Custom actions now properly supplement built-in actions
+  - v0.0.16 initial release had critical bug where `--actions-dir` broke built-in actions
+  - Built-in actions (bash, log, send_event) were unavailable when using custom actions
+  - Fixed in same day - both custom and built-in actions now work together
+  - **Skip v0.0.16 and use v0.0.17 instead**
+
+### Note
+- This is a patch release fixing critical bug discovered in v0.0.16
+- All v0.0.16 features work correctly in v0.0.17
+- No API changes, only bug fix
+
+## [0.0.16] - 2025-10-10 [YANKED - Critical Bug]
+
+**⚠️ DO NOT USE - Contains critical bug. Use v0.0.17 instead.**
+
+Critical bug: Using `--actions-dir` made built-in actions unavailable. Fixed in v0.0.17.
 
 ### Added
 - **Custom Actions Directory**: New `--actions-dir` CLI parameter allows specifying custom actions directory without package installation

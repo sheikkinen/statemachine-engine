@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.20] - 2025-10-11
+
+### Added
+- **Real-time Event Delivery**: CLI `send-event` now delivers events instantly to Web UI
+  - Extends `send-event` to write to `/tmp/statemachine-events.sock` (WebSocket server)
+  - Activity logs sent via CLI appear immediately in Web UI (no refresh needed)
+  - Sends to both database AND Unix socket for dual-path reliability
+  - New `--source` parameter for custom attribution in UI (defaults to "cli")
+  - Graceful fallback to database-only if WebSocket server unavailable
+
+- **Enhanced send-event Command**: Improved event routing
+  - UI target (`--target ui`) sends to WebSocket socket only
+  - Non-UI targets send to both WebSocket socket AND machine control socket
+  - Better status reporting showing which sockets were used
+  - JSON payload parsing with error handling
+
+- **Comprehensive Test Suite**: 8 new tests for real-time socket functionality
+  - Tests for WebSocket socket delivery
+  - Tests for dual-socket routing (WebSocket + control)
+  - Tests for graceful error handling
+  - Tests for JSON payload parsing
+  - Total test count increased from 92 to 143 tests (136 passing, 7 skipped)
+
+### Changed
+- **send-event Behavior**: Now sends to multiple destinations for reliability
+  - Database write (persistent storage)
+  - WebSocket server socket (real-time UI updates)
+  - Machine control socket (direct machine communication, if applicable)
+  - All sends are non-blocking with error recovery
+
+### Fixed
+- Activity log messages from CLI now appear in Web UI without page refresh
+- Resolved gap where CLI events required polling/refresh to appear
+
 ## [0.0.19] - 2025-10-11
 
 ### Added

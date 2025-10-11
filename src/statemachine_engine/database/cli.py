@@ -689,23 +689,50 @@ def cmd_send_event(args):
             payload=args.payload
         )
         
-        # Send actual event via Unix socket (fast path) - not just wake_up!
-        socket_path = f'/tmp/statemachine-control-{args.target}.sock'
-        
-        if Path(socket_path).exists():
+        # Parse payload if it's a JSON string
+        parsed_payload = {}
+        if args.payload:
             try:
-                # Send the actual event with payload
-                event_msg = json.dumps({
-                    'type': args.type,
-                    'payload': args.payload or {},
-                    'job_id': args.job_id
+                parsed_payload = json.loads(args.payload) if isinstance(args.payload, str) else args.payload
+            except json.JSONDecodeError:
+                parsed_payload = {}
+        
+        # Send to WebSocket server's Unix socket for real-time UI updates
+        websocket_socket_path = '/tmp/statemachine-events.sock'
+        if Path(websocket_socket_path).exists():
+            try:
+                # Format event for WebSocket server (matches engine.py format)
+                ws_event_msg = json.dumps({
+                    'machine_name': args.source or 'cli',
+                    'event_type': args.type,
+                    'payload': parsed_payload
                 })
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-                sock.sendto(event_msg.encode('utf-8'), socket_path)
+                sock.sendto(ws_event_msg.encode('utf-8'), websocket_socket_path)
                 sock.close()
+                print(f"📡 Sent to WebSocket server for real-time UI update")
             except Exception as e:
-                # Socket error - machine will fall back to polling
-                pass
+                print(f"⚠️  WebSocket socket unavailable: {e}")
+        
+        # Send to target state machine via control socket (if not UI)
+        if args.target != 'ui':
+            socket_path = f'/tmp/statemachine-control-{args.target}.sock'
+            
+            if Path(socket_path).exists():
+                try:
+                    # Send the actual event with payload
+                    event_msg = json.dumps({
+                        'type': args.type,
+                        'payload': parsed_payload,
+                        'job_id': args.job_id
+                    })
+                    sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+                    sock.sendto(event_msg.encode('utf-8'), socket_path)
+                    sock.close()
+                    print(f"📡 Sent to {args.target} control socket")
+                except Exception as e:
+                    # Socket error - machine will fall back to polling
+                    print(f"⚠️  Control socket unavailable: {e}")
         
         print(f"✅ Event sent successfully!")
         print(f"   Event ID: {event_id}")
@@ -1419,9 +1446,11 @@ def main():
     # Send event command
     send_event_parser = subparsers.add_parser('send-event', help='Send an event to a target state machine')
     send_event_parser.add_argument('--target', required=True, 
-                                  help='Target machine name (sdxl_generator, face_processor, or all)')
+                                  help='Target machine name (sdxl_generator, face_processor, ui, or all)')
     send_event_parser.add_argument('--type', required=True,
-                                  help='Event type (stop, sdxl_job_done, face_job_done, etc.)')
+                                  help='Event type (stop, sdxl_job_done, face_job_done, activity_log, etc.)')
+    send_event_parser.add_argument('--source',
+                                  help='Source machine name for UI display (defaults to "cli")')
     send_event_parser.add_argument('--job-id', dest='job_id',
                                   help='Related job ID (optional)')
     send_event_parser.add_argument('--payload',

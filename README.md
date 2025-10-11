@@ -264,12 +264,70 @@ pip install statemachine-engine[dev]
 
 ## Built-In Actions
 
-- **bash**: Execute shell commands
-- **log**: Activity logging
+### log - Activity Logging
+
+Log messages that appear in the Web UI's activity log panel.
+
+**YAML Configuration:**
+```yaml
+actions:
+  processing:
+    - type: log
+      message: "🔄 Processing job {id}"
+      level: info        # Optional: info (default), error, success
+      success: continue  # Optional: event to emit on success
+```
+
+**Features:**
+- **Variable substitution**: `{id}`, `{job_id}`, `{current_state}`, `{machine_name}`
+- **Event payload access**: `{event_data.payload.field_name}`
+- **Log levels**: `info` (blue), `error` (red), `success` (green)
+- **Real-time display**: Messages appear instantly in Web UI
+
+**Examples:**
+```yaml
+# Simple info message
+- type: log
+  message: "Worker ready - waiting for jobs"
+
+# With context variables
+- type: log
+  message: "Processing job {id} in state {current_state}"
+  level: info
+
+# Error logging
+- type: log
+  message: "❌ Job {id} failed: {error_message}"
+  level: error
+
+# Success notification
+- type: log
+  message: "✅ Completed {id} - generated {output_count} results"
+  level: success
+```
+
+### bash - Execute Shell Commands
+
+Execute shell commands with timeout and error handling.
+
+**YAML Configuration:**
+```yaml
+- type: bash
+  description: "Process the job"
+  command: "python process.py --input {input_file}"
+  timeout: 30
+  success: job_done
+  error: job_failed
+```
+
+### Other Built-In Actions
+
 - **check_database_queue**: Check job queue for pending jobs
 - **check_machine_state**: Monitor machine states
 - **clear_events**: Clean up processed events
 - **send_event**: Send events to other machines
+
+See `examples/` directory for complete working examples.
 
 ## Custom Actions
 
@@ -766,6 +824,19 @@ statemachine-events   # Monitor real-time events from Unix socket
 statemachine-db send-event --target <machine> --type <event>
 statemachine-db list-events --target <machine> --limit 10
 
+# Send events with real-time UI updates (NEW)
+# Sends to both database AND Unix socket for instant UI display
+statemachine-db send-event --target ui --type activity_log \
+  --payload '{"message": "Task completed", "level": "SUCCESS"}'
+
+# Custom source attribution for UI display
+statemachine-db send-event --target ui --type activity_log \
+  --source my_tool --payload '{"message": "Processing...", "level": "INFO"}'
+
+# Send to state machines (goes to database + machine control socket + WebSocket UI)
+statemachine-db send-event --target worker1 --type custom_event \
+  --job-id job123 --payload '{"data": "value"}'
+
 # Jobs  
 statemachine-db create-job --type <type> --data <json>
 statemachine-db list-jobs --status pending
@@ -786,6 +857,12 @@ statemachine-db error-history --machine worker1       # Filter by machine
 statemachine-db error-history --hours 1               # Last hour
 statemachine-db error-history --format json           # JSON output
 ```
+
+**Real-time Event Delivery (NEW in v0.0.20):**
+- `send-event` now delivers events to the Web UI instantly via Unix socket
+- Activity logs sent via CLI appear immediately in the UI (no refresh needed)
+- Requires WebSocket server (`statemachine-ui`) to be running
+- Falls back gracefully to database-only if server unavailable
 
 ### Running Unit Tests
 
@@ -815,12 +892,13 @@ pytest tests/ --tb=short
 pytest tests/ --cov=statemachine_engine --cov-report=html
 ```
 
-**Current Test Status:** 92 tests total (86 passing, 0 failing, 6 skipped) - 100% pass rate ✅
+**Current Test Status:** 143 tests total (136 passing, 0 failing, 7 skipped) - 100% pass rate ✅
 
 **New in v0.0.18+:**
 - Comprehensive exception handling tests for realtime events
 - CLI history command tests (transition-history, error-history)
 - Engine error emission tests
+- Real-time socket delivery tests for send-event CLI (v0.0.20)
 
 ### Building the Package
 

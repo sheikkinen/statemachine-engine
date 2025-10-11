@@ -985,6 +985,141 @@ def cmd_machine_state(args):
                      for m in machines]
         print(tabulate(table_data, headers=headers, tablefmt='grid'))
 
+def cmd_transition_history(args):
+    """Show state transition history from realtime_events"""
+    realtime_model = get_realtime_event_model()
+    
+    try:
+        with realtime_model.db._get_connection() as conn:
+            # Build query based on filters
+            query = """
+                SELECT 
+                    id,
+                    machine_name,
+                    payload,
+                    datetime(created_at, 'unixepoch', 'localtime') as timestamp
+                FROM realtime_events
+                WHERE event_type = 'state_change'
+            """
+            params = []
+            
+            # Add machine name filter if provided
+            if args.machine:
+                query += " AND machine_name = ?"
+                params.append(args.machine)
+            
+            # Add time range filter if provided
+            if args.hours:
+                query += " AND created_at > strftime('%s', datetime('now', '-' || ? || ' hours'))"
+                params.append(args.hours)
+            
+            query += " ORDER BY created_at DESC LIMIT ?"
+            params.append(args.limit)
+            
+            rows = conn.execute(query, params).fetchall()
+        
+        if not rows:
+            print("No state transitions found")
+            return
+        
+        # Parse and format results
+        transitions = []
+        for row in rows:
+            try:
+                payload = json.loads(row['payload'])
+                transitions.append({
+                    'id': row['id'],
+                    'machine': row['machine_name'],
+                    'from_state': payload.get('from_state', 'unknown'),
+                    'to_state': payload.get('to_state', 'unknown'),
+                    'event': payload.get('event_trigger', 'unknown'),
+                    'timestamp': row['timestamp']
+                })
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.warning(f"Failed to parse transition {row['id']}: {e}")
+                continue
+        
+        if args.format == 'json':
+            print(json.dumps(transitions, indent=2))
+        else:
+            headers = ['ID', 'Machine', 'From State', 'To State', 'Event', 'Timestamp']
+            table_data = [
+                [t['id'], t['machine'], t['from_state'], t['to_state'], t['event'], t['timestamp']]
+                for t in transitions
+            ]
+            print(tabulate(table_data, headers=headers, tablefmt='grid'))
+    
+    except Exception as e:
+        print(f"Error querying transition history: {e}")
+        sys.exit(1)
+
+def cmd_error_history(args):
+    """Show error/exception history from realtime_events"""
+    realtime_model = get_realtime_event_model()
+    
+    try:
+        with realtime_model.db._get_connection() as conn:
+            # Build query for error events
+            query = """
+                SELECT 
+                    id,
+                    machine_name,
+                    payload,
+                    datetime(created_at, 'unixepoch', 'localtime') as timestamp
+                FROM realtime_events
+                WHERE event_type = 'error'
+            """
+            params = []
+            
+            # Add machine name filter if provided
+            if args.machine:
+                query += " AND machine_name = ?"
+                params.append(args.machine)
+            
+            # Add time range filter if provided
+            if args.hours:
+                query += " AND created_at > strftime('%s', datetime('now', '-' || ? || ' hours'))"
+                params.append(args.hours)
+            
+            query += " ORDER BY created_at DESC LIMIT ?"
+            params.append(args.limit)
+            
+            rows = conn.execute(query, params).fetchall()
+        
+        if not rows:
+            print("No errors found")
+            return
+        
+        # Parse and format results
+        errors = []
+        for row in rows:
+            try:
+                payload = json.loads(row['payload'])
+                errors.append({
+                    'id': row['id'],
+                    'machine': row['machine_name'],
+                    'error_message': payload.get('error_message', 'unknown'),
+                    'job_id': payload.get('job_id', 'N/A'),
+                    'timestamp': row['timestamp']
+                })
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.warning(f"Failed to parse error {row['id']}: {e}")
+                continue
+        
+        if args.format == 'json':
+            print(json.dumps(errors, indent=2))
+        else:
+            headers = ['ID', 'Machine', 'Error Message', 'Job ID', 'Timestamp']
+            table_data = [
+                [e['id'], e['machine'], e['error_message'][:60], e['job_id'], e['timestamp']]
+                for e in errors
+            ]
+            print(tabulate(table_data, headers=headers, tablefmt='grid'))
+    
+    except Exception as e:
+        print(f"Error querying error history: {e}")
+        sys.exit(1)
+
 def cmd_controller_log(args):
     """Show controller event processing log"""
     controller_log = get_controller_log_model()
@@ -1317,6 +1452,24 @@ def main():
     machine_state_parser.add_argument('--format', choices=['table', 'json'], default='table',
                                      help='Output format (default: table)')
     
+    # Transition history command
+    transition_history_parser = subparsers.add_parser('transition-history', help='Show state transition history')
+    transition_history_parser.add_argument('--machine', help='Filter by machine name')
+    transition_history_parser.add_argument('--hours', type=int, help='Show transitions from last N hours')
+    transition_history_parser.add_argument('--limit', type=int, default=20,
+                                          help='Limit number of results (default: 20)')
+    transition_history_parser.add_argument('--format', choices=['table', 'json'], default='table',
+                                          help='Output format (default: table)')
+    
+    # Error history command
+    error_history_parser = subparsers.add_parser('error-history', help='Show error/exception history')
+    error_history_parser.add_argument('--machine', help='Filter by machine name')
+    error_history_parser.add_argument('--hours', type=int, help='Show errors from last N hours')
+    error_history_parser.add_argument('--limit', type=int, default=20,
+                                     help='Limit number of results (default: 20)')
+    error_history_parser.add_argument('--format', choices=['table', 'json'], default='table',
+                                     help='Output format (default: table)')
+    
     # Controller log command
     controller_log_parser = subparsers.add_parser('controller-log', help='Show controller event processing log')
     controller_log_parser.add_argument('--limit', type=int, default=20,
@@ -1380,6 +1533,10 @@ def main():
             return cmd_machine_health(args)
         elif args.command == 'machine-state':
             return cmd_machine_state(args)
+        elif args.command == 'transition-history':
+            return cmd_transition_history(args)
+        elif args.command == 'error-history':
+            return cmd_error_history(args)
         elif args.command == 'controller-log':
             return cmd_controller_log(args)
         elif args.command == 'list-errors':

@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.19] - 2025-10-11
+
+### Added
+- **New CLI Commands**: State transition and error history tracking
+  - `transition-history` - Query state transitions from realtime_events table
+  - `error-history` - Query error/exception history from realtime_events table
+  - Both support filtering by machine name, time range, and output format (table/JSON)
+
+- **Enhanced Exception Handling**: Comprehensive error handling in realtime_event model
+  - `log_event()` returns Optional[int], catches JSON serialization and database errors
+  - `get_unconsumed_events()` returns empty list on failure, handles per-row JSON errors
+  - `mark_events_consumed()` returns bool for success/failure indication
+  - `cleanup_old_events()` returns count of deleted events (-1 on error)
+
+- **Error Emission**: Engine now logs all exceptions to realtime_events table
+  - Action not found errors automatically logged
+  - Action execution exceptions logged with job context
+  - Action loading exceptions logged
+  - All errors emit to `realtime_events` for auditing and monitoring
+
+- **Comprehensive Test Suite**: 38 new tests added (100% pass rate)
+  - 17 tests for realtime_event model exception handling
+  - 11 tests for CLI history commands
+  - 11 tests for engine error emission
+  - Total test count increased from 54 to 92 tests
+
+### Changed
+- **Database Logging**: All engine errors now persisted to realtime_events table
+  - Enables post-mortem debugging and error analysis
+  - Provides audit trail for system failures
+  - Integrated with existing monitoring infrastructure
+
+### Fixed
+- Improved error resilience in database operations
+- Graceful degradation when database logging fails
+
 ## [0.0.18] - 2025-10-11
 
 ### Changed

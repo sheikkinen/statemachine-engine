@@ -772,6 +772,19 @@ statemachine-db list-jobs --status pending
 
 # State
 statemachine-db machine-state
+
+# State Transition History
+statemachine-db transition-history                    # Show all state transitions
+statemachine-db transition-history --machine worker1  # Filter by machine
+statemachine-db transition-history --hours 24         # Last 24 hours
+statemachine-db transition-history --limit 50         # Limit results
+statemachine-db transition-history --format json      # JSON output
+
+# Error/Exception History
+statemachine-db error-history                         # Show all errors
+statemachine-db error-history --machine worker1       # Filter by machine
+statemachine-db error-history --hours 1               # Last hour
+statemachine-db error-history --format json           # JSON output
 ```
 
 ### Running Unit Tests
@@ -802,7 +815,12 @@ pytest tests/ --tb=short
 pytest tests/ --cov=statemachine_engine --cov-report=html
 ```
 
-**Current Test Status:** 54 tests total (48 passing, 0 failing, 6 skipped) - 100% pass rate ✅
+**Current Test Status:** 92 tests total (86 passing, 0 failing, 6 skipped) - 100% pass rate ✅
+
+**New in v0.0.18+:**
+- Comprehensive exception handling tests for realtime events
+- CLI history command tests (transition-history, error-history)
+- Engine error emission tests
 
 ### Building the Package
 

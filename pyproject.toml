@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "statemachine-engine"
-version = "0.0.18"
+version = "0.0.19"
 description = "A generic state machine engine for event-driven workflows"
 readme = "README.md"
 requires-python = ">=3.9"

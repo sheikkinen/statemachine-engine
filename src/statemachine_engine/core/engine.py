@@ -546,6 +546,7 @@ class StateMachineEngine:
                 logger.error(f"[{self.machine_name}] {error_msg}")
                 self.context['last_error'] = error_msg
                 self.context['last_error_action'] = action_type
+                self.emit_error(error_msg)  # Log to realtime_events
                 await self.process_event('error')
                 return
             
@@ -563,6 +564,7 @@ class StateMachineEngine:
                 logger.error(f"[{self.machine_name}] {error_msg}")
                 self.context['last_error'] = error_msg
                 self.context['last_error_action'] = action_type
+                self.emit_error(error_msg, job_id=self.context.get('current_job', {}).get('job_id'))  # Log to realtime_events
                 await self.process_event('error')
 
         except Exception as e:
@@ -570,6 +572,7 @@ class StateMachineEngine:
             logger.error(f"[{self.machine_name}] {error_msg}")
             self.context['last_error'] = error_msg
             self.context['last_error_action'] = action_type
+            self.emit_error(error_msg, job_id=self.context.get('current_job', {}).get('job_id'))  # Log to realtime_events
             await self.process_event('error')
     
     def _cleanup_sockets(self) -> None:

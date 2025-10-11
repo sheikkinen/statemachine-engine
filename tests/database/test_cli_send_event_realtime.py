@@ -49,36 +49,32 @@ class TestSendEventRealtimeSocket:
     def test_send_to_websocket_socket(self, mock_event_model, temp_socket, capsys):
         """Test that send-event sends to WebSocket server's Unix socket"""
         listener, socket_path = temp_socket
-        
-        # Patch the socket path
-        with patch('statemachine_engine.database.cli.Path') as mock_path:
-            mock_path.return_value.exists.return_value = True
-            mock_path.return_value = socket_path
-            
-            # Create args
-            args = MagicMock()
-            args.target = 'ui'
-            args.type = 'activity_log'
-            args.source = 'test_machine'
-            args.job_id = None
-            args.payload = '{"message": "test message"}'
-            
-            # Patch the websocket socket path to our temp socket
-            original_path = '/tmp/statemachine-events.sock'
-            with patch.object(Path, '__new__') as mock_path_new:
-                def path_side_effect(cls, path):
-                    if path == original_path:
-                        return socket_path
-                    return Path.__new__(cls, path)
-                
-                mock_path_new.side_effect = path_side_effect
-                
+
+        # Create args
+        args = MagicMock()
+        args.target = 'ui'
+        args.type = 'activity_log'
+        args.source = 'test_machine'
+        args.job_id = None
+        args.payload = '{"message": "test message"}'
+
+        # Mock the socket operations to succeed
+        with patch('socket.socket') as mock_socket:
+            sock_instance = MagicMock()
+            mock_socket.return_value = sock_instance
+
+            # Mock WebSocket socket path exists
+            with patch('statemachine_engine.database.cli.Path') as mock_path:
+                mock_path_instance = MagicMock()
+                mock_path_instance.exists.return_value = True
+                mock_path.return_value = mock_path_instance
+
                 # Call the command
                 result = cmd_send_event(args)
-                
+
                 # Should succeed
                 assert result == 0
-                
+
                 # Check output
                 captured = capsys.readouterr()
                 assert '📡 Sent to WebSocket server for real-time UI update' in captured.out

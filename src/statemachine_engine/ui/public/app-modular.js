@@ -12,12 +12,11 @@ class StateMachineMonitor {
     constructor() {
         this.initializeUI();
         this.initializeModules();
-        this.initializeDiagramTabs();
         
         // Start connections
         this.wsManager.connect();
         
-        // Fetch initial machine states from API
+        // Fetch initial machine states from API (this will also create tabs)
         this.fetchInitialMachineStates();
         
         // Load diagram for first available machine after machines are loaded
@@ -59,9 +58,52 @@ class StateMachineMonitor {
             // Update machine manager with initial data
             this.machineManager.updateMachines(machines);
             
+            // Create tabs dynamically for all machines
+            this.createDiagramTabs(machines);
+            
         } catch (error) {
             this.logger.log('error', `Failed to fetch initial machine states: ${error.message}`);
         }
+    }
+
+    createDiagramTabs(machines) {
+        const tabsContainer = document.getElementById('diagram-tabs');
+        if (!tabsContainer) {
+            console.error('diagram-tabs container not found');
+            return;
+        }
+
+        tabsContainer.innerHTML = '';
+
+        if (machines.length === 0) {
+            tabsContainer.innerHTML = '<div class="no-machines">No machines running. Start a machine to see diagrams.</div>';
+            return;
+        }
+
+        machines.forEach((machine, index) => {
+            const button = document.createElement('button');
+            button.className = 'tab-button';
+            if (index === 0) {
+                button.classList.add('active');
+            }
+            button.setAttribute('data-machine', machine.machine_name);
+            button.textContent = machine.machine_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+            button.addEventListener('click', () => {
+                // Update active state
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                // Load diagram for selected machine
+                this.diagramManager.loadDiagram(machine.machine_name).then(() => {
+                    console.log(`[App] Switched to ${machine.machine_name} diagram`);
+                });
+            });
+
+            tabsContainer.appendChild(button);
+        });
+
+        this.logger.log('success', `Created ${machines.length} diagram tab(s)`);
     }
 
     initializeUI() {
@@ -145,25 +187,6 @@ class StateMachineMonitor {
             log: (level, message) => {
                 this.logger.log(level, message);
             }
-        });
-    }
-
-    initializeDiagramTabs() {
-        const tabButtons = document.querySelectorAll('.tab-button');
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                // Update active state
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-
-                // Load diagram for selected machine
-                const machineName = button.getAttribute('data-machine');
-                this.diagramManager.loadDiagram(machineName).then(() => {
-                    // State is now automatically restored from localStorage in loadDiagram
-                    // No need to manually call updateState here
-                    console.log(`[App] Switched to ${machineName} diagram`);
-                });
-            });
         });
     }
 

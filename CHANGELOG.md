@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.18] - 2025-10-11
+
+### Changed
+- **Web UI Improvements**: Dynamic tab creation for state machine diagrams
+  - Tabs are now created dynamically based on running machines from API
+  - No more hardcoded machine tabs in HTML
+  - Better handling of machines appearing/disappearing
+  - Improved initialization flow with proper async loading
+
+### Removed
+- Removed legacy monolithic `app.js` file
+- Fully migrated to modular architecture (`app-modular.js`)
+
 ## [0.0.17] - 2025-10-10
 
 ### Fixed

@@ -479,9 +479,84 @@ class StateMachineEngine:
             # After each action, check if current_job was added to context and propagate job data
             self._propagate_job_context()
     
+    def _substitute_variables(self, template: str, context: Dict[str, Any]) -> str:
+        """Substitute {variable} placeholders with context values.
+        
+        Supports:
+        - Simple variables: {job_id}, {id}, {status}
+        - Nested keys with dot notation: {event_data.payload.job_id}
+        - Leaves unknown placeholders unchanged
+        """
+        import re
+        
+        if not isinstance(template, str):
+            return template
+            
+        pattern = r'\{([a-zA-Z_][a-zA-Z0-9_.]*)\}'
+        
+        def replace_match(match):
+            key = match.group(1)
+            
+            # Handle nested keys (e.g., event_data.payload.job_id)
+            if '.' in key:
+                parts = key.split('.')
+                obj = context
+                for part in parts:
+                    if isinstance(obj, dict):
+                        obj = obj.get(part)
+                        if obj is None:
+                            return match.group(0)  # Keep placeholder if path not found
+                    else:
+                        return match.group(0)  # Keep placeholder if not dict
+                return str(obj) if obj is not None else match.group(0)
+            
+            # Handle simple keys
+            value = context.get(key)
+            if value is not None:
+                return str(value)
+            
+            return match.group(0)  # Keep placeholder if not found
+        
+        return re.sub(pattern, replace_match, template)
+    
+    def _interpolate_config(self, config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Recursively interpolate variables in action config.
+        
+        Processes all string values in the config dict, replacing {variable}
+        placeholders with values from context. This happens at engine level
+        before actions receive their config, ensuring consistent variable
+        substitution across all actions.
+        """
+        interpolated = {}
+        
+        for key, value in config.items():
+            if isinstance(value, str):
+                # Substitute variables in string values
+                interpolated[key] = self._substitute_variables(value, context)
+            elif isinstance(value, dict):
+                # Recursively process nested dicts
+                interpolated[key] = self._interpolate_config(value, context)
+            elif isinstance(value, list):
+                # Process each list item
+                interpolated[key] = [
+                    self._substitute_variables(item, context) if isinstance(item, str)
+                    else self._interpolate_config(item, context) if isinstance(item, dict)
+                    else item
+                    for item in value
+                ]
+            else:
+                # Pass through other types unchanged
+                interpolated[key] = value
+        
+        return interpolated
+    
     async def _execute_action(self, action_config: Dict[str, Any]) -> None:
         """Execute a single action"""
-        action_type = action_config.get('type')
+        # Interpolate variables BEFORE processing action
+        # This ensures all {variable} placeholders are resolved at engine level
+        interpolated_config = self._interpolate_config(action_config, self.context)
+        
+        action_type = interpolated_config.get('type')
         
         if not action_type:
             logger.error(f"[{self.machine_name}] Action missing 'type' field: {action_config}")
@@ -490,8 +565,8 @@ class StateMachineEngine:
         # For now, implement basic actions directly
         # Later this will delegate to action registry
         if action_type == 'log':
-            message = action_config.get('message', 'No message')
-            level = action_config.get('level', 'info')  # Default to info
+            message = interpolated_config.get('message', 'No message')
+            level = interpolated_config.get('level', 'info')  # Default to info
             # Rate limit repetitive log messages - only log first occurrence and every 10th
             if not hasattr(self, '_log_count'):
                 self._log_count = {}
@@ -506,7 +581,7 @@ class StateMachineEngine:
                 log_func(f"[{self.machine_name}] Action log: {message}{count_suffix}")
             
         elif action_type == 'sleep':
-            duration = action_config.get('duration', 1)
+            duration = interpolated_config.get('duration', 1)
             # Reduce verbosity for idle cycles - only log on first sleep, long sleeps, or every 10th occurrence
             if not hasattr(self, '_sleep_count'):
                 self._sleep_count = 0
@@ -520,8 +595,8 @@ class StateMachineEngine:
             
             
         else:
-            # Try to execute as pluggable action
-            await self._execute_pluggable_action(action_type, action_config)
+            # Try to execute as pluggable action (pass interpolated config)
+            await self._execute_pluggable_action(action_type, interpolated_config)
     
     
     async def _execute_pluggable_action(self, action_type: str, action_config: Dict[str, Any]) -> None:

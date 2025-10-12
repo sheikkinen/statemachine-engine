@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2025-10-12
+
+### Added
+- **Engine-Level Variable Interpolation**: Major feature enabling consistent variable substitution across all actions
+  - New `_substitute_variables()` method supporting simple and nested placeholders
+  - New `_interpolate_config()` method for recursive config processing
+  - Supports `{variable}` and `{nested.path.variable}` syntax
+  - Custom actions can modify context for subsequent actions to use
+  - Works with strings, dicts, lists, and mixed types
+  - Handles special characters and numeric values correctly
+  - Unknown placeholders preserved for debugging
+  - All actions (built-in and custom) benefit automatically
+
+- **Machine-Agnostic Job Queue**: Enhanced database queue support for v2.0 controller architecture
+  - `get_next_job()` with `machine_type=None` now claims ANY pending job
+  - Enables centralized controller polling jobs by type only
+  - Backward compatible with v1.0 distributed polling
+  - Fixed bug where claimed jobs returned stale status='pending'
+
+- **Comprehensive Test Suite**: 15 new tests for variable interpolation
+  - Tests for simple variables, nested variables, missing placeholders
+  - Tests for special characters, numeric values, deeply nested structures
+  - Tests for custom action context modification (key use case)
+  - All 172 tests passing (157 passed, 15 new interpolation tests)
+
+### Changed
+- **Context Propagation**: Custom actions can now add variables to context
+  - Variables added by one action are available to subsequent actions
+  - No more repetitive `{event_data.payload.*}` references throughout YAML
+  - Cleaner, more maintainable state machine configurations
+  
+- **Action Execution**: Engine now interpolates variables before passing config to actions
+  - Consistent behavior across all action types
+  - Individual actions no longer need to implement interpolation
+  - Performance optimized with single-pass processing
+
+### Fixed
+- **Job Status Bug**: `get_next_job()` now returns correct `status='processing'` after claiming
+  - Previously returned stale row data with `status='pending'`
+  - Now updates returned dict to reflect database changes
+  - Critical for v2.0 controller architecture
+
+### Documentation
+- Added comprehensive "Variable Interpolation" section to README
+- Updated change request documentation with implementation status
+- Added examples for simple variables, nested variables, and custom actions
+- Documented benefits, use cases, and implementation details
+
+### Breaking Changes
+- None - fully backward compatible with existing configurations
+
 ## [0.0.20] - 2025-10-11
 
 ### Added

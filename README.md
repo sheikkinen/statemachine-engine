@@ -422,6 +422,147 @@ The `ActionLoader` automatically discovers actions following these conventions:
 - ✅ Use both custom actions AND built-in actions (bash, log, send_event, etc.)
 - ✅ Override built-in actions with custom implementations when needed
 
+## Variable Interpolation
+
+**New in v0.1.0:** The engine now provides automatic variable interpolation at the engine level, making context data available to all actions consistently.
+
+### How It Works
+
+The engine automatically substitutes `{variable}` placeholders in action configurations before passing them to actions. This happens transparently for all action types (built-in and custom).
+
+### Supported Variable Types
+
+#### Simple Variables
+Access any value in the context dictionary:
+
+```yaml
+actions:
+  processing:
+    - type: log
+      message: "Processing job {job_id} with status {status}"
+    
+    - type: bash
+      command: "python process.py --id {job_id} --state {current_state}"
+```
+
+**Available context variables:**
+- `{job_id}` - Current job ID
+- `{id}` - Alias for job_id
+- `{current_state}` - Current state machine state
+- `{machine_name}` - Name of the current machine
+- `{status}` - Job status
+- Any custom variables added by actions to context
+
+#### Nested Variables
+Access nested data using dot notation:
+
+```yaml
+actions:
+  relaying:
+    - type: bash
+      command: "process {event_data.payload.job_id}"
+      
+    - type: log
+      message: "Input: {event_data.payload.input_file}, Prompt: {event_data.payload.user_prompt}"
+      
+    - type: send_event
+      target_machine: worker
+      event_type: task_request
+      payload:
+        file: "{event_data.payload.input_image}"
+        user: "{event_data.payload.user.name}"
+        priority: "{event_data.payload.metadata.priority}"
+```
+
+**Common nested paths:**
+- `{event_data.payload.*}` - Event payload fields
+- `{event_data.event_name}` - The event that triggered this action
+- `{current_job.data.*}` - Job data fields (if job_model is used)
+
+### Custom Actions and Context Modification
+
+Custom actions can now modify the context dictionary, and those changes will be visible to subsequent actions through variable interpolation:
+
+```python
+# custom_extract_action.py
+class CustomExtractAction(BaseAction):
+    async def execute(self, context):
+        # Extract data from event payload
+        payload = context['event_data']['payload']
+        
+        # Add to context for subsequent actions
+        context['user_id'] = payload.get('user_id')
+        context['file_path'] = payload.get('input_file')
+        context['processing_mode'] = 'fast'
+        
+        return 'extracted'
+```
+
+```yaml
+# worker.yaml
+actions:
+  extracting:
+    - type: custom_extract
+      success: extracted
+    
+    # These actions now see the extracted variables
+    - type: log
+      message: "Processing file {file_path} for user {user_id} in {processing_mode} mode"
+    
+    - type: bash
+      command: "process --user {user_id} --file {file_path} --mode {processing_mode}"
+```
+
+### Benefits
+
+- **✅ No repetitive references**: Extract once, use everywhere (no more `{event_data.payload.field}` everywhere)
+- **✅ Cleaner YAML**: Shorter, more readable action configurations
+- **✅ Type safety**: Values are automatically converted to strings
+- **✅ Consistent behavior**: All actions (built-in and custom) use the same interpolation
+- **✅ Unknown placeholders preserved**: If a variable doesn't exist, the placeholder remains for debugging
+- **✅ Special characters supported**: Handles spaces, quotes, and special characters correctly
+
+### Advanced Examples
+
+**Combining static and dynamic values:**
+```yaml
+- type: bash
+  command: "convert {input_file} -resize {width}x{height} {output_file}"
+  params:
+    output_file: "/tmp/{job_id}_resized.png"  # Interpolated
+    width: "800"                                # Static
+```
+
+**Deeply nested structures:**
+```yaml
+- type: send_event
+  target_machine: logger
+  event_type: log_activity
+  payload:
+    user:
+      id: "{event_data.payload.user.id}"
+      name: "{event_data.payload.user.name}"
+    action: "{event_data.payload.metadata.action}"
+    timestamp: "{current_timestamp}"
+```
+
+**List processing:**
+```yaml
+- type: multi_step
+  steps:
+    - "step1 {job_id}"
+    - "step2 {output_dir}/{file_name}"
+    - "step3 {status}"
+```
+
+### Implementation Details
+
+The interpolation happens in the `StateMachineEngine._interpolate_config()` method before actions are executed. This ensures:
+- All action types benefit automatically
+- Custom actions don't need to implement their own interpolation
+- Variables are resolved consistently across the entire workflow
+- Performance is optimized (single pass per action config)
+
 ## Multi-Machine Setup
 
 State machines can communicate via events:

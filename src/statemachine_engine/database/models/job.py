@@ -60,7 +60,18 @@ class JobModel:
             return cursor.lastrowid
     
     def get_next_job(self, job_type: str = None, machine_type: str = None) -> Optional[Dict[str, Any]]:
-        """Get next pending job with priority support and JSON parsing"""
+        """
+        Get next pending job with priority support and JSON parsing.
+        
+        Args:
+            job_type: Filter by job type (optional)
+            machine_type: Filter by assigned machine (optional)
+                - If None: match ANY machine (enables controller to claim any job)
+                - If specified: match ONLY jobs assigned to that machine
+        
+        Returns:
+            Job dict with parsed JSON fields, or None if no jobs found
+        """
         with self.db._get_connection() as conn:
             query = "SELECT * FROM jobs WHERE status = 'pending'"
             params = []
@@ -69,7 +80,8 @@ class JobModel:
                 query += " AND job_type = ?"
                 params.append(job_type)
             
-            if machine_type:
+            # Only filter by machine_type if explicitly provided (not None)
+            if machine_type is not None:
                 query += " AND machine_type = ?"
                 params.append(machine_type)
             
@@ -89,6 +101,9 @@ class JobModel:
                 
                 # Convert to dict and parse JSON fields
                 job = dict(row)
+                # Update status in dict to reflect the database change
+                job['status'] = 'processing'
+                job['started_at'] = datetime.now().isoformat()
                 if job.get('data'):
                     try:
                         job['data'] = json.loads(job['data'])

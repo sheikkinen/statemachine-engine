@@ -711,6 +711,19 @@ def generate_composite_subdiagram(
         for entry in sorted(entry_states):
             clean_entry = entry.replace('-', '_').replace(' ', '_')
             lines.append(f"    [*] --> {clean_entry}")
+    else:
+        # No external entry points - this might be the initial composite
+        # Check if this composite contains the initial state
+        initial_state = config.get('initial_state')
+        if initial_state and initial_state in group_states:
+            # This is the initial composite - add [*] to initial state
+            clean_initial = initial_state.replace('-', '_').replace(' ', '_')
+            lines.append(f"    [*] --> {clean_initial}")
+        elif group_states:
+            # Fallback: add [*] to first state in group to avoid Mermaid errors
+            first_state = sorted(group_states)[0]
+            clean_first = first_state.replace('-', '_').replace(' ', '_')
+            lines.append(f"    [*] --> {clean_first}")
     
     lines.append("")
     

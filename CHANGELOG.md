@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2025-10-13
+
+### Added
+- **PID Field in API**: `machine-state` CLI now returns `pid` and `metadata` fields
+  - Enables accurate process detection in UI
+  - Table view now shows PID column for debugging
+  - JSON output includes PID for programmatic checking
+
+- **Debugging Improvements**: Enhanced logging for troubleshooting UI state issues
+  - Server logs now show which PROJECT_ROOT is being queried
+  - Detailed process checking logs show PID validation results
+  - Logs show: process exists, PID in output, is statemachine process
+  - Helps diagnose issues with multiple databases or stale PIDs
+
+### Fixed
+- **Missing PID Data**: API was not returning PID field from database
+  - Prevented accurate process detection
+  - Caused all machines to show as "Stopped" even when running
+  - Now includes PID for reliable status checking
+
+### Improved
+- Better diagnostic information when machines show incorrect status
+- Easier to identify PROJECT_ROOT configuration issues
+- Console logs help debug database location problems
+
 ## [0.1.1] - 2025-10-13
 
 ### Fixed

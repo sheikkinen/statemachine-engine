@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-10-13
+
+### Fixed
+- **UI Machine State Tracking**: Fixed incorrect "Stopped" status showing for running machines
+  - UI was displaying outdated status from localStorage after page refresh
+  - Process detection now uses PID-based checking (`ps -p <PID>`) instead of unreliable grep
+  - Added staleness detection: machines inactive for >60 seconds marked as stale/stopped
+  - Clear localStorage on fresh machine list update to prevent stale data
+  - Only persist state when machines are actually running
+  
+### Changed
+- **Process Detection**: More reliable machine status checking
+  - `checkProcessRunning()` now validates actual PID from database
+  - Validates process is actually a statemachine process, not just matching name
+  - Added `stale` and `stale_seconds` fields to machine API response
+  
+### Improved
+- Machine status display now shows staleness indicator when inactive
+- Better handling of crashed or killed machine processes
+- More accurate running/stopped state in Web UI
+
 ## [0.1.0] - 2025-10-12
 
 ### Added

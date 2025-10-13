@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "statemachine-engine"
-version = "1.0.2"
-description = "A generic state machine engine for event-driven workflows"
+version = "1.0.3"
+description = "A generic, composable state machine engine"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}

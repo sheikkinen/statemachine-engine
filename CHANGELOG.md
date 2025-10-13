@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2025-10-13
+
+### Removed
+- **Complete Database CLI Genericization**: Removed ~150 lines of remaining domain-specific code
+  - Removed `cmd_migrate_queue()` - deprecated legacy queue.json migration
+  - Removed face processing job counts from `cmd_status()`
+  - Removed domain-specific job type breakdowns from `cmd_machine_status()`
+  - Removed domain-specific display formatting from `cmd_list_jobs()` and `cmd_job_details()`
+  - Removed hardcoded job type choices (face_processing, pony_flux, sdxl_generation)
+  - Removed domain-specific argparse parameters: --input-image, --prompt, --pony-prompt, --flux-prompt, --padding-factor, --mask-padding-factor
+  - Removed domain-specific validation logic from add-job
+
+### Changed
+- **BREAKING: Generic add-job Command**: Redesigned with flexible parameters
+  - `--type` now accepts any string (no hardcoded choices)
+  - Added `--machine-type` to specify target machine (defaults to job type)
+  - Added `--input-file` for generic file input
+  - Added `--payload` for arbitrary JSON data
+- **Simplified Job Display**: List and details commands show only core generic fields
+- **Module Description**: Changed from "face-changer pipeline" to "state machine engine"
+- **Truly Generic**: Database CLI has zero domain assumptions
+
+### Migration Guide
+```bash
+# OLD (domain-specific):
+add-job job123 --type face_processing --input-image photo.jpg --prompt "enhance"
+
+# NEW (generic):
+add-job job123 --type face_processing --input-file photo.jpg --payload '{"prompt": "enhance"}'
+```
+
 ## [1.0.2] - 2025-10-13
 
 ### Removed

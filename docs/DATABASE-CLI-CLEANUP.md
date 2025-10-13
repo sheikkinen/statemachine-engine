@@ -126,14 +126,29 @@ Applications should implement their own health checks using:
 
 The following obsolete functionality was removed:
 
-### Removed Functions (5 total):
-- ❌ `get_pony_flux_status_counts()` - Queried deprecated pony_flux_jobs table
-- ❌ `cmd_list_pony_flux_jobs()` - Listed jobs from old table
-- ❌ `cmd_pony_flux_details()` - Showed details with hardcoded file paths
-- ❌ `cmd_cleanup_pony()` - Cleaned up old table
-- ❌ `cmd_update_pony_flux_status()` - Updated old table status
+# Database CLI Cleanup Documentation
 
-### Removed Code Sections:
+## Summary
+
+Removed all domain-specific functionality from database CLI, making it a truly generic state machine database interface.
+
+## Phase 1: Pony-Flux Removal (281 lines)
+
+### Removed Functions
+
+1. `get_pony_flux_status_counts()` - Domain-specific job counting
+2. `cmd_list_pony_flux_jobs()` - List pony flux jobs  
+3. `cmd_pony_flux_details()` - Show pony flux job details
+4. `cmd_cleanup_pony()` - Clean up pony flux jobs
+5. `cmd_update_pony_flux_status()` - Update pony flux status
+
+## Phase 2: Complete Genericization (~150 lines)
+
+### Removed Functions
+
+1. `cmd_migrate_queue()` - Deprecated legacy queue.json migration
+
+### Removed Code Sections
 - ❌ Pony-flux job counting from `cmd_status()`
 - ❌ Legacy pony-flux from `cmd_machine_status()`
 - ❌ Hardcoded output directories from `cmd_machine_health()`

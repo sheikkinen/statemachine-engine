@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Database CLI for face-changer pipeline
+Database CLI for state machine engine
 
 IMPORTANT: Changes via Change Management, see CLAUDE.md
 
@@ -60,17 +60,6 @@ def cmd_status(args):
     print(f"  Failed: {failed}")
     
     # Job counts by type
-    print(f"\nFace Processing Jobs:")
-    fp_total = job_model.count_jobs(job_type='face_processing')
-    fp_pending = job_model.count_jobs('pending', 'face_processing')
-    fp_processing = job_model.count_jobs('processing', 'face_processing')
-    fp_completed = job_model.count_jobs('completed', 'face_processing')
-    fp_failed = job_model.count_jobs('failed', 'face_processing')
-    print(f"  Total: {fp_total}")
-    print(f"  Pending: {fp_pending}")
-    print(f"  Processing: {fp_processing}")
-    print(f"  Completed: {fp_completed}")
-    print(f"  Failed: {fp_failed}")
     
 
 
@@ -86,26 +75,13 @@ def cmd_list_jobs(args):
         print(f"No jobs{job_type_desc}{status_desc} found")
         return
     
-    # Format for table display - adjust headers based on job type
-    if args.type == 'pony_flux':
-        headers = ['ID', 'Type', 'Status', 'Created', 'Pony Prompt', 'Flux Prompt']
-        rows = []
-        for job in jobs:
-            created = job['created_at'][:19] if job['created_at'] else ''
-            pony_prompt = (job['pony_prompt'][:25] + '...') if job['pony_prompt'] and len(job['pony_prompt']) > 25 else job['pony_prompt']
-            flux_prompt = (job['flux_prompt'][:25] + '...') if job['flux_prompt'] and len(job['flux_prompt']) > 25 else job['flux_prompt']
-            rows.append([job['job_id'], job['job_type'], job['status'], created, pony_prompt, flux_prompt])
-    else:
-        headers = ['ID', 'Type', 'Status', 'Created', 'Image', 'Prompt']
-        rows = []
-        for job in jobs:
-            created = job['created_at'][:19] if job['created_at'] else ''
-            data = job.get('data', {})
-            input_image_path = data.get('input_image_path', '')
-            image_path = Path(input_image_path).name if input_image_path else ''
-            user_prompt = data.get('user_prompt', '')
-            prompt = (user_prompt[:30] + '...') if user_prompt and len(user_prompt) > 30 else user_prompt
-            rows.append([job['job_id'], job['job_type'], job['status'], created, image_path, prompt])
+    # Format for table display
+    headers = ['ID', 'Type', 'Status', 'Created', 'Updated']
+    rows = []
+    for job in jobs:
+        created = job['created_at'][:19] if job['created_at'] else ''
+        updated = job.get('updated_at', '')[:19] if job.get('updated_at') else ''
+        rows.append([job['job_id'], job['job_type'], job['status'], created, updated])
     
     print(tabulate(rows, headers=headers, tablefmt='grid'))
 
@@ -122,63 +98,13 @@ def cmd_job_details(args):
     print(f"Job Details: {args.job_id}")
     print(f"  Status: {job['status']}")
     print(f"  Job Type: {job['job_type']}")
-    
-    # Display job-type specific information
-    data = job.get('data', {})
-    if job['job_type'] in ['sdxl_generation', 'pony_flux']:
-        print(f"  Pony Prompt: {data.get('pony_prompt', 'N/A')}")
-        print(f"  Flux Prompt: {data.get('flux_prompt', 'N/A')}")
-    else:
-        print(f"  Image: {data.get('input_image_path', 'N/A')}")
-        print(f"  Prompt: {data.get('user_prompt', 'N/A')}")
-    
-    print(f"  Padding Factor: {data.get('padding_factor', 1.5)}")
-    print(f"  Mask Padding: {data.get('mask_padding_factor', 1.2)}")
+    print(f"  Machine Type: {job.get('machine_type', 'N/A')}")
     print(f"  Created: {job['created_at']}")
     print(f"  Started: {job['started_at']}")
     print(f"  Completed: {job['completed_at']}")
     if job['error_message']:
         print(f"  Error: {job['error_message']}")
 
-def cmd_migrate_queue(args):
-    """Migrate existing queue.json to database"""
-    job_model = get_job_model()
-    queue_file = Path("data/queue.json")
-    
-    if not queue_file.exists():
-        print("No queue.json file found to migrate")
-        return
-    
-    try:
-        with open(queue_file) as f:
-            queue_data = json.load(f)
-        
-        migrated = 0
-        for item in queue_data.get('jobs', []):
-            job_id = item.get('id')
-            if job_id and 'input_image' in item:
-                # Check if already exists
-                existing = job_model.get_job(job_id)
-                if not existing:
-                    job_model.create_job(
-                        job_id=job_id,
-                        job_type='face_processing',
-                        data={
-                            'input_image_path': item['input_image'],
-                            'user_prompt': item.get('user_prompt', 'make this person more attractive')
-                        }
-                    )
-                    migrated += 1
-        
-        print(f"Migrated {migrated} jobs from queue.json to database")
-        
-        if args.backup:
-            import shutil
-            shutil.move(queue_file, f"{queue_file}.backup")
-            print(f"Backed up queue.json to {queue_file}.backup")
-            
-    except Exception as e:
-        print(f"Migration failed: {e}")
 
 def cmd_cleanup(args):
     """Clean up old jobs"""
@@ -280,66 +206,44 @@ def cmd_add_job(args):
     
     job_model = get_job_model()
     
-    # Validate job type specific requirements
-    if args.type == 'face_processing':
-        if not args.input_image:
-            print("Error: --input-image is required for face_processing jobs")
-            return 1
-        if not os.path.exists(args.input_image):
-            print(f"Error: Input image not found: {args.input_image}")
-            return 1
-        abs_path = os.path.abspath(args.input_image)
-    elif args.type in ['pony_flux', 'sdxl_generation']:
-        if not args.pony_prompt or not args.flux_prompt:
-            print(f"Error: --pony-prompt and --flux-prompt are required for {args.type} jobs")
-            return 1
-        abs_path = None
+    # Set machine type
+    machine_type = args.machine_type or args.type
     
-    # Set machine type based on job type
-    if args.type == 'sdxl_generation':
-        machine_type = 'sdxl_generator'
-    elif args.type == 'face_processing':
-        machine_type = 'face_processor'
-    else:
-        machine_type = args.type
+    # Build job data from provided arguments
+    abs_path = None
+    if args.input_file:
+        if not os.path.exists(args.input_file):
+            print(f"Error: Input file not found: {args.input_file}")
+            return 1
+        abs_path = os.path.abspath(args.input_file)
     
-    # Create metadata
-    metadata = {
-        'workflow': args.type,
-        'padding_factor': args.padding_factor,
-        'mask_padding_factor': args.mask_padding_factor
-    }
+    # Create job data from JSON payload if provided
+    job_data = {}
+    if args.payload:
+        try:
+            job_data = json.loads(args.payload)
+        except json.JSONDecodeError:
+            print(f"Error: Invalid JSON payload")
+            return 1
     
-    # Create the job with JSON data
+    # Add input file if provided
+    if abs_path:
+        job_data['input_file_path'] = abs_path
+    
+    # Create the job
     try:
         db_id = job_model.create_job(
             job_id=args.job_id,
             job_type=args.type,
             machine_type=machine_type,
-            data={
-                'input_image_path': abs_path,
-                'user_prompt': args.prompt,
-                'pony_prompt': args.pony_prompt,
-                'flux_prompt': args.flux_prompt,
-                'padding_factor': args.padding_factor,
-                'mask_padding_factor': args.mask_padding_factor
-            },
-            metadata=metadata
+            data=job_data,
+            metadata={}
         )
         print(f"✅ Job created successfully!")
         print(f"   Job ID: {args.job_id}")
         print(f"   Job Type: {args.type}")
+        print(f"   Machine Type: {machine_type}")
         print(f"   Database ID: {db_id}")
-        
-        if args.type == 'face_processing':
-            print(f"   Input Image: {abs_path}")
-            print(f"   Prompt: {args.prompt}")
-        elif args.type == 'pony_flux':
-            print(f"   Pony Prompt: {args.pony_prompt}")
-            print(f"   Flux Prompt: {args.flux_prompt}")
-        
-        print(f"   Padding Factor: {args.padding_factor}")
-        print(f"   Mask Padding Factor: {args.mask_padding_factor}")
         return 0
     except Exception as e:
         print(f"❌ Error creating job: {e}")
@@ -601,21 +505,8 @@ def cmd_machine_status(args):
     # Check job distribution by type and machine
     print("📊 Job Distribution:")
     
-    # Face processing jobs
-    face_pending = len(job_model.list_jobs(job_type='face_processing', status='pending'))
-    face_processing = len(job_model.list_jobs(job_type='face_processing', status='processing'))
-    face_completed = len(job_model.list_jobs(job_type='face_processing', status='completed'))
-    face_failed = len(job_model.list_jobs(job_type='face_processing', status='failed'))
-    
-    print(f"  Face Processing: {face_pending} pending, {face_processing} processing, {face_completed} completed, {face_failed} failed")
-    
-    # SDXL generation jobs
-    sdxl_pending = len(job_model.list_jobs(job_type='sdxl_generation', status='pending'))
-    sdxl_processing = len(job_model.list_jobs(job_type='sdxl_generation', status='processing'))
-    sdxl_completed = len(job_model.list_jobs(job_type='sdxl_generation', status='completed'))
-    sdxl_failed = len(job_model.list_jobs(job_type='sdxl_generation', status='failed'))
-    
-    print(f"  SDXL Generation: {sdxl_pending} pending, {sdxl_processing} processing, {sdxl_completed} completed, {sdxl_failed} failed")
+    # Job counts by status are shown in the status command
+
     
 
     print()
@@ -1104,7 +995,7 @@ def cmd_list_errors(args):
         traceback.print_exc()
 
 def main():
-    parser = argparse.ArgumentParser(description="Database CLI for face-changer pipeline")
+    parser = argparse.ArgumentParser(description="Database CLI for state machine engine")
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
     # Status command
@@ -1114,17 +1005,12 @@ def main():
     list_parser = subparsers.add_parser('list', help='List jobs')
     list_parser.add_argument('--status', choices=['pending', 'processing', 'completed', 'failed'],
                            help='Filter by status')
-    list_parser.add_argument('--type', choices=['face_processing', 'pony_flux', 'sdxl_generation'],
-                           help='Filter by job type')
+    list_parser.add_argument('--type', help='Filter by job type (string)')
     list_parser.add_argument('--limit', type=int, default=20, help='Limit number of results')
     
     # Job details command
     details_parser = subparsers.add_parser('details', help='Show job details')
     details_parser.add_argument('job_id', help='Job ID to show details for')
-    
-    # Migration command
-    migrate_parser = subparsers.add_parser('migrate', help='Migrate queue.json to database')
-    migrate_parser.add_argument('--backup', action='store_true', help='Backup original queue.json')
     
     # Cleanup command
     cleanup_parser = subparsers.add_parser('cleanup', help='Clean up old jobs')
@@ -1144,17 +1030,14 @@ def main():
     # Add job command
     add_job_parser = subparsers.add_parser('add-job', help='Add a new job to the database')
     add_job_parser.add_argument('job_id', help='Unique job identifier')
-    add_job_parser.add_argument('--type', choices=['face_processing', 'pony_flux', 'sdxl_generation'], 
-                               default='face_processing', help='Job type (default: face_processing)')
-    add_job_parser.add_argument('--input-image', help='Path to input image file (required for face_processing)')
-    add_job_parser.add_argument('--prompt', default='make this person more attractive', 
-                               help='AI prompt for face modification')
-    add_job_parser.add_argument('--pony-prompt', help='Pony model prompt (for pony_flux jobs)')
-    add_job_parser.add_argument('--flux-prompt', help='Flux model prompt (for pony_flux jobs)')
-    add_job_parser.add_argument('--padding-factor', type=float, default=1.5,
-                               help='Face crop padding factor (default: 1.5)')
-    add_job_parser.add_argument('--mask-padding-factor', type=float, default=1.2,
-                               help='Mask padding factor (default: 1.2)')
+    add_job_parser.add_argument('--type', required=True,
+                               help='Job type (string, e.g., processing, generation, etc.)')
+    add_job_parser.add_argument('--machine-type',
+                               help='Target machine type (defaults to job type)')
+    add_job_parser.add_argument('--input-file',
+                               help='Path to input file (optional)')
+    add_job_parser.add_argument('--payload',
+                               help='JSON payload with job-specific data (optional)')
     
     # Complete job command
     complete_job_parser = subparsers.add_parser('complete-job', help='Mark a job as completed')
@@ -1257,8 +1140,6 @@ def main():
             cmd_list_jobs(args)
         elif args.command == 'details':
             cmd_job_details(args)
-        elif args.command == 'migrate':
-            cmd_migrate_queue(args)
         elif args.command == 'cleanup':
             cmd_cleanup(args)
         elif args.command == 'reset-processing':

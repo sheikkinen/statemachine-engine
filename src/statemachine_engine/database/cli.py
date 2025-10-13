@@ -88,7 +88,6 @@ def cmd_list_jobs(args):
 def cmd_job_details(args):
     """Show detailed job information"""
     job_model = get_job_model()
-    pipeline_model = get_pipeline_model()
     
     job = job_model.get_job(args.job_id)
     if not job:
@@ -123,7 +122,6 @@ def cmd_cleanup(args):
             with job_model.db._get_connection() as conn:
                 job_ids = [job['job_id'] for job in jobs]
                 placeholders = ','.join(['?' for _ in job_ids])
-                conn.execute(f"DELETE FROM pipeline_results WHERE job_id IN ({placeholders})", job_ids)
                 conn.execute(f"DELETE FROM jobs WHERE job_id IN ({placeholders})", job_ids)
                 conn.commit()
             print(f"Cleaned up {len(jobs)} jobs with status '{args.status}'")
@@ -290,7 +288,6 @@ def cmd_fail_job(args):
 def cmd_remove_job(args):
     """Remove a job from the database"""
     job_model = get_job_model()
-    pipeline_model = get_pipeline_model()
     
     # Check if job exists
     job = job_model.get_job(args.job_id)
@@ -299,9 +296,7 @@ def cmd_remove_job(args):
         return 1
     
     try:
-        # Remove pipeline results first
         with job_model.db._get_connection() as conn:
-            conn.execute("DELETE FROM pipeline_results WHERE job_id = ?", (args.job_id,))
             conn.execute("DELETE FROM jobs WHERE job_id = ?", (args.job_id,))
             conn.commit()
         

@@ -203,6 +203,11 @@ statemachine-db send-event --target my_worker --type new_job
 ### Database Commands
 
 ```bash
+# Add jobs to the queue
+statemachine-db add-job job_001 \
+  --type image_processing \
+  --payload '{"input": "image.jpg", "output": "result.png"}'
+
 # Send events to trigger state transitions
 statemachine-db send-event --target my_worker --type new_job
 
@@ -213,7 +218,10 @@ statemachine-db machine-state
 statemachine-db list-events --target my_worker --limit 10
 
 # View job queue
-statemachine-db list-jobs --status pending
+statemachine-db list --status pending
+
+# View specific job details
+statemachine-db details <job-id>
 ```
 
 ### Service Dependencies
@@ -978,9 +986,41 @@ statemachine-db send-event --target ui --type activity_log \
 statemachine-db send-event --target worker1 --type custom_event \
   --job-id job123 --payload '{"data": "value"}'
 
-# Jobs  
-statemachine-db create-job --type <type> --data <json>
-statemachine-db list-jobs --status pending
+# Jobs (NEW in v1.0.3: Fully generic job creation)
+# Add jobs with any job type and custom JSON payload
+statemachine-db add-job job_001 \
+  --type image_processing \
+  --payload '{"input": "image.jpg", "config": {"quality": 95}}'
+
+# Add job with machine type (routes to specific worker type)
+statemachine-db add-job job_002 \
+  --type video_transcode \
+  --machine-type video_worker \
+  --payload '{"source": "video.mp4", "format": "h264"}'
+
+# Add job with input file reference
+statemachine-db add-job job_003 \
+  --type document_convert \
+  --input-file /path/to/document.pdf \
+  --payload '{"output_format": "docx"}'
+
+# Add job with complex nested data
+statemachine-db add-job ml_batch_001 \
+  --type ml_inference \
+  --payload '{
+    "model": "resnet50",
+    "input": {"image": "photo.jpg"},
+    "options": {"batch_size": 32, "gpu": true}
+  }'
+
+# List and filter jobs
+statemachine-db list --status pending
+statemachine-db list --type image_processing --limit 20
+statemachine-db list --status completed
+
+# Job details
+statemachine-db details <job-id>
+statemachine-db details test_job_001
 
 # State
 statemachine-db machine-state

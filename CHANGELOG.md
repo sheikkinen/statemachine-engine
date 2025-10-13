@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-10-13
+
+### Removed
+- **UI Cleanup**: Removed stale status indicators and database CLI dependencies
+  - Removed "Stopped/Running" status indicator from machine cards
+  - Removed Start/Stop control buttons (machines managed externally now)
+  - Removed all `statemachine_engine.database.cli` dependencies from UI server
+  - Removed `/api/machines`, `/api/errors`, and machine start/stop endpoints
+  - Removed 500+ lines of unused code and CSS
+
+### Changed
+- **WebSocket-Only State Updates**: UI now relies entirely on WebSocket events
+  - Initial state loaded from WebSocket `initial` event instead of REST API
+  - Machine state updates handled purely through real-time events
+  - Simpler, more reliable state management without polling
+
+### Improved
+- Cleaner UI with focus on state visualization
+- Reduced coupling between UI and database layer
+- More maintainable codebase with fewer dependencies
+
 ## [0.1.2] - 2025-10-13
 
 ### Added

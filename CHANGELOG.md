@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2025-10-13
+
+### Fixed
+- Removed remaining `get_pipeline_model()` references from cli.py
+- Removed `pipeline_results` table references (cleanup command and remove-job)
+- Fixed `details` command error when viewing job information
+
+### Documentation
+- Added comprehensive migration guide for v1.0.3 add-job changes
+- Breaking change warning with OLD vs NEW examples
+- 4 common migration patterns with before/after code
+- Helper bash function for backward compatibility
+- Updated all database command examples in README
+- Fixed command names: `list-jobs` → `list`, `job-details` → `details`
+
+### Improved
+- README now clearly shows how to migrate existing scripts
+- All CLI examples use correct v1.0.3+ syntax
+- Documentation covers all deprecated parameters and their replacements
+
 ## [1.0.3] - 2025-10-13
 
 ### Removed

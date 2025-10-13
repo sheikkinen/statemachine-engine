@@ -15,55 +15,6 @@ class StateMachineMonitor {
         
         // Start connections
         this.wsManager.connect();
-        
-        // Fetch initial machine states from API (this will also create tabs)
-        this.fetchInitialMachineStates();
-        
-        // Load diagram for first available machine after machines are loaded
-        this.loadInitialDiagram();
-    }
-    
-    async loadInitialDiagram() {
-        try {
-            // Wait a bit for machines to be fetched
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Get machines from the machine manager (it's a Map)
-            const machines = Array.from(this.machineManager.machines.values());
-            
-            if (machines && machines.length > 0) {
-                const firstMachine = machines[0].machine_name;
-                this.logger.log('info', `Loading diagram for ${firstMachine}`);
-                await this.diagramManager.loadDiagram(firstMachine);
-            } else {
-                this.logger.log('warning', 'No machines found to display diagram');
-            }
-        } catch (error) {
-            this.logger.log('error', `Failed to load initial diagram: ${error.message}`);
-        }
-    }
-
-    async fetchInitialMachineStates() {
-        try {
-            this.logger.log('info', 'Fetching initial machine states...');
-            const response = await fetch('/api/machines');
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch machines: ${response.statusText}`);
-            }
-
-            const machines = await response.json();
-            this.logger.log('info', `Loaded ${machines.length} machine(s) from API`);
-            
-            // Update machine manager with initial data
-            this.machineManager.updateMachines(machines);
-            
-            // Create tabs dynamically for all machines
-            this.createDiagramTabs(machines);
-            
-        } catch (error) {
-            this.logger.log('error', `Failed to fetch initial machine states: ${error.message}`);
-        }
     }
 
     createDiagramTabs(machines) {
@@ -146,6 +97,16 @@ class StateMachineMonitor {
                 this.logger.log('info', 'Received initial state snapshot');
                 if (data.machines) {
                     this.machineManager.updateMachines(data.machines);
+                    
+                    // Create tabs for all machines
+                    this.createDiagramTabs(data.machines);
+                    
+                    // Load diagram for first machine
+                    if (data.machines.length > 0) {
+                        const firstMachine = data.machines[0].machine_name;
+                        this.logger.log('info', `Loading diagram for ${firstMachine}`);
+                        this.diagramManager.loadDiagram(firstMachine);
+                    }
                 }
             },
             state_change: (data) => {

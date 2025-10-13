@@ -59,7 +59,6 @@ export class MachineStateManager {
 
     updateMachines(machines) {
         // Clear localStorage on fresh machine list update
-        // This prevents showing stale "Stopped" status from old sessions
         if (machines && machines.length > 0) {
             localStorage.removeItem('machineStates');
             localStorage.removeItem('machineTransitions');
@@ -71,22 +70,18 @@ export class MachineStateManager {
         });
 
         // Update status bar
-        const activeMachines = machines.filter(m => m.running).length;
         if (this.statusElements.total) {
             this.statusElements.total.textContent = machines.length;
         }
         if (this.statusElements.active) {
-            this.statusElements.active.textContent = activeMachines;
+            this.statusElements.active.textContent = machines.length;
         }
         if (this.statusElements.lastUpdate) {
             this.statusElements.lastUpdate.textContent = new Date().toLocaleTimeString();
         }
 
         this.renderMachines();
-        // Only persist if we have actual running machines
-        if (activeMachines > 0) {
-            this.persistState();
-        }
+        this.persistState();
     }
 
     handleStateChange(data) {
@@ -116,7 +111,6 @@ export class MachineStateManager {
                 machine_name: machineName,
                 current_state: payload.to_state,
                 last_activity: payload.timestamp || Date.now() / 1000,
-                running: true,
                 metadata: null
             };
             this.machines.set(machineName, machine);
@@ -125,7 +119,6 @@ export class MachineStateManager {
         } else {
             machine.current_state = payload.to_state;
             machine.last_activity = payload.timestamp || Date.now() / 1000;
-            machine.running = true;
             this.machines.set(machineName, machine);
             this.updateMachineCard(machine);
         }
@@ -182,26 +175,12 @@ export class MachineStateManager {
         card.className = 'machine-card';
         card.setAttribute('data-machine', machine.machine_name);
 
-        // Determine status with staleness check
-        let statusClass = machine.running ? 'running' : 'stopped';
-        let statusText = machine.running ? 'Running' : 'Stopped';
-        
-        // Show stale indicator if machine hasn't been active recently
-        if (machine.stale && machine.running) {
-            statusClass = 'stale';
-            statusText = `Stale (${machine.stale_seconds}s ago)`;
-        }
-        
         const lastActivity = machine.last_activity ? 
             new Date(machine.last_activity * 1000).toLocaleString() : 'Never';
 
         card.innerHTML = `
             <div class="machine-header">
                 <div class="machine-name">${machine.machine_name}</div>
-                <div class="status-indicator">
-                    <div class="status-dot ${statusClass}"></div>
-                    <span class="status-text ${statusClass}">${statusText}</span>
-                </div>
             </div>
             
             <div class="machine-info">
@@ -214,73 +193,8 @@ export class MachineStateManager {
                     <span class="info-value">${lastActivity}</span>
                 </div>
             </div>
-            
-            <div class="machine-controls">
-                <button class="btn btn-start" 
-                        data-action="start"
-                        data-machine="${machine.machine_name}"
-                        ${machine.running ? 'disabled' : ''}>
-                    Start
-                </button>
-                <button class="btn btn-stop" 
-                        data-action="stop"
-                        data-machine="${machine.machine_name}"
-                        ${!machine.running ? 'disabled' : ''}>
-                    Stop
-                </button>
-            </div>
         `;
 
-        // Attach event listeners
-        card.querySelector('.btn-start').addEventListener('click', (e) => {
-            this.startMachine(e.target.dataset.machine);
-        });
-        card.querySelector('.btn-stop').addEventListener('click', (e) => {
-            this.stopMachine(e.target.dataset.machine);
-        });
-
         return card;
-    }
-
-    async startMachine(machineName) {
-        try {
-            this.logger.log('info', `Starting machine: ${machineName}`);
-            
-            const response = await fetch(`/api/machine/${machineName}/start`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            
-            const result = await response.json();
-            
-            if (response.ok) {
-                this.logger.log('success', `${result.message} (PID: ${result.pid})`);
-            } else {
-                this.logger.log('error', `Failed to start ${machineName}: ${result.error}`);
-            }
-        } catch (error) {
-            this.logger.log('error', `Error starting ${machineName}: ${error.message}`);
-        }
-    }
-
-    async stopMachine(machineName) {
-        try {
-            this.logger.log('info', `Stopping machine: ${machineName}`);
-            
-            const response = await fetch(`/api/machine/${machineName}/stop`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            
-            const result = await response.json();
-            
-            if (response.ok) {
-                this.logger.log('success', result.message);
-            } else {
-                this.logger.log('error', `Failed to stop ${machineName}: ${result.error}`);
-            }
-        } catch (error) {
-            this.logger.log('error', `Error stopping ${machineName}: ${error.message}`);
-        }
     }
 }

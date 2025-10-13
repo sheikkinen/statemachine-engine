@@ -202,6 +202,29 @@ statemachine-db send-event --target my_worker --type new_job
 
 ### Database Commands
 
+#### ⚠️ Breaking Change in v1.0.3: add-job Command
+
+The `add-job` command has been redesigned to be fully generic. **Update your scripts:**
+
+```bash
+# OLD (v1.0.2 and earlier) - DEPRECATED
+statemachine-db add-job job123 \
+  --type face_processing \
+  --input-image photo.jpg \
+  --prompt "enhance faces"
+
+# NEW (v1.0.3+) - Use --payload for all custom data
+statemachine-db add-job job123 \
+  --type face_processing \
+  --input-file photo.jpg \
+  --payload '{"prompt": "enhance faces"}'
+```
+
+**Quick Migration:**
+- Remove: `--input-image`, `--prompt`, `--pony-prompt`, `--flux-prompt`, `--padding-factor`, `--mask-padding-factor`
+- Use: `--input-file` (for file paths) and `--payload '{"key": "value"}'` (for all other data)
+- `--type` now accepts any string (no hardcoded choices)
+
 ```bash
 # Add jobs to the queue
 statemachine-db add-job job_001 \
@@ -883,6 +906,53 @@ tail -f logs/*.log
 - [CLAUDE.md](CLAUDE.md) - Architecture and development guide
 
 ## Development
+
+### Migrating add-job Scripts (v1.0.2 → v1.0.3)
+
+If you have existing scripts using `add-job`, update them as follows:
+
+```bash
+# Pattern 1: Image processing with prompt
+# OLD:
+add-job $JOB_ID --type face_processing --input-image "$IMAGE" --prompt "$PROMPT"
+# NEW:
+add-job $JOB_ID --type face_processing --input-file "$IMAGE" --payload "{\"prompt\":\"$PROMPT\"}"
+
+# Pattern 2: Image generation with multiple prompts
+# OLD:
+add-job $JOB_ID --type pony_flux --pony-prompt "$PONY" --flux-prompt "$FLUX"
+# NEW:
+add-job $JOB_ID --type pony_flux --payload "{\"pony_prompt\":\"$PONY\",\"flux_prompt\":\"$FLUX\"}"
+
+# Pattern 3: With padding factors
+# OLD:
+add-job $JOB_ID --type face_processing --input-image "$IMG" --padding-factor 1.5 --mask-padding-factor 1.2
+# NEW:
+add-job $JOB_ID --type face_processing --input-file "$IMG" --payload '{"padding_factor":1.5,"mask_padding_factor":1.2}'
+
+# Pattern 4: Custom job types (now supported!)
+# NEW: You can now use ANY job type string
+add-job $JOB_ID --type custom_workflow --payload '{"config":"value"}'
+```
+
+**Helper function for easy migration:**
+```bash
+# Add to your scripts for backward compatibility
+add_job_v103() {
+    local job_id="$1"
+    local job_type="$2"
+    local input_file="$3"
+    local payload="$4"
+    
+    statemachine-db add-job "$job_id" \
+        --type "$job_type" \
+        ${input_file:+--input-file "$input_file"} \
+        ${payload:+--payload "$payload"}
+}
+
+# Usage:
+add_job_v103 "job123" "image_processing" "/path/to/image.jpg" '{"prompt":"enhance"}'
+```
 
 ### Testing State Transitions
 

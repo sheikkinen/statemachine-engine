@@ -72,139 +72,8 @@ def cmd_status(args):
     print(f"  Completed: {fp_completed}")
     print(f"  Failed: {fp_failed}")
     
-    print(f"\nPony-Flux Jobs:")
-    pf_total = job_model.count_jobs(job_type='pony_flux')
-    pf_pending = job_model.count_jobs('pending', 'pony_flux')
-    pf_processing = job_model.count_jobs('processing', 'pony_flux')
-    pf_completed = job_model.count_jobs('completed', 'pony_flux')
-    pf_failed = job_model.count_jobs('failed', 'pony_flux')
-    print(f"  Total: {pf_total}")
-    print(f"  Pending: {pf_pending}")
-    print(f"  Processing: {pf_processing}")
-    print(f"  Completed: {pf_completed}")
-    print(f"  Failed: {pf_failed}")
 
-def get_pony_flux_status_counts():
-    """Get pony-flux job status counts"""
-    from database.models import Database
-    
-    db = Database()
-    counts = {'total': 0, 'pending': 0, 'processing': 0, 'completed': 0, 'failed': 0}
-    
-    try:
-        with db._get_connection() as conn:
-            # Total count
-            cursor = conn.execute("SELECT COUNT(*) FROM pony_flux_jobs")
-            counts['total'] = cursor.fetchone()[0]
-            
-            # Status counts
-            for status in ['pending', 'processing', 'completed', 'failed']:
-                cursor = conn.execute("SELECT COUNT(*) FROM pony_flux_jobs WHERE status = ?", (status,))
-                counts[status] = cursor.fetchone()[0]
-    except Exception as e:
-        print(f"Error getting pony-flux counts: {e}")
-    
-    return counts
 
-def cmd_list_pony_flux_jobs(args):
-    """List pony-flux jobs"""
-    from database.models import Database
-    
-    db = Database()
-    
-    try:
-        with db._get_connection() as conn:
-            query = "SELECT id, pony_prompt, flux_prompt, status, created_at, updated_at FROM pony_flux_jobs"
-            params = []
-            
-            if args.status:
-                query += " WHERE status = ?"
-                params.append(args.status)
-            
-            query += " ORDER BY created_at DESC"
-            
-            if args.limit:
-                query += " LIMIT ?"
-                params.append(args.limit)
-            
-            cursor = conn.execute(query, params)
-            jobs = cursor.fetchall()
-        
-        if not jobs:
-            print("No pony-flux jobs found")
-            return
-        
-        # Format for table display
-        headers = ['ID', 'Status', 'Created', 'Pony Prompt', 'Flux Prompt']
-        rows = []
-        for job in jobs:
-            job_id, pony_prompt, flux_prompt, status, created_at, updated_at = job
-            created = created_at[:19] if created_at else ''
-            pony_short = (pony_prompt[:25] + '...') if pony_prompt and len(pony_prompt) > 25 else pony_prompt
-            flux_short = (flux_prompt[:25] + '...') if flux_prompt and len(flux_prompt) > 25 else flux_prompt
-            rows.append([job_id, status, created, pony_short, flux_short])
-        
-        print(tabulate(rows, headers=headers, tablefmt='grid'))
-        
-    except Exception as e:
-        print(f"Error listing pony-flux jobs: {e}")
-
-def cmd_pony_flux_details(args):
-    """Show detailed pony-flux job information"""
-    from database.models import Database
-    
-    db = Database()
-    
-    try:
-        with db._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT id, pony_prompt, flux_prompt, status, created_at, updated_at, metadata
-                FROM pony_flux_jobs WHERE id = ?
-            """, (args.job_id,))
-            job = cursor.fetchone()
-        
-        if not job:
-            print(f"Pony-flux job {args.job_id} not found")
-            return
-        
-        job_id, pony_prompt, flux_prompt, status, created_at, updated_at, metadata = job
-        
-        print(f"Pony-Flux Job Details: {job_id}")
-        print(f"  Status: {status}")
-        print(f"  Pony Prompt: {pony_prompt}")
-        print(f"  Flux Prompt: {flux_prompt}")
-        print(f"  Created: {created_at}")
-        print(f"  Updated: {updated_at}")
-        if metadata:
-            print(f"  Metadata: {metadata}")
-        
-        # Check for generated files
-        print(f"\nGenerated Files:")
-        from pathlib import Path
-        
-        # Check for pony image
-        pony_file = Path(f"0-generated/{job_id}-pony.png")
-        if pony_file.exists():
-            print(f"  Pony image: {pony_file} ✅")
-        else:
-            print(f"  Pony image: {pony_file} ❌")
-        
-        # Check for scaled image
-        scaled_file = Path(f"0-scaled/{job_id}-pony_upscaled.png")
-        if scaled_file.exists():
-            print(f"  Scaled image: {scaled_file} ✅")
-        else:
-            print(f"  Scaled image: {scaled_file} ❌")
-        
-        # Check for final result
-        final_file = Path(f"6-final/{job_id}-make_this_person_more_attractive.png")
-        if final_file.exists():
-            print(f"  Final result: {final_file} ✅")
-        else:
-            print(f"  Final result: {final_file} ❌")
-            
-    except Exception as e:
-        print(f"Error getting pony-flux job details: {e}")
 
 def cmd_list_jobs(args):
     """List jobs"""
@@ -270,22 +139,6 @@ def cmd_job_details(args):
     print(f"  Completed: {job['completed_at']}")
     if job['error_message']:
         print(f"  Error: {job['error_message']}")
-    
-    # Show pipeline results
-    results = pipeline_model.get_job_results(args.job_id)
-    if results:
-        print(f"\nPipeline Steps ({len(results)} completed):")
-        for result in results:
-            print(f"  {result['step_number']}. {result['step_name']} - {result['completed_at'][:19]}")
-            if result['face_coordinates']:
-                coords = result['face_coordinates']
-                print(f"     Face coordinates: {coords}")
-            if result['crop_dimensions']:
-                dims = result['crop_dimensions']
-                print(f"     Crop dimensions: {dims}")
-            if result['file_paths']:
-                paths = result['file_paths']
-                print(f"     Files: {paths}")
 
 def cmd_migrate_queue(args):
     """Migrate existing queue.json to database"""
@@ -384,56 +237,6 @@ def cmd_reset_processing(args):
     else:
         print("No stuck processing jobs found")
 
-def cmd_cleanup_pony(args):
-    """Clean up pony-flux jobs"""
-    from database.models import Database
-    
-    db = Database()
-    
-    if args.status:
-        # Clean up pony-flux jobs with specific status
-        with db._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT id FROM pony_flux_jobs WHERE status = ?", (args.status,))
-            pony_jobs = cursor.fetchall()
-            
-            if pony_jobs:
-                job_ids = [job[0] for job in pony_jobs]
-                placeholders = ','.join(['?' for _ in job_ids])
-                
-                # Delete from pony_flux_jobs table
-                cursor.execute(f"DELETE FROM pony_flux_jobs WHERE id IN ({placeholders})", job_ids)
-                
-                # Also clean up any related records in other tables
-                cursor.execute(f"DELETE FROM pipeline_results WHERE job_id IN ({placeholders})", job_ids)
-                cursor.execute(f"DELETE FROM jobs WHERE job_id IN ({placeholders})", job_ids)
-                
-                conn.commit()
-                print(f"Cleaned up {len(job_ids)} pony-flux jobs with status '{args.status}'")
-            else:
-                print(f"No pony-flux jobs found with status '{args.status}'")
-    else:
-        # Clean up all pony-flux jobs
-        with db._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT id FROM pony_flux_jobs")
-            pony_jobs = cursor.fetchall()
-            
-            if pony_jobs:
-                job_ids = [job[0] for job in pony_jobs]
-                placeholders = ','.join(['?' for _ in job_ids])
-                
-                # Delete from pony_flux_jobs table
-                cursor.execute(f"DELETE FROM pony_flux_jobs WHERE id IN ({placeholders})", job_ids)
-                
-                # Also clean up any related records in other tables
-                cursor.execute(f"DELETE FROM pipeline_results WHERE job_id IN ({placeholders})", job_ids)
-                cursor.execute(f"DELETE FROM jobs WHERE job_id IN ({placeholders})", job_ids)
-                
-                conn.commit()
-                print(f"Cleaned up {len(job_ids)} pony-flux jobs")
-            else:
-                print("No pony-flux jobs found")
 
 def cmd_cleanup_events(args):
     """Clean up machine events"""
@@ -498,7 +301,7 @@ def cmd_add_job(args):
     elif args.type == 'face_processing':
         machine_type = 'face_processor'
     else:
-        machine_type = 'legacy'
+        machine_type = args.type
     
     # Create metadata
     metadata = {
@@ -542,41 +345,6 @@ def cmd_add_job(args):
         print(f"❌ Error creating job: {e}")
         return 1
 
-def cmd_update_pony_flux_status(args):
-    """Update pony-flux job status"""
-    from database.models import Database
-    
-    db = Database()
-    
-    try:
-        with db._get_connection() as conn:
-            # Check if job exists
-            cursor = conn.execute("SELECT id FROM pony_flux_jobs WHERE id = ?", (args.job_id,))
-            if not cursor.fetchone():
-                print(f"Pony-flux job {args.job_id} not found")
-                return 1
-            
-            # Update status and completed timestamp
-            if args.status == 'completed':
-                conn.execute("""
-                    UPDATE pony_flux_jobs 
-                    SET status = ?, updated_at = CURRENT_TIMESTAMP 
-                    WHERE id = ?
-                """, (args.status, args.job_id))
-            else:
-                conn.execute("""
-                    UPDATE pony_flux_jobs 
-                    SET status = ?, updated_at = CURRENT_TIMESTAMP 
-                    WHERE id = ?
-                """, (args.status, args.job_id))
-            
-            conn.commit()
-        
-        print(f"✅ Updated pony-flux job {args.job_id} status to '{args.status}'")
-        return 0
-    except Exception as e:
-        print(f"❌ Error updating job status: {e}")
-        return 1
 
 def cmd_complete_job(args):
     """Mark a job as completed in the database"""
@@ -849,14 +617,7 @@ def cmd_machine_status(args):
     
     print(f"  SDXL Generation: {sdxl_pending} pending, {sdxl_processing} processing, {sdxl_completed} completed, {sdxl_failed} failed")
     
-    # Pony flux jobs (legacy)
-    pony_pending = len(job_model.list_jobs(job_type='pony_flux', status='pending'))
-    pony_processing = len(job_model.list_jobs(job_type='pony_flux', status='processing'))
-    pony_completed = len(job_model.list_jobs(job_type='pony_flux', status='completed'))
-    pony_failed = len(job_model.list_jobs(job_type='pony_flux', status='failed'))
-    
-    print(f"  Pony Flux (legacy): {pony_pending} pending, {pony_processing} processing, {pony_completed} completed, {pony_failed} failed")
-    
+
     print()
     
     # Check machine events
@@ -928,19 +689,7 @@ def cmd_machine_health(args):
     
     print()
     
-    # Check output directories
-    print("📁 Output Directories:")
-    output_dirs = ['0-generated', '0-scaled', '1-portraits', '2-verified', '3-masks', '4-results', '5-resized', '6-final']
-    
-    for dir_name in output_dirs:
-        dir_path = Path(dir_name)
-        if dir_path.exists():
-            file_count = len(list(dir_path.glob('*')))
-            print(f"  {dir_name}/: {file_count} files ✅")
-        else:
-            print(f"  {dir_name}/: Missing ❌")
-    
-    print()
+
     
     # Check database integrity
     print("🗄️ Database Health:")
@@ -1369,19 +1118,9 @@ def main():
                            help='Filter by job type')
     list_parser.add_argument('--limit', type=int, default=20, help='Limit number of results')
     
-    # List pony-flux jobs command
-    list_pf_parser = subparsers.add_parser('list-pony-flux', help='List pony-flux jobs')
-    list_pf_parser.add_argument('--status', choices=['pending', 'processing', 'completed', 'failed'],
-                               help='Filter by status')
-    list_pf_parser.add_argument('--limit', type=int, default=20, help='Limit number of results')
-    
     # Job details command
     details_parser = subparsers.add_parser('details', help='Show job details')
     details_parser.add_argument('job_id', help='Job ID to show details for')
-    
-    # Pony-flux job details command
-    pf_details_parser = subparsers.add_parser('pony-flux-details', help='Show pony-flux job details')
-    pf_details_parser.add_argument('job_id', help='Pony-flux job ID to show details for')
     
     # Migration command
     migrate_parser = subparsers.add_parser('migrate', help='Migrate queue.json to database')
@@ -1396,11 +1135,6 @@ def main():
     reset_processing_parser = subparsers.add_parser('reset-processing', help='Reset stuck processing jobs to pending')
     reset_processing_parser.add_argument('--force', action='store_true', 
                                        help='Reset all processing jobs regardless of age')
-    
-    # Cleanup pony command
-    cleanup_pony_parser = subparsers.add_parser('cleanup-pony', help='Clean up pony-flux jobs')
-    cleanup_pony_parser.add_argument('--status', choices=['pending', 'processing', 'completed', 'failed'],
-                                   help='Status of pony-flux jobs to clean up (optional, clears all if not specified)')
     
     # Cleanup events command
     cleanup_events_parser = subparsers.add_parser('cleanup-events', help='Clean up machine events')
@@ -1436,11 +1170,6 @@ def main():
     remove_job_parser.add_argument('job_id', help='Job ID to remove')
     remove_job_parser.add_argument('--reason', help='Reason for removal (optional)')
     
-    # Update pony-flux status command
-    update_pf_parser = subparsers.add_parser('update-pony-flux-status', help='Update pony-flux job status')
-    update_pf_parser.add_argument('job_id', help='Job ID to update')
-    update_pf_parser.add_argument('status', choices=['pending', 'processing', 'completed', 'failed'],
-                                 help='New status for the job')
     
     # Recreate database command
     recreate_parser = subparsers.add_parser('recreate-database', help='Recreate database with fresh unified schema (DESTRUCTIVE)')
@@ -1526,20 +1255,14 @@ def main():
             cmd_status(args)
         elif args.command == 'list':
             cmd_list_jobs(args)
-        elif args.command == 'list-pony-flux':
-            cmd_list_pony_flux_jobs(args)
         elif args.command == 'details':
             cmd_job_details(args)
-        elif args.command == 'pony-flux-details':
-            cmd_pony_flux_details(args)
         elif args.command == 'migrate':
             cmd_migrate_queue(args)
         elif args.command == 'cleanup':
             cmd_cleanup(args)
         elif args.command == 'reset-processing':
             cmd_reset_processing(args)
-        elif args.command == 'cleanup-pony':
-            cmd_cleanup_pony(args)
         elif args.command == 'cleanup-events':
             cmd_cleanup_events(args)
         elif args.command == 'add-job':
@@ -1550,8 +1273,6 @@ def main():
             return cmd_fail_job(args)
         elif args.command == 'remove-job':
             return cmd_remove_job(args)
-        elif args.command == 'update-pony-flux-status':
-            return cmd_update_pony_flux_status(args)
         elif args.command == 'recreate-database':
             return cmd_recreate_database(args)
         elif args.command == 'send-event':

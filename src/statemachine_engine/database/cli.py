@@ -980,13 +980,15 @@ def cmd_machine_state(args):
     """Show current state of all state machines"""
     machine_state_model = get_machine_state_model()
     
-    # Query all machine states
+    # Query all machine states including PID for process checking
     with machine_state_model.db._get_connection() as conn:
         rows = conn.execute("""
             SELECT 
                 machine_name,
                 current_state,
-                last_activity
+                last_activity,
+                pid,
+                metadata
             FROM machine_state 
             ORDER BY machine_name
         """).fetchall()
@@ -997,7 +999,9 @@ def cmd_machine_state(args):
         machines.append({
             'machine_name': row['machine_name'],
             'current_state': row['current_state'],
-            'last_activity': row['last_activity']
+            'last_activity': row['last_activity'],
+            'pid': row['pid'],
+            'metadata': row['metadata']
         })
     
     if args.format == 'json':
@@ -1007,8 +1011,8 @@ def cmd_machine_state(args):
             print("No machine state data found")
             return
         
-        headers = ['Machine', 'Current State', 'Last Activity']
-        table_data = [[m['machine_name'], m['current_state'], m['last_activity']] 
+        headers = ['Machine', 'Current State', 'PID', 'Last Activity']
+        table_data = [[m['machine_name'], m['current_state'], m['pid'] or 'N/A', m['last_activity']] 
                      for m in machines]
         print(tabulate(table_data, headers=headers, tablefmt='grid'))
 

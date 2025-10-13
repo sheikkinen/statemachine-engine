@@ -16,6 +16,7 @@ const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(__dirname, '../../..'
 // Get machine states using existing CLI
 function getMachineStates() {
     return new Promise((resolve, reject) => {
+        console.log(`[getMachineStates] Using PROJECT_ROOT: ${PROJECT_ROOT}`);
         const child = spawn('python', ['-m', 'statemachine_engine.database.cli', 'machine-state', '--format', 'json'], {
             cwd: PROJECT_ROOT
         });
@@ -35,6 +36,10 @@ function getMachineStates() {
             if (code === 0) {
                 try {
                     const machines = JSON.parse(output);
+                    console.log(`[getMachineStates] Found ${machines.length} machines in database`);
+                    machines.forEach(m => {
+                        console.log(`  - ${m.machine_name}: state=${m.current_state}, pid=${m.pid}`);
+                    });
                     resolve(machines);
                 } catch (e) {
                     reject(new Error(`Failed to parse JSON: ${e.message}`));
@@ -50,6 +55,7 @@ function getMachineStates() {
 async function checkProcessRunning(machineInfo) {
     // If no PID in database, assume not running
     if (!machineInfo.pid) {
+        console.log(`[checkProcess] ${machineInfo.machine_name}: No PID in database`);
         return false;
     }
     
@@ -64,17 +70,23 @@ async function checkProcessRunning(machineInfo) {
 
         child.on('close', (code) => {
             // Exit code 0 means process exists, 1 means it doesn't
-            const isRunning = code === 0 && output.includes(machineInfo.pid.toString());
+            const pidExists = code === 0;
+            const pidInOutput = output.includes(machineInfo.pid.toString());
+            const isStatemachine = output.includes('statemachine');
             
-            // Additional validation: check if it's actually a statemachine process
-            if (isRunning && output.includes('statemachine')) {
+            console.log(`[checkProcess] ${machineInfo.machine_name} (PID ${machineInfo.pid}): ` +
+                       `exists=${pidExists}, in_output=${pidInOutput}, is_statemachine=${isStatemachine}`);
+            
+            // Process must exist, show in output, and be a statemachine process
+            if (pidExists && pidInOutput && isStatemachine) {
                 resolve(true);
             } else {
                 resolve(false);
             }
         });
 
-        child.on('error', () => {
+        child.on('error', (err) => {
+            console.log(`[checkProcess] ${machineInfo.machine_name}: Error checking PID: ${err.message}`);
             resolve(false);
         });
     });

@@ -46,20 +46,36 @@ function getMachineStates() {
     });
 }
 
-// Check if machine process is running
-function checkProcessRunning(machineName) {
+// Check if machine process is running by PID from database
+async function checkProcessRunning(machineInfo) {
+    // If no PID in database, assume not running
+    if (!machineInfo.pid) {
+        return false;
+    }
+    
     return new Promise((resolve) => {
-        const child = spawn('ps', ['aux'], {});
+        // Check if specific PID exists
+        const child = spawn('ps', ['-p', machineInfo.pid.toString()], {});
         let output = '';
 
         child.stdout.on('data', (data) => {
             output += data.toString();
         });
 
-        child.on('close', () => {
-            const isRunning = output.includes(`statemachine`) &&
-                             output.includes(machineName);
-            resolve(isRunning);
+        child.on('close', (code) => {
+            // Exit code 0 means process exists, 1 means it doesn't
+            const isRunning = code === 0 && output.includes(machineInfo.pid.toString());
+            
+            // Additional validation: check if it's actually a statemachine process
+            if (isRunning && output.includes('statemachine')) {
+                resolve(true);
+            } else {
+                resolve(false);
+            }
+        });
+
+        child.on('error', () => {
+            resolve(false);
         });
     });
 }
@@ -225,13 +241,26 @@ app.get('/api/machines', async (req, res) => {
     try {
         const machines = await getMachineStates();
 
-        // Add process status to each machine
+        // Add process status to each machine by checking PID
         const machinesWithStatus = await Promise.all(
             machines.map(async (machine) => {
-                const isRunning = await checkProcessRunning(machine.machine_name);
+                const isRunning = await checkProcessRunning(machine);
+                
+                // Calculate staleness (how long since last activity)
+                const now = Date.now() / 1000;
+                const lastActivity = machine.last_activity || 0;
+                const staleSeconds = now - lastActivity;
+                
+                // Consider machine stopped if:
+                // 1. Process with PID is not running, OR
+                // 2. No activity for more than 60 seconds
+                const isStale = staleSeconds > 60;
+                
                 return {
                     ...machine,
-                    running: isRunning
+                    running: isRunning && !isStale,
+                    stale: isStale,
+                    stale_seconds: Math.round(staleSeconds)
                 };
             })
         );

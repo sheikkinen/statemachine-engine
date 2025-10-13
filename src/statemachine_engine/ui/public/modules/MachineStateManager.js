@@ -58,6 +58,13 @@ export class MachineStateManager {
     }
 
     updateMachines(machines) {
+        // Clear localStorage on fresh machine list update
+        // This prevents showing stale "Stopped" status from old sessions
+        if (machines && machines.length > 0) {
+            localStorage.removeItem('machineStates');
+            localStorage.removeItem('machineTransitions');
+        }
+        
         this.machines.clear();
         machines.forEach(machine => {
             this.machines.set(machine.machine_name, machine);
@@ -76,7 +83,10 @@ export class MachineStateManager {
         }
 
         this.renderMachines();
-        this.persistState();
+        // Only persist if we have actual running machines
+        if (activeMachines > 0) {
+            this.persistState();
+        }
     }
 
     handleStateChange(data) {
@@ -172,8 +182,15 @@ export class MachineStateManager {
         card.className = 'machine-card';
         card.setAttribute('data-machine', machine.machine_name);
 
-        const statusClass = machine.running ? 'running' : 'stopped';
-        const statusText = machine.running ? 'Running' : 'Stopped';
+        // Determine status with staleness check
+        let statusClass = machine.running ? 'running' : 'stopped';
+        let statusText = machine.running ? 'Running' : 'Stopped';
+        
+        // Show stale indicator if machine hasn't been active recently
+        if (machine.stale && machine.running) {
+            statusClass = 'stale';
+            statusText = `Stale (${machine.stale_seconds}s ago)`;
+        }
         
         const lastActivity = machine.last_activity ? 
             new Date(machine.last_activity * 1000).toLocaleString() : 'Never';

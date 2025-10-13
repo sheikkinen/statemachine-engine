@@ -6,67 +6,71 @@ TDD. DRY. KISS. YAGNI.
 
 ## Background
 
-**State Machine Engine** is a generic event-driven state machine framework with real-time monitoring. It provides the core infrastructure for building workflow automation systems with:
+**State Machine Engine** v0.1.0 - Generic event-driven FSM framework for workflow automation with real-time monitoring and zero-latency Unix socket communication.
 
-- YAML-based workflow configuration
-- Pluggable action system
-- Real-time WebSocket monitoring
-- Database-backed job queue
-- Unix socket communication
-- FSM diagram generation
+**Key Capabilities:**
+- YAML-based workflow configuration with variable interpolation (`{var}`, `{nested.path}`)
+- 6 built-in actions + pluggable custom action system
+- Real-time WebSocket monitoring (port 3002)
+- SQLite job queue with machine-agnostic polling
+- Unix socket IPC for sub-millisecond event delivery
+- FSM diagram generation and validation tools
 
 ## Architecture
 
 **Core Components:**
 
-1. **State Machine Engine** (`src/statemachine_engine/core/engine.py`)
-   - Event-driven state transitions
-   - Action execution framework
-   - Job queue integration
-   - Real-time event emission
+1. **Engine** (`core/engine.py` - 666 lines)
+   - Event-driven FSM with async/await
+   - Engine-level variable interpolation for all actions
+   - Control socket listener for incoming events
+   - Event socket broadcaster for state changes
+   - Health monitoring and graceful shutdown
 
-2. **Action System** (`src/statemachine_engine/actions/`)
-   - BaseAction interface for custom actions
-   - 6 built-in actions (bash, log, events, queue checks)
-   - Dynamic action loading
-   - Action registry pattern
+2. **Actions** (`actions/`)
+   - `BaseAction` interface: `async execute(context) -> str`
+   - 6 built-in: bash, log, send_event, check_database_queue, check_machine_state, clear_events
+   - ActionLoader: dynamic discovery of custom actions
+   - All actions benefit from engine-level interpolation
 
-3. **Database Layer** (`src/statemachine_engine/database/`)
-   - SQLite-based job storage
-   - Machine event tracking
-   - Machine state persistence
-   - Realtime event queue
+3. **Database** (`database/`)
+   - 4 models: Job, MachineEvent, MachineState, RealtimeEvent
+   - CLI with 20+ commands: send-event, get-next-job, list-jobs, history
+   - Machine-agnostic job claiming for centralized controllers
+   - Audit trail (events table is read-only after write)
 
-4. **Monitoring** (`src/statemachine_engine/monitoring/`)
-   - WebSocket server (port 3002)
-   - Real-time event broadcasting
-   - Database fallback polling
+4. **Monitoring** (`monitoring/websocket_server.py`)
+   - FastAPI WebSocket server on port 3002
+   - Listens to `/tmp/statemachine-events.sock`
+   - Database fallback polling (500ms) if socket quiet
+   - CORS-enabled for local development
 
-5. **Tools** (`src/statemachine_engine/tools/`)
-   - FSM diagram generator (`statemachine-diagrams`)
-   - YAML configuration validator (`statemachine-validate`)
-   - Real-time event monitor (`statemachine-events`)
+5. **Tools** (`tools/`)
+   - `statemachine-diagrams`: Graphviz FSM visualization
+   - `statemachine-validate`: YAML syntax/semantic validation
+   - `statemachine-events`: Real-time event monitor CLI
 
 ## Development Guidelines
 
-### Adding New Built-in Actions
+### Adding Built-in Actions
 
-1. Create action file in `src/statemachine_engine/actions/builtin/`
-2. Extend `BaseAction` class
-3. Implement `async def execute(self, context) -> str`
-4. Add tests in `tests/actions/`
-5. Update `builtin/__init__.py` exports
-6. Update documentation
+1. Create `src/statemachine_engine/actions/builtin/my_action.py`
+2. Extend `BaseAction`, implement `async def execute(self, context) -> str`
+3. Modify context for downstream actions: `context['result'] = value`
+4. Export in `builtin/__init__.py`
+5. Add tests in `tests/actions/test_my_action.py`
 
 **Example:**
 ```python
-# src/statemachine_engine/actions/builtin/my_action.py
 from ..base import BaseAction
 
 class MyAction(BaseAction):
     async def execute(self, context):
-        # Your logic here
-        return 'success'
+        # Access params (already interpolated by engine)
+        value = self.params.get('input')
+        # Modify context for next actions
+        context['output'] = f"Processed: {value}"
+        return 'success'  # Return event to trigger (or None)
 ```
 
 ### Testing
@@ -96,10 +100,9 @@ pip install dist/statemachine_engine-1.0.0-py3-none-any.whl
 
 ## Usage Patterns
 
-### Basic Worker
+### Basic Worker with Variable Interpolation
 ```yaml
-# config/worker.yaml
-name: "Simple Worker"
+name: "Worker"
 initial_state: waiting
 
 transitions:
@@ -107,26 +110,31 @@ transitions:
     to: processing
     event: new_job
     actions:
-      - type: check_database_queue
+      - type: check_database_queue  # Sets context['job_id'], context['command']
+      - type: bash
+        params:
+          command: "{command}"        # Engine interpolates {command} from context
+          success: job_done
+          failure: job_failed
 
   - from: processing
     to: completed
     event: job_done
     actions:
-      - type: bash
-        params:
-          command: "echo Done"
-          success: job_done
+      - type: log
+        message: "Completed job {job_id}"  # Interpolation works everywhere
 ```
 
-### Controller + Worker
+### Multi-Machine Communication
 ```yaml
 # Worker sends events to controller
-actions:
-  - type: send_event
-    params:
-      target: controller
-      event_type: task_completed
+- type: send_event
+  params:
+    target: controller
+    event_type: task_completed
+    payload:
+      job_id: "{job_id}"        # Nested interpolation supported
+      result: "{nested.path}"   # Dot notation for nested context
 ```
 
 ## File Structure
@@ -134,135 +142,82 @@ actions:
 ```
 statemachine-engine/
 ├── src/statemachine_engine/
-│   ├── core/              # State machine engine
-│   ├── actions/           # Action framework + built-ins
-│   ├── database/          # Database layer
-│   ├── monitoring/        # WebSocket server
-│   ├── tools/             # FSM generator
-│   └── ui/                # Web UI
-├── tests/                 # Test suite
-├── examples/              # Example workflows
-├── docs/                  # Documentation
-└── pyproject.toml         # Package configuration
+│   ├── core/              # engine.py (666 lines), action_loader.py (278), health_monitor.py (236)
+│   ├── actions/           # base.py + builtin/{bash,log,send_event,check_*,clear_events}
+│   ├── database/          # models/ + cli.py (64KB - comprehensive CLI)
+│   ├── monitoring/        # websocket_server.py (FastAPI + Unix socket listener)
+│   ├── tools/             # diagrams.py, validate.py, event_monitor.py, cli.py
+│   └── ui/                # Web interface (separate package)
+├── tests/                 # Comprehensive test suite (actions/, core/, database/, communication/)
+├── examples/              # simple_worker/, controller_worker/, custom_actions/
+└── pyproject.toml         # v0.1.0, Python 3.9+, 7 CLI entry points
 ```
 
 ## Communication Architecture
 
-### Unix Socket System
+### Socket-Based Zero-Latency IPC
 
-**Control Sockets (Incoming Events):**
-- Path: `/tmp/statemachine-control-{machine_name}.sock`
-- Purpose: Receive events targeted at specific state machines
-- Protocol: JSON messages over Unix datagram sockets
-- Usage: `send-event` CLI command sends events here
+**Control Sockets** (incoming): `/tmp/statemachine-control-{machine_name}.sock`
+- Per-machine Unix datagram sockets for targeted event delivery
+- Polled every 50ms by engine's `_check_control_socket()`
+- JSON payload: `{type: "event_name", payload: {...}, job_id: 123}`
 
-**Event Socket (Outgoing Broadcasts):**
-- Path: `/tmp/statemachine-events.sock`
-- Purpose: Broadcast state changes to monitoring systems
-- Protocol: JSON messages over Unix datagram socket
-- Consumers: WebSocket server relays to browser UI
+**Event Socket** (outgoing): `/tmp/statemachine-events.sock`
+- Single shared broadcast socket for all state changes
+- Engine emits: state transitions, errors, activity logs
+- Consumed by WebSocket server for UI relay
 
-**WebSocket Server:**
-- Port: `ws://localhost:3002/ws/events`
-- Purpose: Real-time updates to web UI
-- Events: `state_change`, `activity_log`, `job_started`, `job_completed`, `error`
+**WebSocket Server**: `ws://localhost:3002/ws/events`
+- Browser-facing real-time event stream
+- Receives from Unix socket + database polling fallback
+- Event types: `state_change`, `activity_log`, `job_started`, `job_completed`, `error`
 
-### Event Delivery Mechanism
+### Event Flow
 
-**How Events Work:**
-
-1. **Sending Events** (via CLI or send_event action):
-   ```bash
-   python -m statemachine_engine.database.cli send-event \
-     --target simple_worker \
-     --type new_job \
-     --payload '{"data": "value"}'
-   ```
-
-2. **Database Logging** (audit trail only):
-   - Event written to `machine_events` table
-   - Status: `pending` (never changed - table is audit log only)
-   - NOT polled by state machines
-
-3. **Socket Delivery** (actual event delivery):
-   - Event sent to `/tmp/statemachine-control-{target}.sock`
-   - JSON payload: `{type: "new_job", payload: {...}, job_id: 123}`
-   - Zero-latency delivery (no polling)
-
-4. **Engine Processing**:
-   - Engine receives event via `_check_control_socket()`
-   - Stores event data in `context['event_data']`
-   - Calls `process_event(event_type)` to trigger transition
-   - Executes actions for new state
-
-5. **State Broadcasting**:
-   - Engine emits state change to `/tmp/statemachine-events.sock`
-   - WebSocket server receives and relays to connected browsers
-   - UI updates in real-time
-
-**Event Flow:**
 ```
-CLI/Action → Database (log) → Control Socket → Engine → Event Socket → WebSocket → UI
-              (audit only)      (delivery)     (process)  (broadcast)   (relay)    (display)
+send-event CLI → DB audit log → Control Socket → Engine poll (50ms) → Transition → Event Socket → WebSocket → UI
+                 (never read)     (/tmp/...)      (_check_control)    (actions)    (broadcast)    (relay)
 ```
 
-**Important:** The `machine_events` database table is an **audit log only**. Events are NOT read from the database - they are delivered directly through Unix sockets for zero-latency processing.
+**Key Points:**
+- Database `machine_events` table is write-only audit trail (status always 'pending')
+- Actual delivery via Unix sockets (sub-millisecond latency)
+- Engine polls control socket every 50ms during event loop
+- Variable interpolation happens engine-level before action execution
+- Context persists across transitions: `context['event_data']`, `context['job_id']`, custom fields
 
 ## Troubleshooting
 
-### Events Not Triggering Transitions
-
-**Symptom:** `send-event` creates database entry but machine doesn't change state
-
-**Common Causes:**
-
-1. **Event not defined in YAML**
-   ```yaml
-   events:
-     - new_job  # Must list all events that can trigger transitions
-   ```
-
-2. **No transition for event in current state**
-   ```yaml
-   transitions:
-     - from: waiting
-       to: processing
-       event: new_job  # Must have transition from current state
-   ```
-
-3. **Control socket doesn't exist**
-   - Check: `ls -l /tmp/statemachine-control-*.sock`
-   - Fix: Ensure state machine is running
-
-4. **Event type mismatch**
-   - Event names are case-sensitive
-   - Check logs: `tail -f logs/system-startup.log | grep "📥 Received"`
+**Events not triggering?**
+1. Event not in YAML `events:` list (case-sensitive)
+2. No transition from current state (check `from:` matches current state)
+3. Control socket missing: `ls -l /tmp/statemachine-control-*.sock`
+4. Machine not running: `ps aux | grep statemachine`
 
 **Debugging:**
 ```bash
-# Check if machine is running
-ps aux | grep statemachine
+# Watch real-time events
+statemachine-events
 
-# Watch for incoming events
-tail -f logs/system-startup.log | grep -E "Received event|--.*-->"
+# Check socket delivery
+tail -f logs/*.log | grep -E "📥 Received|--.*-->"
 
-# Send test event
-python -m statemachine_engine.database.cli send-event \
-  --target simple_worker --type new_job
+# Verify YAML syntax
+statemachine-validate config/worker.yaml
 ```
 
-## Contributing
+## Project Principles
 
-1. Fork repository
-2. Create feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit pull request
+- **TDD**: Test-first development (15 tests for v0.1.0 interpolation feature)
+- **DRY**: Variable interpolation at engine-level (not per-action)
+- **KISS**: Actions return events, engine handles transitions
+- **YAGNI**: Build minimal features, extend via custom actions
 
-## License
+## Version History
 
-MIT License - see LICENSE file
+- **v0.1.0** (2025-10-12): Engine-level variable interpolation, machine-agnostic job queue
+- Initial release: YAML FSM, 6 built-in actions, Unix socket IPC, WebSocket monitoring
 
 ---
 
-**Note:** This is a generic state machine engine. For domain-specific implementations, create your own actions in `actions/` directory and reference them in YAML configs.
+**Note:** Generic FSM framework - domain logic goes in custom actions, not core engine.

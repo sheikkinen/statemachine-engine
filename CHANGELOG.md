@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-10-13
+
+### Removed
+- **Database CLI Cleanup**: Removed 281 lines of obsolete and domain-specific code
+  - Removed pony-flux specific commands (`list-pony-flux`, `pony-flux-details`, `cleanup-pony`, `update-pony-flux-status`)
+  - Removed 5 deprecated functions that queried old pony_flux_jobs table
+  - Removed hardcoded output directory checks from health command
+  - Removed domain-specific file path validation
+  - Removed ambiguous `machine_type = 'legacy'` code
+
+### Fixed
+- **Diagram Rendering**: Fixed Mermaid error "Could not find a suitable point for the given distance"
+  - Added `[*]` start points to initial composite subdiagrams (INITIALIZATION)
+  - Diagrams now render correctly without SVG path calculation errors
+  - Fixed: Initial composites had no entry point causing Mermaid to fail
+
+### Improved
+- **True Generic Framework**: Database CLI now contains zero domain-specific assumptions
+  - Use unified `jobs` table commands instead of deprecated pony-flux commands
+  - Cleaner, more maintainable codebase (281 lines removed)
+  - All tests passing (47 passed, 2 skipped)
+- **Better Diagram Generation**: Composite subdiagrams always have proper entry points
+
 ## [1.0.1] - 2025-10-13
 
 ### Removed

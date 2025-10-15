@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **bash_action.py**: Properly kill timed-out processes to prevent zombies
+  - Added explicit `process.kill()` when timeout occurs
+  - Added 5-second grace period with fallback to `process.terminate()`
+  - Prevents resource leaks and background process interference
+
+### Added
+- **test_bash_action_timeout.py**: Comprehensive timeout test suite (11 tests)
+  - Verifies processes are actually killed on timeout
+  - Tests default 30-second timeout and custom values
+  - Tests error context population and message formatting
+  - Tests edge cases (very short timeouts, custom success events)
+
+### Improved
+- Process cleanup now guaranteed for timed-out bash commands
+- Better resource management prevents zombie processes
+- Full test coverage for timeout behavior (168 total tests passing)
+
 ## [1.0.4] - 2025-10-13
 
 ### Fixed

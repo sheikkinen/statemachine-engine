@@ -204,10 +204,21 @@ class BashAction(BaseAction):
                 stderr=asyncio.subprocess.PIPE
             )
             
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), 
-                timeout=timeout
-            )
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(), 
+                    timeout=timeout
+                )
+            except asyncio.TimeoutError:
+                # Kill the process if it's still running
+                if process.returncode is None:
+                    process.kill()
+                    try:
+                        await asyncio.wait_for(process.wait(), timeout=5)
+                    except asyncio.TimeoutError:
+                        # Force kill if graceful kill failed
+                        process.terminate()
+                raise  # Re-raise to be caught by outer handler
             
             # Only log output if non-empty and meaningful (skip routine messages)
             stdout_text = stdout.decode().strip() if stdout else ""

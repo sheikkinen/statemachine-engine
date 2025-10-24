@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.13] - 2025-10-24
+
+### Removed
+- **Database fallback poller**: Removed redundant database polling mechanism
+  - With v1.0.12 Unix socket fixes, fallback is no longer needed
+  - Reduces system complexity and database load
+  - Unix socket listener now reliable with proper timeout and event loop yielding
+  - Cleanup task remains for periodic maintenance
+
+### Performance
+- Reduced background tasks from 3 to 2 (removed database_fallback_poller)
+- Lower CPU usage with no polling overhead
+- Simpler architecture with single event source (Unix socket)
+
 ## [1.0.12] - 2025-10-24
 
 ### Fixed

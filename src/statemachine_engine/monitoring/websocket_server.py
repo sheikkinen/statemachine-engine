@@ -4,8 +4,6 @@ WebSocket server for real-time state machine event streaming
 Listens on:
 - Unix socket: /tmp/statemachine-events.sock (from state machines)
 - WebSocket: ws://localhost:3002/ws/events (to browsers)
-
-Fallback: Polls database every 500ms for events if socket messages stop
 """
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -251,63 +249,7 @@ async def unix_socket_listener():
             logger.error(f"Unexpected error in Unix socket listener: {e}", exc_info=True)
             await asyncio.sleep(0.1)  # Brief pause before continuing
 
-async def database_fallback_poller():
-    """Poll database for events if Unix socket goes quiet"""
-    last_event_id = 0
-    poll_count = 0
-    last_heartbeat = time.time()
 
-    logger.info("Database fallback poller started")
-
-    while True:
-        try:
-            await asyncio.sleep(0.5)  # Poll every 500ms
-            poll_count += 1
-
-            # Heartbeat logging every 5 minutes
-            current_time = time.time()
-            if current_time - last_heartbeat > 300:
-                time_since_event = current_time - broadcaster.last_event_time
-                logger.info(f"Database fallback poller heartbeat: poll #{poll_count}, "
-                          f"last event {time_since_event:.1f}s ago")
-                last_heartbeat = current_time
-
-            # Check if Unix socket is active (received event in last 5 seconds)
-            if time.time() - broadcaster.last_event_time < 5.0:
-                continue  # Socket is working, skip DB poll
-
-            # Unix socket seems dead, check database
-            # Create fresh model instance for each poll to avoid connection leaks
-            try:
-                realtime_model = get_realtime_event_model()
-                events = realtime_model.get_unconsumed_events(since_id=last_event_id, limit=50)
-
-                for event in events:
-                    event_dict = {
-                        'machine_name': event['machine_name'],
-                        'type': event['event_type'],  # Use 'type' for client compatibility
-                        'payload': event['payload'],
-                        'timestamp': event['created_at']
-                    }
-
-                    await broadcaster.broadcast(event_dict)
-                    last_event_id = event['id']
-
-                if events:
-                    # Mark events as consumed
-                    event_ids = [event['id'] for event in events]
-                    realtime_model.mark_events_consumed(event_ids)
-                    logger.info(f"Processed {len(events)} events from database fallback")
-
-            except Exception as e:
-                logger.error(f"Database fallback poll error: {e}", exc_info=True)
-                
-        except asyncio.CancelledError:
-            logger.warning("Database fallback poller cancelled, shutting down")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error in database fallback poller: {e}", exc_info=True)
-            await asyncio.sleep(1)  # Back off on errors
 
 async def cleanup_old_events():
     """Periodically clean up old consumed events from database"""
@@ -343,7 +285,6 @@ async def startup():
         # Start background tasks with error tracking
         tasks = {
             'unix_socket_listener': asyncio.create_task(unix_socket_listener()),
-            'database_fallback_poller': asyncio.create_task(database_fallback_poller()),
             'cleanup_old_events': asyncio.create_task(cleanup_old_events())
         }
         

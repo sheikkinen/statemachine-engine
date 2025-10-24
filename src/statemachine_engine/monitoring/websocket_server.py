@@ -83,15 +83,10 @@ def check_process_running(machine_name: str) -> bool:
         logger.warning(f"Failed to check process for {machine_name}: {e}")
         return False
 
-@app.websocket("/ws/events")
-async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time event streaming"""
-    await broadcaster.connect(websocket)
-
+async def get_initial_state() -> dict:
+    """Get initial state snapshot with proper connection cleanup"""
+    db = Database()
     try:
-        # Send initial state snapshot
-        db = Database()
-
         # Get current machine states
         with db._get_connection() as conn:
             machines = conn.execute("""
@@ -100,19 +95,39 @@ async def websocket_endpoint(websocket: WebSocket):
                 ORDER BY machine_name
             """).fetchall()
 
-        # Convert to dict and add running status
+        # Convert to dict and add running status (async-safe)
         machines_data = []
         for machine in machines:
             machine_dict = dict(machine)
-            machine_dict['running'] = check_process_running(machine_dict['machine_name'])
+            # Skip process check to avoid blocking - rely on last_activity instead
+            # Process check can hang and block the event loop
+            machine_dict['running'] = False  # Deprecated, use last_activity timestamp
             machines_data.append(machine_dict)
 
-        initial_state = {
+        return {
             'type': 'initial',
             'machines': machines_data,
             'timestamp': time.time()
         }
+    except Exception as e:
+        logger.error(f"Failed to get initial state: {e}", exc_info=True)
+        return {
+            'type': 'initial',
+            'machines': [],
+            'timestamp': time.time(),
+            'error': str(e)
+        }
+
+@app.websocket("/ws/events")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time event streaming"""
+    await broadcaster.connect(websocket)
+
+    try:
+        # Send initial state snapshot (with proper cleanup)
+        initial_state = await get_initial_state()
         await websocket.send_json(initial_state)
+        logger.info(f"Sent initial state with {len(initial_state.get('machines', []))} machines to new client")
 
         # Keep connection alive (receive pings from client)
         while True:
@@ -121,11 +136,16 @@ async def websocket_endpoint(websocket: WebSocket):
             # Handle control messages
             if data == 'ping':
                 await websocket.send_json({'type': 'pong'})
+            elif data == 'refresh':
+                # Client can request fresh initial state
+                logger.info("Client requested state refresh")
+                refresh_state = await get_initial_state()
+                await websocket.send_json(refresh_state)
 
     except WebSocketDisconnect:
         logger.info("Client disconnected normally")
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        logger.error(f"WebSocket error: {e}", exc_info=True)
     finally:
         broadcaster.disconnect(websocket)
 
@@ -238,11 +258,20 @@ async def shutdown():
 @app.get("/health")
 async def health():
     """Health check endpoint"""
+    time_since_last_event = time.time() - broadcaster.last_event_time
+    
     return {
         "status": "ok",
         "connections": len(broadcaster.connections),
-        "last_event": broadcaster.last_event_time
+        "last_event_time": broadcaster.last_event_time,
+        "seconds_since_last_event": round(time_since_last_event, 2),
+        "unix_socket_active": time_since_last_event < 10.0
     }
+
+@app.get("/initial")
+async def get_initial_endpoint():
+    """HTTP endpoint to get initial state (for debugging)"""
+    return await get_initial_state()
 
 if __name__ == "__main__":
     import uvicorn

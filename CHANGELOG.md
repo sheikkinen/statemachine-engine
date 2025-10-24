@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2025-10-24
+
+### Fixed
+- **CRITICAL: websocket_server.py**: Fixed connection leak causing server to stop sending initial state
+  - Database objects were created but never cleaned up on reconnections
+  - After several minutes/many reconnections, server stopped responding
+  - Removed blocking `check_process_running()` that could hang event loop
+  - Extracted `get_initial_state()` function with proper cleanup
+  
+### Added
+- **test_websocket_server.py**: Comprehensive websocket connection tests (11 new tests)
+  - Tests multiple reconnections without resource leaks (20 consecutive)
+  - Verifies proper database connection cleanup
+  - Tests refresh command and initial state delivery
+  - `/initial` HTTP endpoint for debugging
+  
+### Improved
+- WebSocket `refresh` command allows clients to request fresh state
+- Enhanced `/health` endpoint with socket activity tracking
+- Better error handling with exc_info logging
+- Proper cleanup on WebSocket disconnection
+
 ## [1.0.5] - 2025-10-15
 
 ### Fixed

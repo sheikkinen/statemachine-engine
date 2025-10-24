@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.14] - 2025-10-24
+
+### Removed
+- **cleanup_old_events task**: Removed non-functional cleanup background task
+  - Task only deleted events with `consumed = 1`
+  - Events are never marked as consumed in current architecture
+  - Database fallback was removed in v1.0.13
+  - Result: cleanup task deleted zero events every hour (wasted CPU)
+
+### Technical Analysis
+- `realtime_events` table still used as fallback when Unix socket fails
+- Events inserted with `consumed = 0` and never updated
+- `mark_events_consumed()` exists but never called in production code
+- `cleanup_old_events()` condition never true: `WHERE consumed = 1 AND consumed_at < ...`
+- **Impact**: No functional change - task was already ineffective
+
+### Architecture
+- Websocket server now has **single background task**: `unix_socket_listener`
+- Simplified from 3 tasks (v1.0.11) → 2 tasks (v1.0.13) → 1 task (v1.0.14)
+- Unix socket is sole event source with database as write-only fallback
+- Future: Consider removing unused `realtime_events` table entirely
+
 ## [1.0.13] - 2025-10-24
 
 ### Removed

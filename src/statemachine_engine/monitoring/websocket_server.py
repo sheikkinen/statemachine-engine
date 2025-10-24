@@ -251,31 +251,6 @@ async def unix_socket_listener():
 
 
 
-async def cleanup_old_events():
-    """Periodically clean up old consumed events from database"""
-    cleanup_count = 0
-    
-    while True:
-        try:
-            await asyncio.sleep(3600)  # Every hour
-            cleanup_count += 1
-
-            # Create fresh model instance for each cleanup to avoid connection leaks
-            try:
-                logger.info(f"Starting cleanup #{cleanup_count} of old realtime events")
-                realtime_model = get_realtime_event_model()
-                deleted = realtime_model.cleanup_old_events(hours_old=24)
-                logger.info(f"Cleanup #{cleanup_count} complete: removed {deleted if deleted != -1 else 'unknown'} old events")
-            except Exception as e:
-                logger.error(f"Cleanup #{cleanup_count} error: {e}", exc_info=True)
-                
-        except asyncio.CancelledError:
-            logger.warning("Cleanup task cancelled, shutting down")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error in cleanup task: {e}", exc_info=True)
-            await asyncio.sleep(60)  # Wait before retry
-
 @app.on_event("startup")
 async def startup():
     """Start background tasks"""
@@ -284,8 +259,7 @@ async def startup():
     try:
         # Start background tasks with error tracking
         tasks = {
-            'unix_socket_listener': asyncio.create_task(unix_socket_listener()),
-            'cleanup_old_events': asyncio.create_task(cleanup_old_events())
+            'unix_socket_listener': asyncio.create_task(unix_socket_listener())
         }
         
         # Store tasks for potential monitoring

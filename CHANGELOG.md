@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.17] - 2025-10-24
+
+### Fixed
+- **Browser WebSocket client**: Handle server-initiated keepalive pings
+  - Client now responds to server pings with pongs
+  - Eliminates "Unknown event type: ping" console warnings
+  - Completes bidirectional keepalive protocol
+
 ## [1.0.16] - 2025-10-24
 
 ### Fixed

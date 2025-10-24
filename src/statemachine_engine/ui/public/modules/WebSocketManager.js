@@ -53,10 +53,25 @@ export class WebSocketManager {
     }
 
     handleEvent(data) {
+        // Handle control messages (keepalive protocol)
+        if (data.type === 'ping') {
+            // Server sent keepalive ping, optionally respond with pong
+            if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                this.websocket.send('pong');
+            }
+            return;
+        }
+        
+        if (data.type === 'pong') {
+            // Server acknowledged our ping, ignore
+            return;
+        }
+        
+        // Handle application events
         const handler = this.eventHandlers[data.type];
         if (handler) {
             handler(data);
-        } else if (data.type !== 'pong') {
+        } else {
             console.warn('Unknown event type:', data.type, 'Full event:', data);
         }
     }

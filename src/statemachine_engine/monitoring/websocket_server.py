@@ -76,9 +76,13 @@ class EventBroadcaster:
         for ws in self.connections:
             try:
                 logger.info(f"📤 Broadcasting to client {id(ws)}: {event.get('type', 'unknown')} event")
-                logger.info(f"� Event content for client {id(ws)}: {json.dumps(event, indent=2)}")
-                await ws.send_json(event)
+                logger.info(f"📦 Event content for client {id(ws)}: {json.dumps(event, indent=2)}")
+                # CRITICAL: Add timeout to prevent blocking on slow clients
+                await asyncio.wait_for(ws.send_json(event), timeout=2.0)
                 logger.info(f"✅ Sent to client {id(ws)}")
+            except asyncio.TimeoutError:
+                logger.warning(f"⏱️  Client {id(ws)}: Send timed out after 2s, marking as dead")
+                dead_connections.add(ws)
             except Exception as e:
                 logger.warning(f"Failed to send to client {id(ws)}: {e}")
                 dead_connections.add(ws)

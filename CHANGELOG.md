@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.16] - 2025-10-24
+
+### Fixed
+- **WebSocket keepalive**: Added server-side ping/pong to prevent connection timeouts
+  - Server now sends ping every 30 seconds to keep connection alive
+  - Fixes "keepalive ping timeout; no close frame received" error
+  - Client receive has 1s timeout to allow periodic ping checks
+  - Handles both client and server initiated pings
+
+### Technical Details
+- Previous: Server only waited for client messages (blocking)
+- Issue: Clients expecting server pings would timeout after ~60s
+- Solution: Periodic server pings + non-blocking client receive
+- Unix socket listener continues to work (alternative CLI confirms events received)
+- WebSocket protocol layer now robust with proper keepalive
+
+### Troubleshooting Context
+- Alternative listener (`statemachine-events --format json`) showed events flowing
+- Proved Unix socket listener working correctly
+- Issue isolated to WebSocket protocol keepalive timeout
+- Common with WebSocket clients expecting server-initiated pings
+
 ## [1.0.15] - 2025-10-24
 
 ### Testing

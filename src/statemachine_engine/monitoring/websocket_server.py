@@ -147,24 +147,46 @@ async def websocket_endpoint(websocket: WebSocket):
         except Exception as e:
             logger.error(f"Client {client_id}: Failed to send initial state: {e}", exc_info=True)
 
-        # Keep connection alive (receive pings from client)
+        # Keep connection alive with periodic pings and message handling
+        last_ping = time.time()
+        ping_interval = 30  # Send ping every 30 seconds
+        
         while True:
             try:
-                data = await websocket.receive_text()
-
-                # Handle control messages
-                if data == 'ping':
-                    await websocket.send_json({'type': 'pong'})
-                elif data == 'refresh':
-                    # Client can request fresh initial state
-                    logger.info(f"Client {client_id} requested state refresh")
+                # Send periodic ping to keep connection alive
+                current_time = time.time()
+                if current_time - last_ping > ping_interval:
                     try:
-                        refresh_state = await get_initial_state()
-                        await websocket.send_json(refresh_state)
+                        await websocket.send_json({'type': 'ping', 'timestamp': current_time})
+                        last_ping = current_time
+                        logger.debug(f"Client {client_id}: Sent keepalive ping")
                     except Exception as e:
-                        logger.error(f"Client {client_id}: Failed to send refresh: {e}", exc_info=True)
-                else:
-                    logger.debug(f"Client {client_id}: Unknown message: {data[:50]}")
+                        logger.warning(f"Client {client_id}: Failed to send ping: {e}")
+                        break
+                
+                # Try to receive client messages with short timeout
+                try:
+                    data = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
+                    
+                    # Handle control messages
+                    if data == 'ping':
+                        await websocket.send_json({'type': 'pong'})
+                    elif data == 'pong':
+                        logger.debug(f"Client {client_id}: Received pong")
+                    elif data == 'refresh':
+                        # Client can request fresh initial state
+                        logger.info(f"Client {client_id} requested state refresh")
+                        try:
+                            refresh_state = await get_initial_state()
+                            await websocket.send_json(refresh_state)
+                        except Exception as e:
+                            logger.error(f"Client {client_id}: Failed to send refresh: {e}", exc_info=True)
+                    else:
+                        logger.debug(f"Client {client_id}: Unknown message: {data[:50]}")
+                        
+                except asyncio.TimeoutError:
+                    # No message from client, continue to send ping if needed
+                    continue
                     
             except asyncio.TimeoutError:
                 logger.warning(f"Client {client_id}: Receive timeout")

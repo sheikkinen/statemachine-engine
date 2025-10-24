@@ -135,33 +135,53 @@ async def get_initial_state() -> dict:
 @app.websocket("/ws/events")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time event streaming"""
-    await broadcaster.connect(websocket)
-
+    client_id = id(websocket)  # Unique ID for logging
+    
     try:
+        await broadcaster.connect(websocket)
+        logger.info(f"Client {client_id} connected from {websocket.client}")
+
         # Send initial state snapshot (with proper cleanup)
-        initial_state = await get_initial_state()
-        await websocket.send_json(initial_state)
-        logger.info(f"Sent initial state with {len(initial_state.get('machines', []))} machines to new client")
+        try:
+            initial_state = await get_initial_state()
+            await websocket.send_json(initial_state)
+            logger.info(f"Client {client_id}: Sent initial state with {len(initial_state.get('machines', []))} machines")
+        except Exception as e:
+            logger.error(f"Client {client_id}: Failed to send initial state: {e}", exc_info=True)
 
         # Keep connection alive (receive pings from client)
         while True:
-            data = await websocket.receive_text()
+            try:
+                data = await websocket.receive_text()
 
-            # Handle control messages
-            if data == 'ping':
-                await websocket.send_json({'type': 'pong'})
-            elif data == 'refresh':
-                # Client can request fresh initial state
-                logger.info("Client requested state refresh")
-                refresh_state = await get_initial_state()
-                await websocket.send_json(refresh_state)
+                # Handle control messages
+                if data == 'ping':
+                    await websocket.send_json({'type': 'pong'})
+                elif data == 'refresh':
+                    # Client can request fresh initial state
+                    logger.info(f"Client {client_id} requested state refresh")
+                    try:
+                        refresh_state = await get_initial_state()
+                        await websocket.send_json(refresh_state)
+                    except Exception as e:
+                        logger.error(f"Client {client_id}: Failed to send refresh: {e}", exc_info=True)
+                else:
+                    logger.debug(f"Client {client_id}: Unknown message: {data[:50]}")
+                    
+            except asyncio.TimeoutError:
+                logger.warning(f"Client {client_id}: Receive timeout")
+                continue
 
     except WebSocketDisconnect:
-        logger.info("Client disconnected normally")
+        logger.info(f"Client {client_id} disconnected normally")
+    except asyncio.CancelledError:
+        logger.info(f"Client {client_id} connection cancelled")
+        raise
     except Exception as e:
-        logger.error(f"WebSocket error: {e}", exc_info=True)
+        logger.error(f"Client {client_id}: WebSocket error: {e}", exc_info=True)
     finally:
         broadcaster.disconnect(websocket)
+        logger.debug(f"Client {client_id} cleanup complete")
 
 async def unix_socket_listener():
     """Listen for events from state machines via Unix socket"""
@@ -179,89 +199,165 @@ async def unix_socket_listener():
     logger.info(f"Listening on Unix socket: {socket_path}")
 
     loop = asyncio.get_event_loop()
+    event_count = 0
+    last_heartbeat = time.time()
 
     while True:
         try:
+            # Heartbeat logging every 60 seconds to detect silent failures
+            current_time = time.time()
+            if current_time - last_heartbeat > 60:
+                logger.info(f"Unix socket listener heartbeat: {event_count} events received, still listening")
+                last_heartbeat = current_time
+            
             # Non-blocking receive from DGRAM socket
             # Use sock_recvfrom for datagram sockets (returns data and address)
             data, addr = await loop.sock_recvfrom(sock, 4096)
             if data:
-                event = json.loads(data.decode('utf-8'))
-                logger.info(f"Received event via Unix socket: {event.get('event_type', event.get('type'))} from {event.get('machine_name')}")
-                
-                # Transform event_type → type for client compatibility
-                if 'event_type' in event:
-                    event['type'] = event.pop('event_type')
-                
-                await broadcaster.broadcast(event)
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON received: {e}")
+                event_count += 1
+                try:
+                    event = json.loads(data.decode('utf-8'))
+                    logger.info(f"Received event via Unix socket: {event.get('event_type', event.get('type'))} from {event.get('machine_name')}")
+                    
+                    # Transform event_type → type for client compatibility
+                    if 'event_type' in event:
+                        event['type'] = event.pop('event_type')
+                    
+                    await broadcaster.broadcast(event)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid JSON received (event #{event_count}): {e}, data: {data[:100]}")
+                except Exception as e:
+                    logger.error(f"Error broadcasting event #{event_count}: {e}", exc_info=True)
+                    
         except BlockingIOError:
             # No data available, sleep briefly
             await asyncio.sleep(0.001)
+        except asyncio.CancelledError:
+            logger.warning("Unix socket listener cancelled, shutting down")
+            raise
+        except OSError as e:
+            logger.error(f"Unix socket OS error: {e}, attempting to continue", exc_info=True)
+            await asyncio.sleep(1)  # Back off on OS errors
         except Exception as e:
-            logger.error(f"Unix socket error: {e}")
-            await asyncio.sleep(0.001)
+            logger.error(f"Unexpected error in Unix socket listener: {e}", exc_info=True)
+            await asyncio.sleep(0.1)  # Brief pause before continuing
 
 async def database_fallback_poller():
     """Poll database for events if Unix socket goes quiet"""
     last_event_id = 0
+    poll_count = 0
+    last_heartbeat = time.time()
 
     logger.info("Database fallback poller started")
 
     while True:
-        await asyncio.sleep(0.5)  # Poll every 500ms
-
-        # Check if Unix socket is active (received event in last 5 seconds)
-        if time.time() - broadcaster.last_event_time < 5.0:
-            continue  # Socket is working, skip DB poll
-
-        # Unix socket seems dead, check database
-        # Create fresh model instance for each poll to avoid connection leaks
         try:
-            realtime_model = get_realtime_event_model()
-            events = realtime_model.get_unconsumed_events(since_id=last_event_id, limit=50)
+            await asyncio.sleep(0.5)  # Poll every 500ms
+            poll_count += 1
 
-            for event in events:
-                event_dict = {
-                    'machine_name': event['machine_name'],
-                    'type': event['event_type'],  # Use 'type' for client compatibility
-                    'payload': event['payload'],
-                    'timestamp': event['created_at']
-                }
+            # Heartbeat logging every 5 minutes
+            current_time = time.time()
+            if current_time - last_heartbeat > 300:
+                time_since_event = current_time - broadcaster.last_event_time
+                logger.info(f"Database fallback poller heartbeat: poll #{poll_count}, "
+                          f"last event {time_since_event:.1f}s ago")
+                last_heartbeat = current_time
 
-                await broadcaster.broadcast(event_dict)
-                last_event_id = event['id']
+            # Check if Unix socket is active (received event in last 5 seconds)
+            if time.time() - broadcaster.last_event_time < 5.0:
+                continue  # Socket is working, skip DB poll
 
-            if events:
-                # Mark events as consumed
-                event_ids = [event['id'] for event in events]
-                realtime_model.mark_events_consumed(event_ids)
-                logger.info(f"Processed {len(events)} events from database fallback")
+            # Unix socket seems dead, check database
+            # Create fresh model instance for each poll to avoid connection leaks
+            try:
+                realtime_model = get_realtime_event_model()
+                events = realtime_model.get_unconsumed_events(since_id=last_event_id, limit=50)
 
+                for event in events:
+                    event_dict = {
+                        'machine_name': event['machine_name'],
+                        'type': event['event_type'],  # Use 'type' for client compatibility
+                        'payload': event['payload'],
+                        'timestamp': event['created_at']
+                    }
+
+                    await broadcaster.broadcast(event_dict)
+                    last_event_id = event['id']
+
+                if events:
+                    # Mark events as consumed
+                    event_ids = [event['id'] for event in events]
+                    realtime_model.mark_events_consumed(event_ids)
+                    logger.info(f"Processed {len(events)} events from database fallback")
+
+            except Exception as e:
+                logger.error(f"Database fallback poll error: {e}", exc_info=True)
+                
+        except asyncio.CancelledError:
+            logger.warning("Database fallback poller cancelled, shutting down")
+            raise
         except Exception as e:
-            logger.error(f"Database fallback error: {e}")
+            logger.error(f"Unexpected error in database fallback poller: {e}", exc_info=True)
+            await asyncio.sleep(1)  # Back off on errors
 
 async def cleanup_old_events():
     """Periodically clean up old consumed events from database"""
+    cleanup_count = 0
+    
     while True:
-        await asyncio.sleep(3600)  # Every hour
-
-        # Create fresh model instance for each cleanup to avoid connection leaks
         try:
-            realtime_model = get_realtime_event_model()
-            realtime_model.cleanup_old_events(hours_old=24)
-            logger.info("Cleaned up old realtime events")
+            await asyncio.sleep(3600)  # Every hour
+            cleanup_count += 1
+
+            # Create fresh model instance for each cleanup to avoid connection leaks
+            try:
+                logger.info(f"Starting cleanup #{cleanup_count} of old realtime events")
+                realtime_model = get_realtime_event_model()
+                deleted = realtime_model.cleanup_old_events(hours_old=24)
+                logger.info(f"Cleanup #{cleanup_count} complete: removed {deleted if deleted != -1 else 'unknown'} old events")
+            except Exception as e:
+                logger.error(f"Cleanup #{cleanup_count} error: {e}", exc_info=True)
+                
+        except asyncio.CancelledError:
+            logger.warning("Cleanup task cancelled, shutting down")
+            raise
         except Exception as e:
-            logger.error(f"Cleanup error: {e}")
+            logger.error(f"Unexpected error in cleanup task: {e}", exc_info=True)
+            await asyncio.sleep(60)  # Wait before retry
 
 @app.on_event("startup")
 async def startup():
     """Start background tasks"""
-    asyncio.create_task(unix_socket_listener())
-    asyncio.create_task(database_fallback_poller())
-    asyncio.create_task(cleanup_old_events())
-    logger.info("WebSocket server started on port 3002")
+    logger.info("Starting WebSocket server background tasks...")
+    
+    try:
+        # Start background tasks with error tracking
+        tasks = {
+            'unix_socket_listener': asyncio.create_task(unix_socket_listener()),
+            'database_fallback_poller': asyncio.create_task(database_fallback_poller()),
+            'cleanup_old_events': asyncio.create_task(cleanup_old_events())
+        }
+        
+        # Store tasks for potential monitoring
+        app.state.background_tasks = tasks
+        
+        logger.info(f"WebSocket server started on port 3002 with {len(tasks)} background tasks")
+        
+        # Log task status after brief delay
+        await asyncio.sleep(0.5)
+        for name, task in tasks.items():
+            if task.done():
+                logger.error(f"Background task '{name}' exited immediately!")
+                try:
+                    task.result()  # Will raise exception if task failed
+                except Exception as e:
+                    logger.error(f"Background task '{name}' error: {e}", exc_info=True)
+            else:
+                logger.info(f"Background task '{name}' running successfully")
+                
+    except Exception as e:
+        logger.error(f"Failed to start background tasks: {e}", exc_info=True)
+        raise
 
 @app.on_event("shutdown")
 async def shutdown():

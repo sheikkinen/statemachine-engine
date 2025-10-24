@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10] - 2025-10-24
+
+### Added
+- **websocket_server.py**: Comprehensive error handling and logging for async tasks
+  - Heartbeat logging every 60s (Unix socket) and 5min (DB poller) to detect silent failures
+  - Event counters and detailed task status logging
+  - Per-client logging with unique IDs for WebSocket connections
+  - Graceful handling of `asyncio.CancelledError` for proper shutdown
+  - Separate exception handlers for OSError, TimeoutError, and unexpected errors
+  - Background task health checks on startup - logs if any task exits immediately
+  - Full exception stack traces (`exc_info=True`) for all error paths
+  - Prevents silent async task crashes that cause server to appear hung
+
+### Improved
+- Better visibility into WebSocket server internal state
+- Easier troubleshooting of async task failures
+- Detection of event stream interruptions
+- Task monitoring and status reporting
+
 ## [1.0.9] - 2025-10-24
 
 ### Fixed

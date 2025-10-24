@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.20] - 2025-10-25
+
+### Fixed
+- **CRITICAL: WebSocket broadcast blocking** - Fixed 40-second system freeze
+  - **Root Cause**: `ws.send_json()` blocked for 39.6 seconds on slow client
+  - Prevented keepalive pings from being sent to ANY client
+  - Both WebSocket clients timed out and disconnected
+  - System appeared completely frozen from user perspective
+  
+### Changed
+- Added 2-second timeout to WebSocket broadcast sends
+  - `await asyncio.wait_for(ws.send_json(event), timeout=2.0)`
+  - Slow clients now detected and removed within 2 seconds
+  - One slow client can no longer block broadcasts to other clients
+  - Keepalive tasks continue independently
+
+### Added
+- **Comprehensive troubleshooting documentation** - `docs/troubleshoot-comms.md`
+  - Complete timeline reconstruction of the 40-second freeze
+  - Unix socket emission timeline with full event payloads
+  - WebSocket broadcast analysis showing exact blocking points
+  - Root cause analysis and fix explanation
+  - Metrics: block duration, events queued, clients lost
+
+### Technical Details
+- **Evidence from production logs**:
+  - Event #36 broadcast started: 23:53:17.344
+  - Event #36 broadcast completed: 23:53:56.947 (39.603 seconds later!)
+  - During block: No keepalive pings sent, 3 events queued
+  - Result: Both clients disconnected due to ping timeout
+  
+- **The Problem**: Even though keepalive runs in separate async task, both tasks share same WebSocket connection. When broadcast blocked, entire connection blocked.
+
+- **The Solution**: Timeout prevents monopolization. Slow clients removed before affecting system.
+
+### Impact
+- System now resilient to slow/stuck WebSocket clients
+- No single client can cause system-wide freeze
+- Faster detection and removal of problematic connections
+- Improved reliability for real-time monitoring
+
 ## [1.0.19] - 2025-10-24
 
 ### Added

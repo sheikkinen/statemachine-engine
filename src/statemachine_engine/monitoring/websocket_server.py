@@ -205,7 +205,6 @@ async def unix_socket_listener():
 
 async def database_fallback_poller():
     """Poll database for events if Unix socket goes quiet"""
-    realtime_model = get_realtime_event_model()
     last_event_id = 0
 
     logger.info("Database fallback poller started")
@@ -218,7 +217,9 @@ async def database_fallback_poller():
             continue  # Socket is working, skip DB poll
 
         # Unix socket seems dead, check database
+        # Create fresh model instance for each poll to avoid connection leaks
         try:
+            realtime_model = get_realtime_event_model()
             events = realtime_model.get_unconsumed_events(since_id=last_event_id, limit=50)
 
             for event in events:
@@ -243,12 +244,12 @@ async def database_fallback_poller():
 
 async def cleanup_old_events():
     """Periodically clean up old consumed events from database"""
-    realtime_model = get_realtime_event_model()
-
     while True:
         await asyncio.sleep(3600)  # Every hour
 
+        # Create fresh model instance for each cleanup to avoid connection leaks
         try:
+            realtime_model = get_realtime_event_model()
             realtime_model.cleanup_old_events(hours_old=24)
             logger.info("Cleaned up old realtime events")
         except Exception as e:

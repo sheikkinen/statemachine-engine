@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2025-10-24
+
+### Fixed
+- **CRITICAL: base.py**: Fixed SQLite connection leak causing WebSocket server to freeze
+  - **Root Cause**: SQLite connections as context managers commit/rollback but DON'T close!
+  - After ~30 minutes of operation, 66+ unclosed connections accumulate
+  - Server stops responding to HTTP health checks and WebSocket connections
+  - Changed `_get_connection()` to proper `@contextmanager` that explicitly calls `conn.close()`
+  - Affects ALL database operations across the entire engine
+  - **Bug Impact**: WebSocket server, CLI commands, state machines - all leaked connections
+  
+### Improved  
+- **websocket_server.py**: Better connection hygiene in async tasks
+  - `database_fallback_poller()`: Create fresh model instance per poll cycle
+  - `cleanup_old_events()`: Create fresh model instance per cleanup
+  - Reduces pressure on connection pool even with proper closing
+
+### Technical Details
+- Python docs: "When used as a context manager, [Connection] objects commit or rollback 
+  transactions but do not close the connection."
+- https://docs.python.org/3/library/sqlite3.html#using-the-connection-as-a-context-manager
+- Fix: Wrap connection creation in `@contextmanager` with explicit `conn.close()` in finally block
+- This fixes v1.0.6 regression where the fix was in wrong place (websocket_server vs base.py)
+
 ## [1.0.8] - 2025-10-24
 
 ### Added

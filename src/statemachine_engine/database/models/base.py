@@ -9,6 +9,7 @@ IMPORTANT: Changes via Change Management, see CLAUDE.md
 import sqlite3
 import logging
 from pathlib import Path
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +22,21 @@ class Database:
         self.schema_dir = Path(__file__).parent.parent / "schema"
         self._ensure_tables()
 
-    def _get_connection(self) -> sqlite3.Connection:
-        """Get database connection with row factory"""
+    @contextmanager
+    def _get_connection(self):
+        """Get database connection with row factory and ensure proper cleanup
+        
+        CRITICAL: SQLite connections used as context managers do NOT close the connection!
+        They only commit/rollback. We must explicitly close to prevent connection leaks.
+        
+        See: https://docs.python.org/3/library/sqlite3.html#using-the-connection-as-a-context-manager
+        """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            yield conn
+        finally:
+            conn.close()  # CRITICAL: Explicitly close to prevent connection leak
 
     def _execute_schema_file(self, schema_file: Path):
         """Execute SQL from schema file"""

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2025-10-24
+
+### Added
+- **websocket_server.py**: Persistent file logging for WebSocket server
+  - Automatically logs to `logs/websocket-server.log` in working directory
+  - Creates log directory if it doesn't exist
+  - Dual output: both file and console (stdout)
+  - Formatted logs with timestamp, logger name, level, and message
+  - Append mode preserves logs across restarts
+  - Critical for debugging server issues in production environments
+
+### Improved
+- Enhanced logging visibility for WebSocket server operations
+- Better troubleshooting capabilities for real-time monitoring system
+
 ## [1.0.7] - 2025-10-24
 
 ### Fixed

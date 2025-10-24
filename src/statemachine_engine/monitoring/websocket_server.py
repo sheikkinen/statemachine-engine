@@ -23,8 +23,22 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from statemachine_engine.database.models import Database, get_realtime_event_model
 
-logging.basicConfig(level=logging.INFO)
+# Setup logging to file and console
+log_dir = Path.cwd() / "logs"
+log_dir.mkdir(exist_ok=True)
+log_file = log_dir / "websocket-server.log"
+
+# Configure logging with both file and console handlers
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file, mode='a'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
+logger.info(f"Logging to {log_file}")
 
 app = FastAPI(title="Face Changer Event Stream")
 

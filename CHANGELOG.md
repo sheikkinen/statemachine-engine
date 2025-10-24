@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2025-10-24
+
+### Fixed
+- **CRITICAL: websocket_server.py**: Unix socket listener blocks forever on sock_recvfrom
+  - **Root Cause**: `loop.sock_recvfrom()` can block indefinitely despite `setblocking(False)`
+  - After ~30 min, async task hangs - no events received, no heartbeats logged
+  - HTTP endpoints timeout because event loop is stuck
+  - **Bug Impact**: Server appears alive but completely unresponsive after short time
+  - **Fix**: Wrap sock_recvfrom in `asyncio.wait_for()` with 1s timeout
+  - Allows heartbeat checks to run even when no data arrives
+  - Heartbeats now reliably fire every 60s regardless of event activity
+
+### Technical Details
+- Python's `socket.setblocking(False)` doesn't prevent asyncio await from blocking
+- Must use `asyncio.wait_for()` with explicit timeout for reliable non-blocking behavior
+- Without timeout: task hangs forever waiting for socket data
+- With timeout: task yields to event loop, heartbeats work, server stays responsive
+
 ## [1.0.10] - 2025-10-24
 
 ### Added

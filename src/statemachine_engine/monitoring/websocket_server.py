@@ -210,9 +210,18 @@ async def unix_socket_listener():
                 logger.info(f"Unix socket listener heartbeat: {event_count} events received, still listening")
                 last_heartbeat = current_time
             
-            # Non-blocking receive from DGRAM socket
+            # Non-blocking receive from DGRAM socket with timeout
             # Use sock_recvfrom for datagram sockets (returns data and address)
-            data, addr = await loop.sock_recvfrom(sock, 4096)
+            # CRITICAL: Add timeout to prevent indefinite blocking
+            try:
+                data, addr = await asyncio.wait_for(
+                    loop.sock_recvfrom(sock, 4096),
+                    timeout=1.0  # 1 second timeout allows heartbeats to work
+                )
+            except asyncio.TimeoutError:
+                # No data received, continue to heartbeat check
+                logger.debug("Unix socket receive timeout (no data), continuing to heartbeat check")
+                continue
             if data:
                 event_count += 1
                 try:

@@ -76,11 +76,14 @@ class EventBroadcaster:
         for ws in self.connections:
             try:
                 await ws.send_json(event)
+                logger.info(f"📤 Broadcast to client {id(ws)}: {event.get('type', 'unknown')} event")
             except Exception as e:
-                logger.debug(f"Failed to send to client: {e}")
+                logger.warning(f"Failed to send to client {id(ws)}: {e}")
                 dead_connections.add(ws)
 
         self.connections -= dead_connections
+        if dead_connections:
+            logger.info(f"Removed {len(dead_connections)} dead connections")
 
 broadcaster = EventBroadcaster()
 
@@ -141,11 +144,13 @@ async def websocket_endpoint(websocket: WebSocket):
 
         # Send initial state snapshot (with proper cleanup)
         try:
+            logger.info(f"📋 Client {client_id}: Fetching initial state...")
             initial_state = await get_initial_state()
+            logger.info(f"📋 Client {client_id}: Sending initial state with {len(initial_state.get('machines', []))} machines")
             await websocket.send_json(initial_state)
-            logger.info(f"Client {client_id}: Sent initial state with {len(initial_state.get('machines', []))} machines")
+            logger.info(f"✅ Client {client_id}: Initial state sent successfully")
         except Exception as e:
-            logger.error(f"Client {client_id}: Failed to send initial state: {e}", exc_info=True)
+            logger.error(f"❌ Client {client_id}: Failed to send initial state: {e}", exc_info=True)
 
         # Keep connection alive with periodic pings - run as background task
         async def send_keepalive():
@@ -155,13 +160,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 while True:
                     await asyncio.sleep(ping_interval)
                     try:
-                        await websocket.send_json({'type': 'ping', 'timestamp': time.time()})
-                        logger.info(f"Client {client_id}: Sent keepalive ping")
+                        ping_data = {'type': 'ping', 'timestamp': time.time()}
+                        await websocket.send_json(ping_data)
+                        logger.info(f"🏓 Client {client_id}: Sent keepalive ping at {ping_data['timestamp']}")
                     except Exception as e:
-                        logger.warning(f"Client {client_id}: Failed to send ping: {e}")
+                        logger.warning(f"Client {client_id}: Failed to send keepalive ping: {e}")
                         break
             except asyncio.CancelledError:
-                logger.debug(f"Client {client_id}: Keepalive task cancelled")
+                logger.info(f"Client {client_id}: Keepalive task cancelled")
                 
         # Start keepalive as background task
         keepalive_task = asyncio.create_task(send_keepalive())
@@ -172,25 +178,30 @@ async def websocket_endpoint(websocket: WebSocket):
                 try:
                     # Wait for client messages with timeout
                     data = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+                    logger.info(f"📨 Client {client_id}: Received message: {data[:100]}")
                     
                     # Handle control messages
                     if data == 'ping':
+                        logger.info(f"🏓 Client {client_id}: Received ping, sending pong")
                         await websocket.send_json({'type': 'pong'})
+                        logger.info(f"🏓 Client {client_id}: Sent pong response")
                     elif data == 'pong':
-                        logger.debug(f"Client {client_id}: Received pong")
+                        logger.info(f"🏓 Client {client_id}: Received pong response")
                     elif data == 'refresh':
                         # Client can request fresh initial state
-                        logger.info(f"Client {client_id} requested state refresh")
+                        logger.info(f"🔄 Client {client_id}: Requested state refresh")
                         try:
                             refresh_state = await get_initial_state()
                             await websocket.send_json(refresh_state)
+                            logger.info(f"🔄 Client {client_id}: Sent refresh state with {len(refresh_state.get('machines', []))} machines")
                         except Exception as e:
                             logger.error(f"Client {client_id}: Failed to send refresh: {e}", exc_info=True)
                     else:
-                        logger.debug(f"Client {client_id}: Unknown message: {data[:50]}")
+                        logger.info(f"❓ Client {client_id}: Unknown message type: {data[:50]}")
                         
                 except asyncio.TimeoutError:
                     # No message from client in 5 seconds - this is normal, continue
+                    logger.debug(f"Client {client_id}: No message in 5s (normal)")
                     continue
                     
         finally:
@@ -247,21 +258,27 @@ async def unix_socket_listener():
                     loop.sock_recvfrom(sock, 4096),
                     timeout=0.1  # 100ms timeout - shorter to prevent buffer buildup
                 )
+                logger.debug(f"🔌 Unix socket: Received {len(data)} bytes from {addr}")
             except asyncio.TimeoutError:
-                # No data received, yield to event loop before continuing
+                # No data available, yield to event loop before continuing
+                logger.debug(f"⏱️  Unix socket: Timeout (no data), yielding to event loop")
                 await asyncio.sleep(0)  # Yield to other tasks
                 continue
             if data:
                 event_count += 1
                 try:
                     event = json.loads(data.decode('utf-8'))
-                    logger.info(f"Received event via Unix socket: {event.get('event_type', event.get('type'))} from {event.get('machine_name')}")
+                    event_type = event.get('event_type', event.get('type', 'unknown'))
+                    machine_name = event.get('machine_name', 'unknown')
+                    logger.info(f"📥 Unix socket: Received event #{event_count}: {event_type} from {machine_name}")
                     
                     # Transform event_type → type for client compatibility
                     if 'event_type' in event:
                         event['type'] = event.pop('event_type')
                     
+                    logger.info(f"📡 Broadcasting event #{event_count} to {len(broadcaster.connections)} clients")
                     await broadcaster.broadcast(event)
+                    logger.info(f"✅ Broadcast complete for event #{event_count}")
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid JSON received (event #{event_count}): {e}, data: {data[:100]}")
                 except Exception as e:
@@ -269,15 +286,16 @@ async def unix_socket_listener():
                     
         except BlockingIOError:
             # No data available, sleep briefly
+            logger.debug("🚫 Unix socket: BlockingIOError, sleeping briefly")
             await asyncio.sleep(0.001)
         except asyncio.CancelledError:
-            logger.warning("Unix socket listener cancelled, shutting down")
+            logger.warning("⚠️  Unix socket listener cancelled, shutting down")
             raise
         except OSError as e:
-            logger.error(f"Unix socket OS error: {e}, attempting to continue", exc_info=True)
+            logger.error(f"❌ Unix socket OS error: {e}, attempting to continue", exc_info=True)
             await asyncio.sleep(1)  # Back off on OS errors
         except Exception as e:
-            logger.error(f"Unexpected error in Unix socket listener: {e}", exc_info=True)
+            logger.error(f"❌ Unexpected error in Unix socket listener: {e}", exc_info=True)
             await asyncio.sleep(0.1)  # Brief pause before continuing
 
 

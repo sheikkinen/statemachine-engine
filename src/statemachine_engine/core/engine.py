@@ -63,14 +63,19 @@ class EventSocketManager:
         Never blocks or raises exceptions.
         """
         if not self.sock:
+            self.logger.debug(f"📭 Socket not connected, cannot emit: {event_data.get('event_type', 'unknown')}")
             return False
 
         try:
             message = json.dumps(event_data).encode('utf-8')
+            event_type = event_data.get('event_type', 'unknown')
+            machine_name = event_data.get('machine_name', 'unknown')
+            self.logger.info(f"📤 Emitting to Unix socket: {event_type} from {machine_name} ({len(message)} bytes)")
             self.sock.send(message)
+            self.logger.info(f"✅ Successfully emitted: {event_type} from {machine_name}")
             return True
         except Exception as e:
-            self.logger.debug(f"Failed to emit event: {e}")
+            self.logger.warning(f"❌ Failed to emit event: {e}")
             # Try reconnect on next emit
             self._connect()
             return False
@@ -385,10 +390,15 @@ class StateMachineEngine:
             'payload': payload
         }
 
+        logger.info(f"🔔 [{self.machine_name}] Preparing to emit: {event_type} with payload: {str(payload)[:100]}")
+        
         # Try fast path (Unix socket)
         if self.event_socket.emit(event_data):
+            logger.info(f"✅ [{self.machine_name}] Event emitted via Unix socket: {event_type}")
             return
 
+        logger.warning(f"⚠️  [{self.machine_name}] Unix socket failed, falling back to database for: {event_type}")
+        
         # Fallback: Write to database
         job_model = self.context.get('job_model')
         if job_model and hasattr(job_model, 'db'):
@@ -399,8 +409,9 @@ class StateMachineEngine:
                 from database.models import get_realtime_event_model
                 realtime_model = get_realtime_event_model()
                 realtime_model.log_event(self.machine_name, event_type, payload)
+                logger.info(f"💾 [{self.machine_name}] Event logged to database: {event_type}")
             except Exception as e:
-                logger.warning(f"[{self.machine_name}] Failed to log realtime event to database: {e}")
+                logger.warning(f"❌ [{self.machine_name}] Failed to log realtime event to database: {e}")
     
     def emit_job_started(self, job_id: str, job_type: str = None):
         """Emit job_started event"""

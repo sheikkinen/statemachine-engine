@@ -147,26 +147,31 @@ async def websocket_endpoint(websocket: WebSocket):
         except Exception as e:
             logger.error(f"Client {client_id}: Failed to send initial state: {e}", exc_info=True)
 
-        # Keep connection alive with periodic pings and message handling
-        last_ping = time.time()
-        ping_interval = 30  # Send ping every 30 seconds
-        
-        while True:
+        # Keep connection alive with periodic pings - run as background task
+        async def send_keepalive():
+            """Send periodic pings to keep WebSocket connection alive"""
+            ping_interval = 20  # Send ping every 20 seconds
             try:
-                # Send periodic ping to keep connection alive
-                current_time = time.time()
-                if current_time - last_ping > ping_interval:
+                while True:
+                    await asyncio.sleep(ping_interval)
                     try:
-                        await websocket.send_json({'type': 'ping', 'timestamp': current_time})
-                        last_ping = current_time
-                        logger.debug(f"Client {client_id}: Sent keepalive ping")
+                        await websocket.send_json({'type': 'ping', 'timestamp': time.time()})
+                        logger.info(f"Client {client_id}: Sent keepalive ping")
                     except Exception as e:
                         logger.warning(f"Client {client_id}: Failed to send ping: {e}")
                         break
+            except asyncio.CancelledError:
+                logger.debug(f"Client {client_id}: Keepalive task cancelled")
                 
-                # Try to receive client messages with short timeout
+        # Start keepalive as background task
+        keepalive_task = asyncio.create_task(send_keepalive())
+        
+        try:
+            # Handle incoming client messages
+            while True:
                 try:
-                    data = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
+                    # Wait for client messages with timeout
+                    data = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
                     
                     # Handle control messages
                     if data == 'ping':
@@ -185,12 +190,16 @@ async def websocket_endpoint(websocket: WebSocket):
                         logger.debug(f"Client {client_id}: Unknown message: {data[:50]}")
                         
                 except asyncio.TimeoutError:
-                    # No message from client, continue to send ping if needed
+                    # No message from client in 5 seconds - this is normal, continue
                     continue
                     
-            except asyncio.TimeoutError:
-                logger.warning(f"Client {client_id}: Receive timeout")
-                continue
+        finally:
+            # Cancel keepalive task on disconnect
+            keepalive_task.cancel()
+            try:
+                await keepalive_task
+            except asyncio.CancelledError:
+                pass
 
     except WebSocketDisconnect:
         logger.info(f"Client {client_id} disconnected normally")

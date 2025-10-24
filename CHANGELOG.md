@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.18] - 2025-10-24
+
+### Fixed
+- **CRITICAL: WebSocket keepalive timeout**: Fixed server not sending keepalive pings
+  - **Root Cause**: Ping logic was inside receive loop, blocked by waiting for client messages
+  - Server never sent pings because loop was stuck in `websocket.receive_text()`
+  - Clients timed out after 60s with "keepalive ping timeout; no close frame received"
+  - **Fix**: Separated keepalive into independent background task
+  - Pings now sent reliably every 20 seconds regardless of message traffic
+  - Receive loop increased timeout to 5s (was 1s) - no longer needs frequent cycling
+
+### Technical Details
+- **Previous Architecture**: Single loop doing both ping timing and message receive
+  - Loop spent 1s blocked in receive, checked ping timer, repeated
+  - With high broadcast frequency, ping checks never executed
+  - No debug-level pings logged - confirms pings never sent
+- **New Architecture**: Separate async tasks for keepalive and message handling
+  - `send_keepalive()` runs as background task with 20s sleep interval
+  - Main loop handles client messages with 5s timeout
+  - Both tasks run concurrently without blocking each other
+  - Proper cleanup on disconnect with task cancellation
+
+### Impact
+- WebSocket connections now stay alive indefinitely
+- No more 60-second timeout errors
+- Server logs show keepalive pings being sent (INFO level)
+- More reliable real-time monitoring
+
 ## [1.0.17] - 2025-10-24
 
 ### Fixed

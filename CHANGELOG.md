@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.19] - 2025-10-24
+
+### Added
+- **Comprehensive message tracing**: Full JSON logging at every pipeline step
+  - Engine logs complete payload and event_data before emission (indented JSON)
+  - EventSocketManager logs full message contents before/after send
+  - WebSocket server logs complete event data on receive, before broadcast, per-client
+  - All ping/pong messages logged with full JSON content
+  - Initial state and refresh state logged with complete data structures
+  - No truncation - every message fully visible in logs
+
+### Changed
+- All message logging now uses `json.dumps(data, indent=2)` for readability
+- Increased logging verbosity from summary to full message inspection
+- Error paths now log complete event data that failed
+
+### Impact
+- Complete visibility into message flow through entire system
+- Can see exact message contents at each step when debugging
+- When system halts, logs show last message processed with full details
+- Indented JSON makes log inspection easier during troubleshooting
+
 ## [1.0.18] - 2025-10-24
 
 ### Fixed

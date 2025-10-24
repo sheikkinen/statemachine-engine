@@ -71,11 +71,13 @@ class EventSocketManager:
             event_type = event_data.get('event_type', 'unknown')
             machine_name = event_data.get('machine_name', 'unknown')
             self.logger.info(f"📤 Emitting to Unix socket: {event_type} from {machine_name} ({len(message)} bytes)")
+            self.logger.info(f"📦 Full event data: {json.dumps(event_data, indent=2)}")
             self.sock.send(message)
             self.logger.info(f"✅ Successfully emitted: {event_type} from {machine_name}")
             return True
         except Exception as e:
             self.logger.warning(f"❌ Failed to emit event: {e}")
+            self.logger.warning(f"   Event data was: {event_data}")
             # Try reconnect on next emit
             self._connect()
             return False
@@ -390,7 +392,9 @@ class StateMachineEngine:
             'payload': payload
         }
 
-        logger.info(f"🔔 [{self.machine_name}] Preparing to emit: {event_type} with payload: {str(payload)[:100]}")
+        logger.info(f"🔔 [{self.machine_name}] Preparing to emit: {event_type}")
+        logger.info(f"📋 Full payload: {json.dumps(payload, indent=2)}")
+        logger.info(f"📋 Full event_data: {json.dumps(event_data, indent=2)}")
         
         # Try fast path (Unix socket)
         if self.event_socket.emit(event_data):

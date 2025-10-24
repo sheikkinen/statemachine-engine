@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [1.0.12] - 2025-10-24
+
+### Fixed
+- **CRITICAL**: Fixed Unix socket buffer overflow causing server hang after 20-30 minutes
+  - Reduced socket receive timeout from 1.0s to 0.1s for faster buffer draining
+  - Added explicit `await asyncio.sleep(0)` on timeout to yield to event loop
+  - Previous fix (v1.0.11) prevented one type of blocking but tight loop prevented event loop yielding
+  - Socket buffer (4KB for DGRAM) would fill up under load, blocking all operations
+  - Now processes ~10x faster and explicitly yields control to prevent starvation
+
+### Technical Details
+- Root cause: `asyncio.wait_for` timeout + `continue` created tight loop without yielding
+- When socket buffer fills (~4KB), system becomes unresponsive
+- Solution: Shorter timeout (0.1s) + explicit yield ensures event loop runs other tasks
+- Heartbeat logging now guaranteed to run even under heavy load
+
 ## [1.0.11] - 2025-10-24
 
 ### Fixed

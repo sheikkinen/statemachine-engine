@@ -216,11 +216,11 @@ async def unix_socket_listener():
             try:
                 data, addr = await asyncio.wait_for(
                     loop.sock_recvfrom(sock, 4096),
-                    timeout=1.0  # 1 second timeout allows heartbeats to work
+                    timeout=0.1  # 100ms timeout - shorter to prevent buffer buildup
                 )
             except asyncio.TimeoutError:
-                # No data received, continue to heartbeat check
-                logger.debug("Unix socket receive timeout (no data), continuing to heartbeat check")
+                # No data received, yield to event loop before continuing
+                await asyncio.sleep(0)  # Yield to other tasks
                 continue
             if data:
                 event_count += 1

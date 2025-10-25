@@ -42,6 +42,25 @@ logger = logging.getLogger(__name__)
 logger.info(f"Logging to {log_file}")
 
 # ============================================================================
+# SAFE JSON SERIALIZATION
+# ============================================================================
+
+def safe_json_dumps(obj: dict, max_size: int = 10000, indent: int = 2) -> str:
+    """
+    Safely serialize JSON with size limits to prevent blocking.
+    Returns truncated version if too large, or error message if serialization fails.
+    """
+    try:
+        json_str = json.dumps(obj, indent=indent)
+        if len(json_str) > max_size:
+            return f"[TRUNCATED - {len(json_str)} bytes total]\n{json_str[:max_size]}..."
+        return json_str
+    except Exception as e:
+        return f"[JSON serialization failed: {e}]"
+
+# ============================================================================
+
+# ============================================================================
 # HANG DETECTION & PERFORMANCE MONITORING
 # ============================================================================
 
@@ -216,11 +235,14 @@ class EventBroadcaster:
         dead_connections = set()
         for ws in self.connections:
             try:
-                logger.info(f"📤 Broadcasting to client {id(ws)}: {event.get('type', 'unknown')} event")
-                logger.info(f"📦 Event content for client {id(ws)}: {json.dumps(event, indent=2)}")
+                client_id = id(ws)
+                event_type = event.get('type', 'unknown')
+                logger.info(f"📤 Broadcasting to client {client_id}: {event_type} event")
+                logger.info(f"📦 Event content for client {client_id}: {safe_json_dumps(event)}")
+                
                 # CRITICAL: Add timeout to prevent blocking on slow clients
                 await asyncio.wait_for(ws.send_json(event), timeout=2.0)
-                logger.info(f"✅ Sent to client {id(ws)}")
+                logger.info(f"✅ Sent to client {client_id}")
             except asyncio.TimeoutError:
                 logger.warning(f"⏱️  Client {id(ws)}: Send timed out after 2s, marking as dead")
                 dead_connections.add(ws)
@@ -295,7 +317,7 @@ async def websocket_endpoint(websocket: WebSocket):
             logger.info(f"📋 Client {client_id}: Fetching initial state...")
             initial_state = await get_initial_state()
             logger.info(f"📋 Client {client_id}: Sending initial state with {len(initial_state.get('machines', []))} machines")
-            logger.info(f"📦 Initial state data: {json.dumps(initial_state, indent=2)}")
+            logger.info(f"📦 Initial state data: {safe_json_dumps(initial_state)}")
             await websocket.send_json(initial_state)
             logger.info(f"✅ Client {client_id}: Initial state sent successfully")
         except Exception as e:
@@ -311,7 +333,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     try:
                         ping_data = {'type': 'ping', 'timestamp': time.time()}
                         logger.info(f"🏓 Client {client_id}: Sending keepalive ping")
-                        logger.info(f"📦 Ping data: {json.dumps(ping_data)}")
+                        logger.info(f"📦 Ping data: {safe_json_dumps(ping_data)}")
                         await websocket.send_json(ping_data)
                         logger.info(f"✅ Client {client_id}: Keepalive ping sent at {ping_data['timestamp']}")
                     except Exception as e:
@@ -335,7 +357,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     if data == 'ping':
                         logger.info(f"🏓 Client {client_id}: Received ping, sending pong")
                         pong_data = {'type': 'pong'}
-                        logger.info(f"📦 Pong data: {json.dumps(pong_data)}")
+                        logger.info(f"📦 Pong data: {safe_json_dumps(pong_data)}")
                         await websocket.send_json(pong_data)
                         logger.info(f"🏓 Client {client_id}: Sent pong response")
                     elif data == 'pong':
@@ -346,7 +368,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         try:
                             refresh_state = await get_initial_state()
                             logger.info(f"🔄 Client {client_id}: Sending refresh state with {len(refresh_state.get('machines', []))} machines")
-                            logger.info(f"📦 Refresh state data: {json.dumps(refresh_state, indent=2)}")
+                            logger.info(f"📦 Refresh state data: {safe_json_dumps(refresh_state)}")
                             await websocket.send_json(refresh_state)
                             logger.info(f"✅ Client {client_id}: Sent refresh state")
                         except Exception as e:
@@ -441,7 +463,7 @@ async def unix_socket_listener():
                     machine_name = event.get('machine_name', 'unknown')
                     
                     logger.info(f"📥 Unix socket: Event #{event_count} ({event_type}) from {machine_name} - parsed in {parse_duration_ms:.2f}ms")
-                    logger.info(f"📦 Full event data received: {json.dumps(event, indent=2)}")
+                    logger.info(f"📦 Full event data received: {safe_json_dumps(event)}")
                     
                     # Transform event_type → type for client compatibility
                     if 'event_type' in event:
@@ -452,7 +474,7 @@ async def unix_socket_listener():
                     # Cache connection count to avoid potential blocking on set access
                     conn_count = len(broadcaster.connections)
                     logger.info(f"📡 Broadcasting event #{event_count} to {conn_count} clients")
-                    logger.info(f"📦 Event data to broadcast: {json.dumps(event, indent=2)}")
+                    logger.info(f"📦 Event data to broadcast: {safe_json_dumps(event)}")
                     
                     await broadcaster.broadcast(event)
                     

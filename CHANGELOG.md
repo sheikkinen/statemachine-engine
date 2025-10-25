@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.23] - 2025-10-25
+
+### Fixed
+- **🚨 CRITICAL: JSON serialization blocking event loop**
+  - **Root cause identified**: `json.dumps()` calls were blocking for 17+ seconds OUTSIDE the 2s timeout
+  - `ws.send_json()` timeout was working, but logging before it was blocking
+  - Hangs occurred when serializing event content before broadcast
+  
+### Added
+- **`safe_json_dumps()` helper function**
+  - Wraps all JSON serialization in try-except
+  - Truncates output if >10KB to prevent blocking
+  - Returns error message if serialization fails
+  - All logging now uses safe version
+
+### Changed
+- **All `json.dumps()` calls now safe**
+  - Broadcast event content logging
+  - Initial state logging
+  - Refresh state logging
+  - Ping/pong data logging
+  - Unix socket event logging
+  - Maximum 10KB per log entry
+
+### Impact
+- Eliminates 17-second hangs caused by JSON serialization
+- Logging can no longer block event loop
+- Events continue to flow even with malformed data
+
 ## [1.0.22] - 2025-10-25
 
 ### Fixed

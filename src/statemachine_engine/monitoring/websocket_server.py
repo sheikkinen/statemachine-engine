@@ -104,18 +104,72 @@ class WatchdogThread(threading.Thread):
             time_since_heartbeat = time.time() - self.monitor.last_heartbeat
             
             if time_since_heartbeat > self.timeout:
-                logger.critical(f"🚨 SERVER HANG DETECTED: No heartbeat for {time_since_heartbeat:.1f}s")
-                logger.critical("🚨 DUMPING ALL THREAD STACK TRACES:")
-                
-                for thread_id, frame in sys._current_frames().items():
-                    logger.critical(f"\n{'='*80}")
-                    logger.critical(f"Thread {thread_id} ({threading.current_thread().name if thread_id == threading.get_ident() else 'Unknown'}):")
-                    logger.critical(''.join(traceback.format_stack(frame)))
-                
-                logger.critical(f"{'='*80}\n")
-                
-                # Reset heartbeat to avoid spam (one dump per hang)
-                self.monitor.last_heartbeat = time.time()
+                hang_report = []
+                try:
+                    hang_msg = f"🚨 SERVER HANG DETECTED: No heartbeat for {time_since_heartbeat:.1f}s"
+                    logger.critical(hang_msg)
+                    hang_report.append(hang_msg)
+                    
+                    trace_msg = "🚨 DUMPING ALL THREAD STACK TRACES:"
+                    logger.critical(trace_msg)
+                    hang_report.append(trace_msg)
+                    
+                    # Dump stack traces for all threads
+                    for thread_id, frame in sys._current_frames().items():
+                        try:
+                            separator = f"\n{'='*80}"
+                            logger.critical(separator)
+                            hang_report.append(separator)
+                            
+                            thread_name = 'Unknown'
+                            try:
+                                if thread_id == threading.get_ident():
+                                    thread_name = threading.current_thread().name
+                                else:
+                                    # Find thread by ID
+                                    for t in threading.enumerate():
+                                        if t.ident == thread_id:
+                                            thread_name = t.name
+                                            break
+                            except:
+                                pass
+                            
+                            thread_info = f"Thread {thread_id} ({thread_name}):"
+                            logger.critical(thread_info)
+                            hang_report.append(thread_info)
+                            
+                            stack_trace = ''.join(traceback.format_stack(frame))
+                            logger.critical(stack_trace)
+                            hang_report.append(stack_trace)
+                        except Exception as e:
+                            error_msg = f"Failed to dump stack for thread {thread_id}: {e}"
+                            logger.critical(error_msg)
+                            hang_report.append(error_msg)
+                    
+                    final_separator = f"{'='*80}\n"
+                    logger.critical(final_separator)
+                    hang_report.append(final_separator)
+                    
+                except Exception as e:
+                    error_msg = f"Failed to dump stack traces: {e}"
+                    logger.critical(error_msg)
+                    hang_report.append(error_msg)
+                finally:
+                    # Also write to emergency file in case logger is blocking
+                    try:
+                        emergency_file = Path.cwd() / "logs" / "hang-emergency.log"
+                        emergency_file.parent.mkdir(exist_ok=True)
+                        with open(emergency_file, "a") as f:
+                            f.write(f"\n{'='*80}\n")
+                            f.write(f"HANG DETECTED AT {time.time()}\n")
+                            f.write('\n'.join(hang_report))
+                            f.write(f"\n{'='*80}\n")
+                            f.flush()
+                    except:
+                        pass  # If emergency log fails, nothing we can do
+                    
+                    # Reset heartbeat to avoid spam (one dump per hang)
+                    self.monitor.last_heartbeat = time.time()
 
 # Global performance monitor and watchdog
 perf_monitor = PerformanceMonitor()
@@ -395,7 +449,9 @@ async def unix_socket_listener():
                     
                     # Broadcast with timing
                     broadcast_start = time.time()
-                    logger.info(f"📡 Broadcasting event #{event_count} to {len(broadcaster.connections)} clients")
+                    # Cache connection count to avoid potential blocking on set access
+                    conn_count = len(broadcaster.connections)
+                    logger.info(f"📡 Broadcasting event #{event_count} to {conn_count} clients")
                     logger.info(f"📦 Event data to broadcast: {json.dumps(event, indent=2)}")
                     
                     await broadcaster.broadcast(event)

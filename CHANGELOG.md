@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.22] - 2025-10-25
+
+### Fixed
+- **Watchdog stack trace logging failure**
+  - Added try-except blocks around all stack trace logging operations
+  - Added emergency fallback log file (`logs/hang-emergency.log`) when main logger fails
+  - Improved thread name detection with proper error handling
+  - Ensures stack traces are always captured even if logger is blocking
+
+### Changed
+- **Optimized connection count access** - Cache `len(broadcaster.connections)` before logging to avoid potential blocking
+
+### Improved
+- Watchdog now writes to emergency file if main logger blocks
+- More robust error handling in stack trace dumping
+- Better thread identification in stack traces
+
 ## [1.0.21] - 2025-10-25
 
 ### Added

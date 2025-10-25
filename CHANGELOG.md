@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.28] - 2025-10-25
+
+### Fixed
+- **Test compatibility with v1.0.27 changes**
+  - Fixed `test_emit_realtime_event_uses_socket_first` test
+  - Updated assertion to check for `type` field instead of deprecated `event_type`
+  - Resolves CI/CD pipeline failures for Python 3.9, 3.10, 3.11, 3.12
+
+### Notes
+- No functional changes - test-only update for v1.0.27 compatibility
+- All production code from v1.0.27 unchanged
+
 ## [1.0.27] - 2025-10-25
 
 ### Performance

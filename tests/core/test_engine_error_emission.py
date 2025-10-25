@@ -162,7 +162,7 @@ def test_emit_realtime_event_uses_socket_first(engine_with_context):
         # Should use socket
         mock_socket_emit.assert_called_once()
         call_args = mock_socket_emit.call_args[0][0]
-        assert call_args['event_type'] == 'test_event'
+        assert call_args['type'] == 'test_event'  # Changed from 'event_type' to 'type' (v1.0.27)
         assert call_args['machine_name'] == 'test_machine'
 
 

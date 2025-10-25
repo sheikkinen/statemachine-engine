@@ -99,14 +99,14 @@ import logging
 import logging.handlers
 import queue
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple, Union
 
 
 def setup_async_logging(
-    log_file: str | Path,
+    log_file: Union[str, Path],
     log_level: int = logging.INFO,
     log_format: str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    logger_name: str | None = None,
+    logger_name: Optional[str] = None,
     queue_size: int = -1,
     include_console: bool = True
 ) -> Tuple[logging.Logger, logging.handlers.QueueListener]:
@@ -183,7 +183,7 @@ def setup_async_logging(
     return logger, queue_listener
 
 
-def create_emergency_logger(log_file: str | Path) -> logging.Logger:
+def create_emergency_logger(log_file: Union[str, Path]) -> logging.Logger:
     """
     Create a synchronous logger for emergency use when async logging fails.
     

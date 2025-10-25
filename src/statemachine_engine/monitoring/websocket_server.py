@@ -5,18 +5,19 @@ Listens on:
 - Unix socket: /tmp/statemachine-events.sock (from state machines)
 - WebSocket: ws://localhost:3002/ws/events (to browsers)
 
-Version: 1.0.26 - Fixed ALL websocket.send_json() calls (initial state, keepalive ping, pong, refresh)
+Version: 1.0.29 - Cleanup: Migrated to lifespan context, removed deprecated code
 """
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import asyncio
 import socket
 import json
 import logging
 import time
 from pathlib import Path
-from typing import Set, Dict
+from typing import Set
 import sys
 import functools
 import threading
@@ -47,32 +48,13 @@ logger.info(f"Logging to {log_file}")
 # SAFE JSON SERIALIZATION
 # ============================================================================
 
-def safe_json_dumps(obj: dict, max_size: int = 10000, indent: int = 2) -> str:
-    """
-    Safely serialize JSON with size limits to prevent blocking.
-    Returns truncated version if too large, or error message if serialization fails.
-    """
-    try:
-        json_str = json.dumps(obj, indent=indent)
-        if len(json_str) > max_size:
-            return f"[TRUNCATED - {len(json_str)} bytes total]\n{json_str[:max_size]}..."
-        return json_str
-    except Exception as e:
-        return f"[JSON serialization failed: {e}]"
-
-def safe_json_dumps_compact(obj: dict, timeout_seconds: float = 0.1) -> tuple[str, bool]:
+def safe_json_dumps_compact(obj: dict) -> tuple[str, bool]:
     """
     Safely serialize JSON in compact form (for WebSocket sending).
     Returns (json_string, success_flag).
     Uses compact separators like ws.send_json() does.
-    
-    NOTE: Even though we can't truly timeout a synchronous json.dumps(),
-    we catch exceptions and return error messages. The timeout is aspirational.
-    The real protection is that we do this OUTSIDE the WebSocket send.
     """
     try:
-        # This can still block, but at least it's outside ws.send_json()
-        # so the issue is more visible and doesn't look like a WebSocket timeout
         json_str = json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
         return (json_str, True)
     except RecursionError as e:
@@ -224,7 +206,67 @@ watchdog.start()
 
 # ============================================================================
 
-app = FastAPI(title="Face Changer Event Stream")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown tasks"""
+    # Startup
+    logger.info("=" * 80)
+    logger.info("🚀 WebSocket Server v1.0.29 Starting Up")
+    logger.info("✅ Migrated to lifespan context manager")
+    logger.info("=" * 80)
+    logger.info("Starting WebSocket server background tasks...")
+    
+    try:
+        # Start background tasks with error tracking
+        tasks = {
+            'unix_socket_listener': asyncio.create_task(unix_socket_listener()),
+            'server_heartbeat': asyncio.create_task(server_heartbeat())
+        }
+        
+        # Store tasks for potential monitoring
+        app.state.background_tasks = tasks
+        
+        logger.info(f"WebSocket server started on port 3002 with {len(tasks)} background tasks")
+        logger.info("🐕 Watchdog thread monitoring for hangs (15s timeout)")
+        
+        # Log task status after brief delay
+        await asyncio.sleep(0.5)
+        for name, task in tasks.items():
+            if task.done():
+                logger.error(f"Background task '{name}' exited immediately!")
+                try:
+                    task.result()  # Will raise exception if task failed
+                except Exception as e:
+                    logger.error(f"Background task '{name}' error: {e}", exc_info=True)
+            else:
+                logger.info(f"✅ Background task '{name}' running successfully")
+                
+    except Exception as e:
+        logger.error(f"Failed to start background tasks: {e}", exc_info=True)
+        raise
+    
+    yield  # Server is running
+    
+    # Shutdown
+    logger.info("Shutting down WebSocket server...")
+    
+    # Cancel background tasks
+    if hasattr(app.state, 'background_tasks'):
+        for name, task in app.state.background_tasks.items():
+            logger.info(f"Cancelling background task: {name}")
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                logger.info(f"Background task '{name}' cancelled successfully")
+    
+    # Cleanup Unix socket
+    socket_path = '/tmp/statemachine-events.sock'
+    if Path(socket_path).exists():
+        Path(socket_path).unlink()
+        logger.info(f"Cleaned up Unix socket: {socket_path}")
+
+app = FastAPI(title="State Machine Event Stream", lifespan=lifespan)
 
 # CORS for local development
 app.add_middleware(
@@ -289,17 +331,6 @@ class EventBroadcaster:
 
 broadcaster = EventBroadcaster()
 
-def check_process_running(machine_name: str) -> bool:
-    """Check if a state machine process is running"""
-    try:
-        import subprocess
-        result = subprocess.run(['ps', 'aux'], capture_output=True, text=True, timeout=2)
-        output = result.stdout
-        return 'state_machine/cli.py' in output and machine_name in output
-    except Exception as e:
-        logger.warning(f"Failed to check process for {machine_name}: {e}")
-        return False
-
 @log_timing("get_initial_state", warn_threshold_ms=200)
 async def get_initial_state() -> dict:
     """Get initial state snapshot with proper connection cleanup"""
@@ -313,14 +344,8 @@ async def get_initial_state() -> dict:
                 ORDER BY machine_name
             """).fetchall()
 
-        # Convert to dict and add running status (async-safe)
-        machines_data = []
-        for machine in machines:
-            machine_dict = dict(machine)
-            # Skip process check to avoid blocking - rely on last_activity instead
-            # Process check can hang and block the event loop
-            machine_dict['running'] = False  # Deprecated, use last_activity timestamp
-            machines_data.append(machine_dict)
+        # Convert to dict
+        machines_data = [dict(machine) for machine in machines]
 
         return {
             'type': 'initial',
@@ -585,53 +610,6 @@ async def server_heartbeat():
             raise
         except Exception as e:
             logger.error(f"Error in server heartbeat: {e}", exc_info=True)
-
-
-
-@app.on_event("startup")
-async def startup():
-    """Start background tasks"""
-    logger.info("=" * 80)
-    logger.info("🚀 WebSocket Server v1.0.26 Starting Up")
-    logger.info("✅ ALL websocket.send_json() calls replaced with send_text()")
-    logger.info("=" * 80)
-    logger.info("Starting WebSocket server background tasks...")
-    
-    try:
-        # Start background tasks with error tracking
-        tasks = {
-            'unix_socket_listener': asyncio.create_task(unix_socket_listener()),
-            'server_heartbeat': asyncio.create_task(server_heartbeat())
-        }
-        
-        # Store tasks for potential monitoring
-        app.state.background_tasks = tasks
-        
-        logger.info(f"WebSocket server started on port 3002 with {len(tasks)} background tasks")
-        logger.info("🐕 Watchdog thread monitoring for hangs (15s timeout)")
-        
-        # Log task status after brief delay
-        await asyncio.sleep(0.5)
-        for name, task in tasks.items():
-            if task.done():
-                logger.error(f"Background task '{name}' exited immediately!")
-                try:
-                    task.result()  # Will raise exception if task failed
-                except Exception as e:
-                    logger.error(f"Background task '{name}' error: {e}", exc_info=True)
-            else:
-                logger.info(f"✅ Background task '{name}' running successfully")
-                
-    except Exception as e:
-        logger.error(f"Failed to start background tasks: {e}", exc_info=True)
-        raise
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Cleanup on shutdown"""
-    socket_path = '/tmp/statemachine-events.sock'
-    if Path(socket_path).exists():
-        Path(socket_path).unlink()
 
 @app.get("/health")
 async def health():

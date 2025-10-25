@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.29] - 2025-10-25
+
+### Changed
+- **🔧 Migrated to modern FastAPI lifespan context manager**
+  - Replaced deprecated `@app.on_event("startup")` and `@app.on_event("shutdown")` decorators
+  - Implemented `@asynccontextmanager` lifespan pattern for proper async lifecycle management
+  - Added graceful shutdown with background task cancellation
+  - Eliminates FastAPI deprecation warnings
+
+### Removed
+- **🧹 Cleanup: Removed unused and deprecated code**
+  - Removed unused `safe_json_dumps()` function (debugging artifact)
+  - Removed unused `check_process_running()` function (replaced by `last_activity` timestamps)
+  - Removed deprecated `running` field from initial state response
+  - Removed unused `timeout_seconds` parameter from `safe_json_dumps_compact()`
+  - Removed unused `Dict` import from typing module
+  - Simplified code comments and removed obsolete documentation
+
+### Fixed
+- **Generic naming**: Changed app title from "Face Changer Event Stream" to "State Machine Event Stream"
+- **Code quality**: Simplified `get_initial_state()` with list comprehension
+
+### Notes
+- No breaking API changes - all endpoints and WebSocket behavior unchanged
+- No performance impact - same functionality with cleaner implementation
+- Future-proof: No more deprecation warnings from FastAPI
+
 ## [1.0.28] - 2025-10-25
 
 ### Fixed

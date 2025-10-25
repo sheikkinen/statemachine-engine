@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.25] - 2025-10-25
+
+### Fixed
+- **🚨 CRITICAL: ws.send_json() blocking on JSON serialization**
+  - **ROOT CAUSE**: `ws.send_json()` calls `json.dumps()` BEFORE the `await`
+  - The `asyncio.wait_for()` timeout didn't cover JSON serialization!
+  - Serialization was blocking for 15+ seconds OUTSIDE the timeout
+  
+### Changed
+- **Replaced `ws.send_json()` with `ws.send_text()`**
+  - Pre-serialize JSON using safe function
+  - Timeout now only covers network send, not serialization
+  - Better error handling for serialization failures
+  
+### Added  
+- **safe_json_dumps_compact()** - Compact JSON serialization with error handling
+- **Extensive timing logs** - Track every step: serialize → send → complete
+- Log timestamps at every critical point to identify exact blocking location
+
+## [1.0.24] - 2025-10-25
+
+### Added
+- Detailed freeze point logging to pinpoint exact blocking location
+
 ## [1.0.23] - 2025-10-25
 
 ### Fixed

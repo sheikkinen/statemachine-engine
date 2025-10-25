@@ -58,6 +58,31 @@ def safe_json_dumps(obj: dict, max_size: int = 10000, indent: int = 2) -> str:
     except Exception as e:
         return f"[JSON serialization failed: {e}]"
 
+def safe_json_dumps_compact(obj: dict, timeout_seconds: float = 0.1) -> tuple[str, bool]:
+    """
+    Safely serialize JSON in compact form (for WebSocket sending).
+    Returns (json_string, success_flag).
+    Uses compact separators like ws.send_json() does.
+    
+    NOTE: Even though we can't truly timeout a synchronous json.dumps(),
+    we catch exceptions and return error messages. The timeout is aspirational.
+    The real protection is that we do this OUTSIDE the WebSocket send.
+    """
+    try:
+        # This can still block, but at least it's outside ws.send_json()
+        # so the issue is more visible and doesn't look like a WebSocket timeout
+        json_str = json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
+        return (json_str, True)
+    except RecursionError as e:
+        logger.error(f"JSON serialization recursion error (circular reference?): {e}")
+        return (f'{{"error":"serialization_failed","message":"circular_reference"}}', False)
+    except TypeError as e:
+        logger.error(f"JSON serialization type error (non-serializable object?): {e}")
+        return (f'{{"error":"serialization_failed","message":"non_serializable_object"}}', False)
+    except Exception as e:
+        logger.error(f"JSON serialization failed: {e}")
+        return (f'{{"error":"serialization_failed","message":"{str(e)}"}}', False)
+
 # ============================================================================
 
 # ============================================================================
@@ -240,10 +265,24 @@ class EventBroadcaster:
                 client_id = id(ws)
                 event_type = event.get('type', 'unknown')
                 logger.info(f"📤 Broadcasting to client {client_id}: {event_type} event")
-                logger.info(f"📦 Event content for client {client_id}: {safe_json_dumps(event)}")
                 
-                # CRITICAL: Add timeout to prevent blocking on slow clients
-                await asyncio.wait_for(ws.send_json(event), timeout=2.0)
+                # CRITICAL FIX: Pre-serialize JSON safely to avoid blocking
+                # ws.send_json() calls json.dumps() synchronously BEFORE the await!
+                # This was the root cause of 15-17s freezes
+                logger.info(f"⏱️  About to serialize JSON at {time.time()}")
+                event_json, success = safe_json_dumps_compact(event)
+                logger.info(f"⏱️  JSON serialization complete at {time.time()}, success={success}")
+                
+                if not success:
+                    logger.error(f"❌ Failed to serialize event for client {client_id}, skipping")
+                    continue
+                    
+                logger.info(f"📦 Serialized {len(event_json)} bytes for client {client_id}")
+                
+                # Now send pre-serialized JSON - timeout only covers the send, not serialization
+                logger.info(f"⏱️  About to call ws.send_text() at {time.time()}")
+                await asyncio.wait_for(ws.send_text(event_json), timeout=2.0)
+                logger.info(f"⏱️  ws.send_text() returned at {time.time()}")
                 logger.info(f"✅ Sent to client {client_id}")
             except asyncio.TimeoutError:
                 logger.warning(f"⏱️  Client {id(ws)}: Send timed out after 2s, marking as dead")

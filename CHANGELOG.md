@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.26] - 2025-10-25
+
+### Fixed
+- **🚨 CRITICAL: Fixed ALL remaining websocket.send_json() blocking calls**
+  - **v1.0.25 only fixed broadcast()** - missed 4 other critical calls
+  - Fixed initial state transmission (line 358) - blocked on every client connect
+  - Fixed **keepalive ping** (line 378) - **MAJOR CULPRIT** blocked every 10 seconds!
+  - Fixed pong response (line 402) - blocked on client pings
+  - Fixed refresh state (line 411) - blocked on client refresh requests
+  
+### Changed
+- **All WebSocket sends now use pre-serialization pattern**
+  - `safe_json_dumps_compact()` → `websocket.send_text()`
+  - Eliminates Starlette's synchronous `json.dumps()` before await
+  - Consistent pattern across entire codebase
+  
+### Analysis
+- Broadcast performance improved to ~2ms (was 15-40s)
+- But event loop still froze for 15s - **keepalive ping was the culprit**
+- Ping runs every 10s as background task, was blocking entire event loop
+- This explains why broadcasts were fast but server still hung
+
+### Added
+- Documentation: `docs/websocket-comms.md` - comprehensive WebSocket system docs
+- Version banner in startup logs showing v1.0.26 and fix confirmation
+
 ## [1.0.25] - 2025-10-25
 
 ### Fixed
@@ -18,7 +44,7 @@ All notable changes to this project will be documented in this file.
   - Serialization was blocking for 15+ seconds OUTSIDE the timeout
   
 ### Changed
-- **Replaced `ws.send_json()` with `ws.send_text()`**
+- **Replaced `ws.send_json()` with `ws.send_text()` in broadcast()**
   - Pre-serialize JSON using safe function
   - Timeout now only covers network send, not serialization
   - Better error handling for serialization failures

@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.32] - 2025-10-25
+
+### Fixed
+- **🔧 Event field naming consistency in socket communication**
+  - Changed `'event_type'` to `'type'` in activity_log emission payload
+  - Ensures all socket-emitted events use `'type'` field (v1.0.27 standard)
+  - Database operations continue using `event_type` column name
+  - Improves consistency across WebSocket and Unix socket communication
+
+### Notes
+- Minor consistency fix - no breaking changes
+- All 196 tests passing
+- Completes standardization started in v1.0.27
+
 ## [1.0.31] - 2025-10-25
 
 ### Added

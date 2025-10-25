@@ -229,10 +229,12 @@ class EventBroadcaster:
     @log_timing("broadcast_event", warn_threshold_ms=50)
     async def broadcast(self, event: dict):
         """Send event to all connected clients"""
+        logger.info(f"🔵 ENTERED broadcast() at {time.time()}")
         self.last_event_time = time.time()
 
         # Remove disconnected clients
         dead_connections = set()
+        logger.info(f"🔵 Starting iteration over {len(self.connections)} connections")
         for ws in self.connections:
             try:
                 client_id = id(ws)
@@ -476,7 +478,9 @@ async def unix_socket_listener():
                     logger.info(f"📡 Broadcasting event #{event_count} to {conn_count} clients")
                     logger.info(f"📦 Event data to broadcast: {safe_json_dumps(event)}")
                     
+                    logger.info(f"⏱️  ABOUT TO CALL broadcaster.broadcast() at {time.time()}")
                     await broadcaster.broadcast(event)
+                    logger.info(f"⏱️  RETURNED FROM broadcaster.broadcast() at {time.time()}")
                     
                     broadcast_duration_ms = (time.time() - broadcast_start) * 1000
                     logger.info(f"✅ Broadcast complete for event #{event_count} in {broadcast_duration_ms:.2f}ms")

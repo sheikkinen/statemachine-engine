@@ -4,6 +4,8 @@ WebSocket server for real-time state machine event streaming
 Listens on:
 - Unix socket: /tmp/statemachine-events.sock (from state machines)
 - WebSocket: ws://localhost:3002/ws/events (to browsers)
+
+Version: 1.0.26 - Fixed ALL websocket.send_json() calls (initial state, keepalive ping, pong, refresh)
 """
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -359,7 +361,12 @@ async def websocket_endpoint(websocket: WebSocket):
             initial_state = await get_initial_state()
             logger.info(f"📋 Client {client_id}: Sending initial state with {len(initial_state.get('machines', []))} machines")
             logger.info(f"📦 Initial state data: {safe_json_dumps(initial_state)}")
-            await websocket.send_json(initial_state)
+            # Pre-serialize to avoid blocking event loop
+            initial_json, success = safe_json_dumps_compact(initial_state)
+            if not success:
+                logger.error(f"❌ Client {client_id}: Failed to serialize initial state")
+                raise ValueError("Failed to serialize initial state")
+            await websocket.send_text(initial_json)
             logger.info(f"✅ Client {client_id}: Initial state sent successfully")
         except Exception as e:
             logger.error(f"❌ Client {client_id}: Failed to send initial state: {e}", exc_info=True)
@@ -375,8 +382,13 @@ async def websocket_endpoint(websocket: WebSocket):
                         ping_data = {'type': 'ping', 'timestamp': time.time()}
                         logger.info(f"🏓 Client {client_id}: Sending keepalive ping")
                         logger.info(f"📦 Ping data: {safe_json_dumps(ping_data)}")
-                        await websocket.send_json(ping_data)
-                        logger.info(f"✅ Client {client_id}: Keepalive ping sent at {ping_data['timestamp']}")
+                        # Pre-serialize to avoid blocking event loop
+                        ping_json, success = safe_json_dumps_compact(ping_data)
+                        if success:
+                            await websocket.send_text(ping_json)
+                            logger.info(f"✅ Client {client_id}: Keepalive ping sent at {ping_data['timestamp']}")
+                        else:
+                            logger.error(f"❌ Client {client_id}: Failed to serialize ping data")
                     except Exception as e:
                         logger.warning(f"Client {client_id}: Failed to send keepalive ping: {e}")
                         break
@@ -399,8 +411,13 @@ async def websocket_endpoint(websocket: WebSocket):
                         logger.info(f"🏓 Client {client_id}: Received ping, sending pong")
                         pong_data = {'type': 'pong'}
                         logger.info(f"📦 Pong data: {safe_json_dumps(pong_data)}")
-                        await websocket.send_json(pong_data)
-                        logger.info(f"🏓 Client {client_id}: Sent pong response")
+                        # Pre-serialize to avoid blocking event loop
+                        pong_json, success = safe_json_dumps_compact(pong_data)
+                        if success:
+                            await websocket.send_text(pong_json)
+                            logger.info(f"🏓 Client {client_id}: Sent pong response")
+                        else:
+                            logger.error(f"❌ Client {client_id}: Failed to serialize pong data")
                     elif data == 'pong':
                         logger.info(f"🏓 Client {client_id}: Received pong response")
                     elif data == 'refresh':
@@ -410,7 +427,12 @@ async def websocket_endpoint(websocket: WebSocket):
                             refresh_state = await get_initial_state()
                             logger.info(f"🔄 Client {client_id}: Sending refresh state with {len(refresh_state.get('machines', []))} machines")
                             logger.info(f"📦 Refresh state data: {safe_json_dumps(refresh_state)}")
-                            await websocket.send_json(refresh_state)
+                            # Pre-serialize to avoid blocking event loop
+                            refresh_json, success = safe_json_dumps_compact(refresh_state)
+                            if not success:
+                                logger.error(f"❌ Client {client_id}: Failed to serialize refresh state")
+                                raise ValueError("Failed to serialize refresh state")
+                            await websocket.send_text(refresh_json)
                             logger.info(f"✅ Client {client_id}: Sent refresh state")
                         except Exception as e:
                             logger.error(f"Client {client_id}: Failed to send refresh: {e}", exc_info=True)
@@ -586,6 +608,10 @@ async def server_heartbeat():
 @app.on_event("startup")
 async def startup():
     """Start background tasks"""
+    logger.info("=" * 80)
+    logger.info("🚀 WebSocket Server v1.0.26 Starting Up")
+    logger.info("✅ ALL websocket.send_json() calls replaced with send_text()")
+    logger.info("=" * 80)
     logger.info("Starting WebSocket server background tasks...")
     
     try:

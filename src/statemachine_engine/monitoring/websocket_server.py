@@ -254,8 +254,12 @@ class EventBroadcaster:
         logger.info(f"Client disconnected. Total connections: {len(self.connections)}")
 
     @log_timing("broadcast_event", warn_threshold_ms=50)
-    async def broadcast(self, event: dict):
-        """Send event to all connected clients"""
+    async def broadcast(self, event_json: str):
+        """Send event to all connected clients
+        
+        Args:
+            event_json: Pre-serialized JSON string (NOT a dict)
+        """
         logger.info(f"🔵 ENTERED broadcast() at {time.time()}")
         self.last_event_time = time.time()
 
@@ -265,23 +269,9 @@ class EventBroadcaster:
         for ws in self.connections:
             try:
                 client_id = id(ws)
-                event_type = event.get('type', 'unknown')
-                logger.info(f"📤 Broadcasting to client {client_id}: {event_type} event")
+                logger.info(f"📤 Broadcasting to client {client_id} ({len(event_json)} bytes)")
                 
-                # CRITICAL FIX: Pre-serialize JSON safely to avoid blocking
-                # ws.send_json() calls json.dumps() synchronously BEFORE the await!
-                # This was the root cause of 15-17s freezes
-                logger.info(f"⏱️  About to serialize JSON at {time.time()}")
-                event_json, success = safe_json_dumps_compact(event)
-                logger.info(f"⏱️  JSON serialization complete at {time.time()}, success={success}")
-                
-                if not success:
-                    logger.error(f"❌ Failed to serialize event for client {client_id}, skipping")
-                    continue
-                    
-                logger.info(f"📦 Serialized {len(event_json)} bytes for client {client_id}")
-                
-                # Now send pre-serialized JSON - timeout only covers the send, not serialization
+                # Event is already JSON string - send directly without re-serialization!
                 logger.info(f"⏱️  About to call ws.send_text() at {time.time()}")
                 await asyncio.wait_for(ws.send_text(event_json), timeout=2.0)
                 logger.info(f"⏱️  ws.send_text() returned at {time.time()}")
@@ -360,7 +350,6 @@ async def websocket_endpoint(websocket: WebSocket):
             logger.info(f"📋 Client {client_id}: Fetching initial state...")
             initial_state = await get_initial_state()
             logger.info(f"📋 Client {client_id}: Sending initial state with {len(initial_state.get('machines', []))} machines")
-            logger.info(f"📦 Initial state data: {safe_json_dumps(initial_state)}")
             # Pre-serialize to avoid blocking event loop
             initial_json, success = safe_json_dumps_compact(initial_state)
             if not success:
@@ -380,13 +369,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     await asyncio.sleep(ping_interval)
                     try:
                         ping_data = {'type': 'ping', 'timestamp': time.time()}
-                        logger.info(f"🏓 Client {client_id}: Sending keepalive ping")
-                        logger.info(f"📦 Ping data: {safe_json_dumps(ping_data)}")
+                        logger.debug(f"🏓 Client {client_id}: Sending keepalive ping")
                         # Pre-serialize to avoid blocking event loop
                         ping_json, success = safe_json_dumps_compact(ping_data)
                         if success:
                             await websocket.send_text(ping_json)
-                            logger.info(f"✅ Client {client_id}: Keepalive ping sent at {ping_data['timestamp']}")
+                            logger.debug(f"✅ Client {client_id}: Keepalive ping sent")
                         else:
                             logger.error(f"❌ Client {client_id}: Failed to serialize ping data")
                     except Exception as e:
@@ -408,14 +396,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     
                     # Handle control messages
                     if data == 'ping':
-                        logger.info(f"🏓 Client {client_id}: Received ping, sending pong")
+                        logger.debug(f"🏓 Client {client_id}: Received ping, sending pong")
                         pong_data = {'type': 'pong'}
-                        logger.info(f"📦 Pong data: {safe_json_dumps(pong_data)}")
                         # Pre-serialize to avoid blocking event loop
                         pong_json, success = safe_json_dumps_compact(pong_data)
                         if success:
                             await websocket.send_text(pong_json)
-                            logger.info(f"🏓 Client {client_id}: Sent pong response")
+                            logger.debug(f"🏓 Client {client_id}: Sent pong response")
                         else:
                             logger.error(f"❌ Client {client_id}: Failed to serialize pong data")
                     elif data == 'pong':
@@ -426,7 +413,6 @@ async def websocket_endpoint(websocket: WebSocket):
                         try:
                             refresh_state = await get_initial_state()
                             logger.info(f"🔄 Client {client_id}: Sending refresh state with {len(refresh_state.get('machines', []))} machines")
-                            logger.info(f"📦 Refresh state data: {safe_json_dumps(refresh_state)}")
                             # Pre-serialize to avoid blocking event loop
                             refresh_json, success = safe_json_dumps_compact(refresh_state)
                             if not success:
@@ -517,30 +503,27 @@ async def unix_socket_listener():
             if data:
                 event_count += 1
                 try:
-                    # Parse JSON with timing
-                    parse_start = time.time()
-                    event = json.loads(data.decode('utf-8'))
-                    parse_duration_ms = (time.time() - parse_start) * 1000
+                    # Keep as JSON string - avoid unnecessary parse/serialize cycle
+                    event_json = data.decode('utf-8')
                     
-                    event_type = event.get('event_type', event.get('type', 'unknown'))
-                    machine_name = event.get('machine_name', 'unknown')
+                    # Extract metadata for logging only (lightweight parse)
+                    try:
+                        event_meta = json.loads(event_json)
+                        event_type = event_meta.get('type', 'unknown')
+                        machine_name = event_meta.get('machine_name', 'unknown')
+                    except:
+                        event_type = 'unknown'
+                        machine_name = 'unknown'
                     
-                    logger.info(f"📥 Unix socket: Event #{event_count} ({event_type}) from {machine_name} - parsed in {parse_duration_ms:.2f}ms")
-                    logger.info(f"📦 Full event data received: {safe_json_dumps(event)}")
+                    logger.info(f"📥 Unix socket: Event #{event_count} ({event_type}) from {machine_name}")
                     
-                    # Transform event_type → type for client compatibility
-                    if 'event_type' in event:
-                        event['type'] = event.pop('event_type')
-                    
-                    # Broadcast with timing
+                    # Broadcast JSON string directly - no re-serialization needed!
                     broadcast_start = time.time()
-                    # Cache connection count to avoid potential blocking on set access
                     conn_count = len(broadcaster.connections)
-                    logger.info(f"📡 Broadcasting event #{event_count} to {conn_count} clients")
-                    logger.info(f"📦 Event data to broadcast: {safe_json_dumps(event)}")
+                    logger.info(f"📡 Broadcasting event #{event_count} ({event_type}) to {conn_count} clients")
                     
                     logger.info(f"⏱️  ABOUT TO CALL broadcaster.broadcast() at {time.time()}")
-                    await broadcaster.broadcast(event)
+                    await broadcaster.broadcast(event_json)  # Pass JSON string directly
                     logger.info(f"⏱️  RETURNED FROM broadcaster.broadcast() at {time.time()}")
                     
                     broadcast_duration_ms = (time.time() - broadcast_start) * 1000

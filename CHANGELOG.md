@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.30] - 2025-10-25
+
+### Fixed
+- **🐛 CRITICAL: Removed blocking json.loads() from Unix socket event relay**
+  - Eliminated unnecessary JSON parsing in event broadcast path
+  - Was causing 15+ second server hangs when processing events
+  - Root cause: `json.loads()` was only used to extract metadata for log messages
+  - Clients experienced "keepalive ping timeout" and connection drops
+  - Watchdog detected 16.7s freeze during event processing
+
+### Changed
+- **Simplified logging in Unix socket listener**
+  - Log messages now show event size instead of parsed metadata
+  - Before: `📥 Unix socket: Event #43 (state_change) from face_processor`
+  - After: `📥 Unix socket: Event #43 (253 bytes)`
+  - Eliminates all blocking operations in event relay path
+
+### Performance
+- **Events now flow with ZERO JSON parsing in relay path**
+  - Receive from Unix socket → Decode UTF-8 → Broadcast to WebSocket clients
+  - No intermediate parsing, validation, or metadata extraction
+  - Completes the v1.0.27 optimization vision
+  - True pass-through relay architecture
+
+### Notes
+- This fixes production server hangs observed in image-generator-fsm
+- All remaining `json.dumps()` operations are necessary (server-originated messages)
+- WebSocket server is now truly non-blocking for event relay
+
 ## [1.0.29] - 2025-10-25
 
 ### Changed

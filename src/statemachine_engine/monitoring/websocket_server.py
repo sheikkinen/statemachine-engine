@@ -5,7 +5,7 @@ Listens on:
 - Unix socket: /tmp/statemachine-events.sock (from state machines)
 - WebSocket: ws://localhost:3002/ws/events (to browsers)
 
-Version: 1.0.29 - Cleanup: Migrated to lifespan context, removed deprecated code
+Version: 1.0.30 - CRITICAL FIX: Removed blocking json.loads() from event relay path
 """
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -531,21 +531,16 @@ async def unix_socket_listener():
                     # Keep as JSON string - avoid unnecessary parse/serialize cycle
                     event_json = data.decode('utf-8')
                     
-                    # Extract metadata for logging only (lightweight parse)
-                    try:
-                        event_meta = json.loads(event_json)
-                        event_type = event_meta.get('type', 'unknown')
-                        machine_name = event_meta.get('machine_name', 'unknown')
-                    except:
-                        event_type = 'unknown'
-                        machine_name = 'unknown'
+                    # Update heartbeat immediately after decode
+                    perf_monitor.heartbeat()
                     
-                    logger.info(f"📥 Unix socket: Event #{event_count} ({event_type}) from {machine_name}")
+                    # Log without parsing - parsing is ONLY for logging and can block!
+                    logger.info(f"📥 Unix socket: Event #{event_count} ({len(event_json)} bytes)")
                     
                     # Broadcast JSON string directly - no re-serialization needed!
                     broadcast_start = time.time()
                     conn_count = len(broadcaster.connections)
-                    logger.info(f"📡 Broadcasting event #{event_count} ({event_type}) to {conn_count} clients")
+                    logger.info(f"📡 Broadcasting event #{event_count} to {conn_count} clients")
                     
                     logger.info(f"⏱️  ABOUT TO CALL broadcaster.broadcast() at {time.time()}")
                     await broadcaster.broadcast(event_json)  # Pass JSON string directly

@@ -16,6 +16,9 @@ import time
 from pathlib import Path
 from typing import Set, Dict
 import sys
+import functools
+import threading
+import traceback
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -37,6 +40,89 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 logger.info(f"Logging to {log_file}")
+
+# ============================================================================
+# HANG DETECTION & PERFORMANCE MONITORING
+# ============================================================================
+
+class PerformanceMonitor:
+    """Monitor for detecting server hangs and performance issues"""
+    
+    def __init__(self):
+        self.last_heartbeat = time.time()
+        self.operation_times = {}
+        self.watchdog_enabled = True
+        
+    def heartbeat(self):
+        """Update heartbeat timestamp"""
+        self.last_heartbeat = time.time()
+        
+    def log_operation(self, name: str, duration_ms: float):
+        """Track operation timing"""
+        if duration_ms > 100:  # Warn on operations > 100ms
+            logger.warning(f"⚠️  SLOW OPERATION: {name} took {duration_ms:.2f}ms")
+        self.operation_times[name] = (time.time(), duration_ms)
+
+def log_timing(operation_name: str, warn_threshold_ms: float = 100):
+    """Decorator to log operation timing and detect slow operations"""
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            start = time.time()
+            logger.debug(f"⏱️  START: {operation_name}")
+            try:
+                result = await func(*args, **kwargs)
+                duration_ms = (time.time() - start) * 1000
+                perf_monitor.log_operation(operation_name, duration_ms)
+                if duration_ms > warn_threshold_ms:
+                    logger.warning(f"⚠️  SLOW: {operation_name} took {duration_ms:.2f}ms")
+                else:
+                    logger.debug(f"⏱️  END: {operation_name} ({duration_ms:.2f}ms)")
+                perf_monitor.heartbeat()  # Update heartbeat on successful operation
+                return result
+            except Exception as e:
+                duration_ms = (time.time() - start) * 1000
+                logger.error(f"❌ FAILED: {operation_name} after {duration_ms:.2f}ms: {e}")
+                raise
+        return wrapper
+    return decorator
+
+class WatchdogThread(threading.Thread):
+    """Watchdog that dumps stack traces if server hangs"""
+    
+    def __init__(self, monitor: PerformanceMonitor, timeout: int = 15):
+        super().__init__(daemon=True, name="Watchdog")
+        self.monitor = monitor
+        self.timeout = timeout
+        self.running = True
+        
+    def run(self):
+        """Monitor heartbeat and dump stack on hang"""
+        logger.info(f"🐕 Watchdog started with {self.timeout}s timeout")
+        while self.running:
+            time.sleep(2)  # Check every 2 seconds
+            time_since_heartbeat = time.time() - self.monitor.last_heartbeat
+            
+            if time_since_heartbeat > self.timeout:
+                logger.critical(f"🚨 SERVER HANG DETECTED: No heartbeat for {time_since_heartbeat:.1f}s")
+                logger.critical("🚨 DUMPING ALL THREAD STACK TRACES:")
+                
+                for thread_id, frame in sys._current_frames().items():
+                    logger.critical(f"\n{'='*80}")
+                    logger.critical(f"Thread {thread_id} ({threading.current_thread().name if thread_id == threading.get_ident() else 'Unknown'}):")
+                    logger.critical(''.join(traceback.format_stack(frame)))
+                
+                logger.critical(f"{'='*80}\n")
+                
+                # Reset heartbeat to avoid spam (one dump per hang)
+                self.monitor.last_heartbeat = time.time()
+
+# Global performance monitor and watchdog
+perf_monitor = PerformanceMonitor()
+watchdog = WatchdogThread(perf_monitor, timeout=15)
+watchdog.start()
+
+# ============================================================================
 
 app = FastAPI(title="Face Changer Event Stream")
 
@@ -67,6 +153,7 @@ class EventBroadcaster:
         self.connections.discard(websocket)
         logger.info(f"Client disconnected. Total connections: {len(self.connections)}")
 
+    @log_timing("broadcast_event", warn_threshold_ms=50)
     async def broadcast(self, event: dict):
         """Send event to all connected clients"""
         self.last_event_time = time.time()
@@ -104,6 +191,7 @@ def check_process_running(machine_name: str) -> bool:
         logger.warning(f"Failed to check process for {machine_name}: {e}")
         return False
 
+@log_timing("get_initial_state", warn_threshold_ms=200)
 async def get_initial_state() -> dict:
     """Get initial state snapshot with proper connection cleanup"""
     db = Database()
@@ -162,7 +250,7 @@ async def websocket_endpoint(websocket: WebSocket):
         # Keep connection alive with periodic pings - run as background task
         async def send_keepalive():
             """Send periodic pings to keep WebSocket connection alive"""
-            ping_interval = 20  # Send ping every 20 seconds
+            ping_interval = 10  # Send ping every 10 seconds (reduced from 20 for client compatibility)
             try:
                 while True:
                     await asyncio.sleep(ping_interval)
@@ -262,38 +350,61 @@ async def unix_socket_listener():
             if current_time - last_heartbeat > 60:
                 logger.info(f"Unix socket listener heartbeat: {event_count} events received, still listening")
                 last_heartbeat = current_time
+                perf_monitor.heartbeat()  # Update watchdog heartbeat
             
             # Non-blocking receive from DGRAM socket with timeout
             # Use sock_recvfrom for datagram sockets (returns data and address)
             # CRITICAL: Add timeout to prevent indefinite blocking
             try:
+                recv_start = time.time()
+                logger.debug(f"⏱️  Unix socket: Starting receive (timeout=0.1s)")
+                
                 data, addr = await asyncio.wait_for(
                     loop.sock_recvfrom(sock, 4096),
                     timeout=0.1  # 100ms timeout - shorter to prevent buffer buildup
                 )
-                logger.debug(f"🔌 Unix socket: Received {len(data)} bytes from {addr}")
+                
+                recv_duration_ms = (time.time() - recv_start) * 1000
+                logger.debug(f"🔌 Unix socket: Received {len(data)} bytes in {recv_duration_ms:.2f}ms from {addr}")
+                perf_monitor.heartbeat()  # Update watchdog heartbeat
+                
             except asyncio.TimeoutError:
                 # No data available, yield to event loop before continuing
                 logger.debug(f"⏱️  Unix socket: Timeout (no data), yielding to event loop")
+                perf_monitor.heartbeat()  # Still alive, just no data
                 await asyncio.sleep(0)  # Yield to other tasks
                 continue
+                
             if data:
                 event_count += 1
                 try:
+                    # Parse JSON with timing
+                    parse_start = time.time()
                     event = json.loads(data.decode('utf-8'))
+                    parse_duration_ms = (time.time() - parse_start) * 1000
+                    
                     event_type = event.get('event_type', event.get('type', 'unknown'))
                     machine_name = event.get('machine_name', 'unknown')
-                    logger.info(f"📥 Unix socket: Received event #{event_count}: {event_type} from {machine_name}")
+                    
+                    logger.info(f"📥 Unix socket: Event #{event_count} ({event_type}) from {machine_name} - parsed in {parse_duration_ms:.2f}ms")
                     logger.info(f"📦 Full event data received: {json.dumps(event, indent=2)}")
                     
                     # Transform event_type → type for client compatibility
                     if 'event_type' in event:
                         event['type'] = event.pop('event_type')
                     
+                    # Broadcast with timing
+                    broadcast_start = time.time()
                     logger.info(f"📡 Broadcasting event #{event_count} to {len(broadcaster.connections)} clients")
                     logger.info(f"📦 Event data to broadcast: {json.dumps(event, indent=2)}")
+                    
                     await broadcaster.broadcast(event)
-                    logger.info(f"✅ Broadcast complete for event #{event_count}")
+                    
+                    broadcast_duration_ms = (time.time() - broadcast_start) * 1000
+                    logger.info(f"✅ Broadcast complete for event #{event_count} in {broadcast_duration_ms:.2f}ms")
+                    
+                    perf_monitor.heartbeat()  # Update after successful broadcast
+                    
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid JSON received (event #{event_count}): {e}, data: {data[:100]}")
                 except Exception as e:
@@ -302,6 +413,7 @@ async def unix_socket_listener():
         except BlockingIOError:
             # No data available, sleep briefly
             logger.debug("🚫 Unix socket: BlockingIOError, sleeping briefly")
+            perf_monitor.heartbeat()
             await asyncio.sleep(0.001)
         except asyncio.CancelledError:
             logger.warning("⚠️  Unix socket listener cancelled, shutting down")
@@ -314,6 +426,41 @@ async def unix_socket_listener():
             await asyncio.sleep(0.1)  # Brief pause before continuing
 
 
+async def server_heartbeat():
+    """Background task that logs server health every 5 seconds"""
+    heartbeat_count = 0
+    while True:
+        try:
+            await asyncio.sleep(5)
+            heartbeat_count += 1
+            
+            # Get task count
+            tasks = asyncio.all_tasks()
+            task_count = len(tasks)
+            
+            # Log comprehensive health
+            time_since_last_event = time.time() - broadcaster.last_event_time
+            logger.info(f"💓 Server heartbeat #{heartbeat_count} | "
+                       f"connections={len(broadcaster.connections)} | "
+                       f"tasks={task_count} | "
+                       f"last_event={time_since_last_event:.1f}s ago")
+            
+            # Update watchdog
+            perf_monitor.heartbeat()
+            
+            # Log active tasks in debug mode
+            if task_count > 10:  # Warn if too many tasks
+                logger.warning(f"⚠️  High task count: {task_count} active tasks")
+                for task in list(tasks)[:5]:  # Log first 5
+                    logger.debug(f"  Task: {task.get_name()} - {task._state}")
+                    
+        except asyncio.CancelledError:
+            logger.info("Server heartbeat cancelled")
+            raise
+        except Exception as e:
+            logger.error(f"Error in server heartbeat: {e}", exc_info=True)
+
+
 
 @app.on_event("startup")
 async def startup():
@@ -323,13 +470,15 @@ async def startup():
     try:
         # Start background tasks with error tracking
         tasks = {
-            'unix_socket_listener': asyncio.create_task(unix_socket_listener())
+            'unix_socket_listener': asyncio.create_task(unix_socket_listener()),
+            'server_heartbeat': asyncio.create_task(server_heartbeat())
         }
         
         # Store tasks for potential monitoring
         app.state.background_tasks = tasks
         
         logger.info(f"WebSocket server started on port 3002 with {len(tasks)} background tasks")
+        logger.info("🐕 Watchdog thread monitoring for hangs (15s timeout)")
         
         # Log task status after brief delay
         await asyncio.sleep(0.5)
@@ -341,7 +490,7 @@ async def startup():
                 except Exception as e:
                     logger.error(f"Background task '{name}' error: {e}", exc_info=True)
             else:
-                logger.info(f"Background task '{name}' running successfully")
+                logger.info(f"✅ Background task '{name}' running successfully")
                 
     except Exception as e:
         logger.error(f"Failed to start background tasks: {e}", exc_info=True)

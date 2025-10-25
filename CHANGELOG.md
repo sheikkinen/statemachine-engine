@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.21] - 2025-10-25
+
+### Added
+- **🐕 Comprehensive Hang Detection System**
+  - **Watchdog thread**: Dumps stack traces if server freezes >15 seconds
+  - **Server heartbeat**: Logs health every 5 seconds (connections, tasks, last event time)
+  - **Performance monitoring**: Tracks all operation durations, warns on slow operations (>100ms)
+  - **Operation timing**: Wrapped critical operations with timing decorators
+    - `broadcast_event`: Warns if >50ms
+    - `get_initial_state`: Warns if >200ms
+    - `unix_socket receive`: Logs all receive/parse/broadcast timing
+  - **Stack trace dumps**: Automatic on hang detection showing exact blocking location
+  
+### Changed
+- **WebSocket keepalive interval**: Reduced from 20s to 10s for better client compatibility
+- **Enhanced Unix socket logging**: Added timing for receive, JSON parse, and broadcast stages
+- **Heartbeat updates**: Watchdog heartbeat updated at all critical operations to prevent false alarms
+
+### Fixed
+- **Server hang troubleshooting**: Now provides exact location and timing of any freeze
+  - Watchdog will log complete thread stack traces
+  - Performance monitor tracks which operation is slow
+  - Heartbeat shows if event loop is alive
+
 ## [1.0.20] - 2025-10-25
 
 ### Fixed

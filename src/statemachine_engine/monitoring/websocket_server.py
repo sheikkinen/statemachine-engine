@@ -5,7 +5,7 @@ Listens on:
 - Unix socket: /tmp/statemachine-events.sock (from state machines)
 - WebSocket: ws://localhost:3002/ws/events (to browsers)
 
-Version: 1.0.30 - CRITICAL FIX: Removed blocking json.loads() from event relay path
+Version: 1.0.31 - Non-blocking logging with QueueHandler architecture
 """
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -26,23 +26,19 @@ import traceback
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from statemachine_engine.database.models import Database, get_realtime_event_model
+from statemachine_engine.monitoring.async_logging import setup_async_logging
 
-# Setup logging to file and console
-log_dir = Path.cwd() / "logs"
-log_dir.mkdir(exist_ok=True)
-log_file = log_dir / "websocket-server.log"
-
-# Configure logging with both file and console handlers
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_file, mode='a'),
-        logging.StreamHandler(sys.stdout)
-    ]
+# Setup non-blocking logging (prevents I/O from blocking event loop)
+logger, queue_listener = setup_async_logging(
+    log_file=Path.cwd() / "logs" / "websocket-server.log",
+    log_level=logging.INFO,
+    logger_name=__name__
 )
-logger = logging.getLogger(__name__)
-logger.info(f"Logging to {log_file}")
+
+logger.info("=" * 80)
+logger.info("WebSocket Server with async-safe logging initialized")
+logger.info("Using QueueHandler to prevent blocking I/O in event loop")
+logger.info("=" * 80)
 
 # ============================================================================
 # SAFE JSON SERIALIZATION
@@ -211,8 +207,8 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown tasks"""
     # Startup
     logger.info("=" * 80)
-    logger.info("🚀 WebSocket Server v1.0.29 Starting Up")
-    logger.info("✅ Migrated to lifespan context manager")
+    logger.info("🚀 WebSocket Server v1.0.31 Starting Up")
+    logger.info("✅ Non-blocking logging with QueueHandler architecture")
     logger.info("=" * 80)
     logger.info("Starting WebSocket server background tasks...")
     
@@ -260,6 +256,11 @@ async def lifespan(app: FastAPI):
             except asyncio.CancelledError:
                 logger.info(f"Background task '{name}' cancelled successfully")
     
+    # Stop background logging thread
+    logger.info("Stopping background logging thread...")
+    queue_listener.stop()
+    logger.info("Logging thread stopped")
+    
     # Cleanup Unix socket
     socket_path = '/tmp/statemachine-events.sock'
     if Path(socket_path).exists():
@@ -302,22 +303,19 @@ class EventBroadcaster:
         Args:
             event_json: Pre-serialized JSON string (NOT a dict)
         """
-        logger.info(f"🔵 ENTERED broadcast() at {time.time()}")
         self.last_event_time = time.time()
 
         # Remove disconnected clients
         dead_connections = set()
-        logger.info(f"🔵 Starting iteration over {len(self.connections)} connections")
+        logger.info(f"📡 Broadcasting to {len(self.connections)} clients ({len(event_json)} bytes)")
+        
         for ws in self.connections:
             try:
                 client_id = id(ws)
-                logger.info(f"📤 Broadcasting to client {client_id} ({len(event_json)} bytes)")
                 
                 # Event is already JSON string - send directly without re-serialization!
-                logger.info(f"⏱️  About to call ws.send_text() at {time.time()}")
                 await asyncio.wait_for(ws.send_text(event_json), timeout=2.0)
-                logger.info(f"⏱️  ws.send_text() returned at {time.time()}")
-                logger.info(f"✅ Sent to client {client_id}")
+                logger.debug(f"✅ Sent to client {client_id}")
             except asyncio.TimeoutError:
                 logger.warning(f"⏱️  Client {id(ws)}: Send timed out after 2s, marking as dead")
                 dead_connections.add(ws)
@@ -534,20 +532,11 @@ async def unix_socket_listener():
                     # Update heartbeat immediately after decode
                     perf_monitor.heartbeat()
                     
-                    # Log without parsing - parsing is ONLY for logging and can block!
+                    # Log without parsing - logging is non-blocking (QueueHandler)
                     logger.info(f"📥 Unix socket: Event #{event_count} ({len(event_json)} bytes)")
                     
                     # Broadcast JSON string directly - no re-serialization needed!
-                    broadcast_start = time.time()
-                    conn_count = len(broadcaster.connections)
-                    logger.info(f"📡 Broadcasting event #{event_count} to {conn_count} clients")
-                    
-                    logger.info(f"⏱️  ABOUT TO CALL broadcaster.broadcast() at {time.time()}")
                     await broadcaster.broadcast(event_json)  # Pass JSON string directly
-                    logger.info(f"⏱️  RETURNED FROM broadcaster.broadcast() at {time.time()}")
-                    
-                    broadcast_duration_ms = (time.time() - broadcast_start) * 1000
-                    logger.info(f"✅ Broadcast complete for event #{event_count} in {broadcast_duration_ms:.2f}ms")
                     
                     perf_monitor.heartbeat()  # Update after successful broadcast
                     

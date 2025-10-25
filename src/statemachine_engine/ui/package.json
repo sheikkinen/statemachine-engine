@@ -11,7 +11,11 @@
     "express": "^4.18.2",
     "sqlite3": "^5.1.6"
   },
-  "keywords": ["state-machine", "monitoring", "ui"],
+  "keywords": [
+    "state-machine",
+    "monitoring",
+    "ui"
+  ],
   "author": "Face Changer Pipeline",
   "license": "MIT"
 }

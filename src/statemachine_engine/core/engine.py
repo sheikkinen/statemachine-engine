@@ -191,7 +191,7 @@ class StateMachineEngine:
                 self._emit_realtime_event('activity_log', {
                     'message': f"📥 Received {event_type}",
                     'level': 'info',
-                    'event_type': event_type,
+                    'type': event_type,
                     'payload_keys': list(event_payload.keys()) if isinstance(event_payload, dict) else []
                 })
                 

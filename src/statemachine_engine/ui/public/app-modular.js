@@ -172,3 +172,30 @@ window.addEventListener('beforeunload', () => {
 
 // Export for debugging
 window.monitor = monitor;
+
+// Debugging helpers for SVG enrichment
+window.checkSvgEnrichment = () => {
+    if (monitor && monitor.diagramManager) {
+        monitor.diagramManager.checkSvgEnrichment();
+    } else {
+        console.log('Monitor not initialized');
+    }
+};
+
+window.forceReEnrich = () => {
+    if (monitor && monitor.diagramManager) {
+        monitor.diagramManager.forceReEnrich();
+    } else {
+        console.log('Monitor not initialized');
+    }
+};
+
+window.clearDiagramCache = () => {
+    if (monitor && monitor.diagramManager) {
+        const container = monitor.diagramManager.container;
+        container.dataset.enriched = 'false';
+        console.log('[Debug] Cleared enrichment flag - next update will re-render');
+    } else {
+        console.log('Monitor not initialized');
+    }
+};

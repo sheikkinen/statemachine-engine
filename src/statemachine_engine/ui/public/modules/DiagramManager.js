@@ -43,8 +43,15 @@ export class DiagramManager {
             }
             
             if (stateName) {
+                // Store original name with state- prefix AND clean name for matching
                 node.dataset.stateId = stateName;
+                // Also add clean version without state- prefix for backend matching
+                const cleanName = stateName.replace(/^state-/, '');
+                if (cleanName !== stateName) {
+                    node.dataset.stateClean = cleanName;
+                }
                 enrichedCount++;
+                console.log(`[Enrich] State: "${stateName}" -> clean: "${cleanName}"`);
             }
         });
         
@@ -84,8 +91,17 @@ export class DiagramManager {
             el.classList.remove('active', 'activeComposite');
         });
         
-        // Add new highlight using data attribute
-        const stateNode = svg.querySelector(`[data-state-id="${stateName}"]`);
+        // Try to find state node - first by exact match, then by clean name
+        let stateNode = svg.querySelector(`[data-state-id="${stateName}"]`);
+        if (!stateNode) {
+            // Try matching with state- prefix
+            stateNode = svg.querySelector(`[data-state-id="state-${stateName}"]`);
+        }
+        if (!stateNode) {
+            // Try matching via clean name
+            stateNode = svg.querySelector(`[data-state-clean="${stateName}"]`);
+        }
+        
         if (stateNode) {
             // Check if this is a composite state (has metadata listing it as composite)
             const isComposite = this.diagramMetadata?.composites?.includes(stateName) || false;

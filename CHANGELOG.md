@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.37] - 2025-10-26
+
+### Fixed
+- **UI State Highlighting**: Fixed state nodes not being highlighted at all
+  - Root cause: Mermaid SVG uses `state-` prefix in node IDs (e.g., `data-state-id="state-waiting"`)
+  - Backend sends clean state names without prefix (e.g., `"waiting"`)
+  - Fix: Enhanced enrichment to store both original and clean state names
+  - Added smart 3-tier matching strategy for reliable state node lookup
+
+### Changed
+- **Enhanced SVG Enrichment**: 
+  - Now stores `data-state-clean` attribute with state name without `state-` prefix
+  - Logs enrichment details for debugging
+  
+- **Smart State Matching**:
+  - Try exact match first: `[data-state-id="waiting"]`
+  - Try with prefix: `[data-state-id="state-waiting"]`
+  - Try clean match: `[data-state-clean="waiting"]`
+  - Ensures highlighting works regardless of backend format
+
+### Added
+- Debug logging in enrichment process showing state name transformations
+
 ## [1.0.36] - 2025-10-26
 
 ### Fixed

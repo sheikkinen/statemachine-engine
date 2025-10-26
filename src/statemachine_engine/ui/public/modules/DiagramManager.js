@@ -186,8 +186,8 @@ export class DiagramManager {
     async renderDiagram(highlightState = null, transition = null) {
         if (!this.currentDiagram) return;
 
-        // FAST PATH: Attempt CSS-only update if possible
-        if (highlightState) {
+        // FAST PATH: Attempt CSS-only update if possible (only if already enriched)
+        if (highlightState && this.container.dataset.enriched === 'true') {
             const success = this.updateStateHighlight(highlightState, transition?.event);
             if (success) {
                 console.log('[Render] ✓ Fast path (~1ms)');

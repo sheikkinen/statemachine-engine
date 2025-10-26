@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.51] - 2025-10-26
+
+### Fixed
+- **UI fast path enrichment check**
+  - Added gating to only attempt fast path when diagram is already enriched
+  - Prevents fast path from failing on first render after drilling into subdiagram
+  - Check: `if (highlightState && this.container.dataset.enriched === 'true')`
+  - First render uses slow path + enrichment, subsequent renders use fast path
+  - Resolves "Node not found - fallback" on diagram navigation
+
+### Added
+- **Statediagram integration tests**
+  - New test suite: `DiagramManager.statediagram.test.js`
+  - Tests based on real SDXLGENERATIONPHASE workflow (7 states)
+  - Validates enrichment with statediagram-state nodes
+  - Tests fast path gating logic (enriched vs not enriched)
+  - Tests rapid state changes and complete workflows
+  - Tests mixed node types (flowchart + statediagram)
+  - All 50 UI tests passing (43 existing + 7 new)
+
 ## [1.0.50] - 2025-10-26
 
 ### Fixed

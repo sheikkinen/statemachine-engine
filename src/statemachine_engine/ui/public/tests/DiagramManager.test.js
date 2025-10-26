@@ -11,7 +11,7 @@ describe('buildStateHighlightMap', () => {
     beforeEach(() => {
         const container = document.createElement('div');
         const breadcrumb = document.createElement('nav');
-        const logger = { log: jest.fn() };
+        const logger = { log: () => {} };
         diagramManager = new DiagramManager(container, breadcrumb, logger);
     });
 
@@ -142,7 +142,7 @@ describe('enrichSvgWithDataAttributes', () => {
     beforeEach(() => {
         const container = document.createElement('div');
         const breadcrumb = document.createElement('nav');
-        const logger = { log: jest.fn() };
+        const logger = { log: () => {} };
         diagramManager = new DiagramManager(container, breadcrumb, logger);
 
         // Create mock SVG structure
@@ -262,7 +262,7 @@ describe('updateStateHighlight', () => {
     beforeEach(() => {
         const container = document.createElement('div');
         const breadcrumb = document.createElement('nav');
-        const logger = { log: jest.fn() };
+        const logger = { log: () => {} };
         diagramManager = new DiagramManager(container, breadcrumb, logger);
 
         // Create enriched SVG
@@ -327,7 +327,7 @@ describe('updateStateHighlight', () => {
     });
 
     it('should highlight transition arrow when event provided', () => {
-        jest.useFakeTimers();
+        // jest.useFakeTimers();
 
         const result = diagramManager.updateStateHighlight('monitoring_sdxl', 'sdxl_job_done');
 
@@ -339,10 +339,10 @@ describe('updateStateHighlight', () => {
         expect(edge.classList.contains('last-transition-arrow')).toBe(true);
 
         // Arrow should be cleared after 2 seconds
-        jest.advanceTimersByTime(2000);
+        // jest.advanceTimersByTime(2000);
         expect(edge.classList.contains('last-transition-arrow')).toBe(false);
 
-        jest.useRealTimers();
+        // jest.useRealTimers();
     });
 
     it('should return false when state not in map', () => {
@@ -399,30 +399,30 @@ describe('renderDiagram - Fast vs Slow Path', () => {
     beforeEach(() => {
         const container = document.createElement('div');
         const breadcrumb = document.createElement('nav');
-        const logger = { log: jest.fn() };
+        const logger = { log: () => {} };
         diagramManager = new DiagramManager(container, breadcrumb, logger);
         diagramManager.currentDiagram = 'flowchart TD\n  A-->B';
 
         // Mock methods
-        diagramManager.updateStateHighlight = jest.fn();
-        diagramManager.fullMermaidRender = jest.fn();
+        diagramManager.updateStateHighlight = () => {};
+        diagramManager.fullMermaidRender = () => {};
     });
 
     it('should use fast path when enriched and state provided', async () => {
         diagramManager.container.dataset.enriched = 'true';
         diagramManager.stateHighlightMap = { 'test': {} };
-        diagramManager.updateStateHighlight.mockReturnValue(true);
+        diagramManager.updateStateHighlight.returns(true);
 
         await diagramManager.renderDiagram('test_state', { event: 'test_event' });
 
-        expect(diagramManager.updateStateHighlight).toHaveBeenCalledWith('test_state', 'test_event');
+        expect(diagramManager.updateStateHighlight).toHaveBeenCalled('test_state', 'test_event');
         expect(diagramManager.fullMermaidRender).not.toHaveBeenCalled();
     });
 
     it('should use slow path when updateStateHighlight returns false', async () => {
         diagramManager.container.dataset.enriched = 'true';
         diagramManager.stateHighlightMap = { 'test': {} };
-        diagramManager.updateStateHighlight.mockReturnValue(false);
+        diagramManager.updateStateHighlight.returns(false);
 
         await diagramManager.renderDiagram('test_state');
 
@@ -446,7 +446,7 @@ describe('loadDiagram - State Clearing', () => {
     beforeEach(() => {
         const container = document.createElement('div');
         const breadcrumb = document.createElement('nav');
-        const logger = { log: jest.fn() };
+        const logger = { log: () => {} };
         diagramManager = new DiagramManager(container, breadcrumb, logger);
 
         // Mock fetch
@@ -461,10 +461,10 @@ describe('loadDiagram - State Clearing', () => {
         );
 
         // Mock other methods
-        diagramManager.updateBreadcrumb = jest.fn();
+        diagramManager.updateBreadcrumb = () => {};
         diagramManager.loadMachineState = jest.fn(() => null);
         diagramManager.loadMachineTransition = jest.fn(() => null);
-        diagramManager.renderDiagram = jest.fn();
+        diagramManager.renderDiagram = () => {};
     });
 
     it('should clear enrichment flag and map on diagram load', async () => {

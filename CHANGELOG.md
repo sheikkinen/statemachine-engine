@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.45] - 2025-10-26
+
+### Fixed
+- **CLI command now finds server.cjs correctly**
+  - Updated `find_ui_server()` to look for `server.cjs` instead of `server.js`
+  - Updated `subprocess.run()` to execute `server.cjs`
+  - Completes the ES module fix from v1.0.44
+  - `statemachine-ui` command now works correctly
+
+### Changed
+- **cli.py updates**
+  - Server path: `server.cjs` (was `server.js`)
+  - Subprocess command: `node server.cjs` (was `node server.js`)
+
+### Notes
+- This is the final fix for the ES module issue
+- Users must reinstall package to get updated CLI
+- All three components now consistent (package.json, server file, CLI)
+
 ## [1.0.44] - 2025-10-26
 
 ### Fixed

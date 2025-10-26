@@ -203,7 +203,8 @@ export class DiagramManager {
 
             // Context-aware highlighting
             if (highlightState) {
-                const currentDiagramStates = this.diagramMetadata?.states || [];
+                const currentDiagram = this.diagramMetadata?.diagrams?.[this.currentDiagramName];
+                const currentDiagramStates = currentDiagram?.states || [];
                 const isMainDiagram = this.currentDiagramName === 'main';
 
                 // If we're on main diagram and have composite states

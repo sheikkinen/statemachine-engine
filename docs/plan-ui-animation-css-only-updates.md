@@ -1,109 +1,665 @@
-# Plan: CSS-Only Updates for Flicker-Free Diagram Animation (Simplified)
+# Plan: CSS-Only Updates - Lessons Learned & Next Approach
 
-**Document Type:** Implementation Plan  
+**Document Type:** Implementation Plan (Updated with v1.0.33-40 Experience)  
 **Created:** 2025-10-26  
-**Status:** Planning  
-**Priority:** High  
-**Estimated Effort:** 4-6 hours  
+**Updated:** 2025-10-26 (Post-Rollback Analysis)  
+**Status:** ⚠️ NEEDS REDESIGN - v1.0.33-40 rolled back to v1.0.30  
+**Priority:** Medium (Stability achieved, performance is secondary)  
+**Estimated Effort:** 8-12 hours (requires careful approach)  
 
-## Overview
+## Executive Summary
 
-Eliminate diagram flicker by parsing SVG once after Mermaid render, enriching it with data attributes, then using simple CSS class updates for state changes.
+**Attempted:** v1.0.33-40 implemented CSS-only updates for 100x performance improvement (150ms → 1ms)  
+**Result:** ❌ Rolled back to v1.0.30 due to composite state reliability issues  
+**Learning:** Performance gains don't justify stability loss for a monitoring tool  
+**Status:** v1.0.41 uses stable v1.0.30 approach (full Mermaid re-render)
 
-**Current Problem:**
-- Every state change triggers full Mermaid re-render (~100-150ms)
-- Visible flicker during DOM destruction and SVG regeneration (~80ms)
+## What Went Wrong: v1.0.33-40 Post-Mortem
 
-**Simplified Solution:**
-1. Render diagram with Mermaid (once per structure change)
-2. Parse SVG once, add `data-state-id` and `data-edge-event` attributes
-3. Cache the enriched SVG
-4. State changes: simple `querySelector('[data-state-id="X"]')` + CSS class toggle
-5. No version hashing, no complex cache logic
+### Implementation Timeline
+- **v1.0.33:** Initial CSS-only implementation - SVG enrichment + fast updates
+- **v1.0.34:** Code cleanup - removed deprecated methods
+- **v1.0.35:** CLI event field fix ('event_type' → 'type')
+- **v1.0.36:** Fixed diagram switching and composite states
+- **v1.0.37:** Fixed state- prefix mismatch (Mermaid vs backend naming)
+- **v1.0.38:** Added composite state mapping logic
+- **v1.0.39:** Added "is it composite" check (unnecessary)
+- **v1.0.40:** Simplified composite logic back to v1.0.30 approach
+- **v1.0.41:** 🔄 **ROLLBACK** to v1.0.30 - stability prioritized
 
-**Expected Outcome:**
-- ✅ Zero flicker for state changes
-- ✅ Instant updates (~1ms)
-- ✅ Simple code (~60 lines total)
-- ✅ Easy debugging (data attributes in DevTools)
+### Critical Issues Discovered
 
-## Architecture Diagram
+#### 1. **Mermaid SVG ID Inconsistency**
+```javascript
+// Problem: Mermaid adds 'state-' prefix to node IDs
+<g id="flowchart-state-monitoring_sdxl-123">
+  <text>monitoring_sdxl</text>
+</g>
+
+// Backend sends clean names
+{ to_state: "monitoring_sdxl" }
+
+// Required 3-tier matching:
+1. [data-state-id="monitoring_sdxl"]        // exact
+2. [data-state-id="state-monitoring_sdxl"]  // with prefix
+3. [data-state-clean="monitoring_sdxl"]     // fallback
+```
+
+#### 2. **Composite State Mapping Complexity**
+```javascript
+// Challenge: Backend sends individual states, UI shows composites on main diagram
+Backend sends: "monitoring_sdxl"
+Main diagram shows: "SDXLLIFECYCLE" composite (contains monitoring_sdxl)
+
+// Required logic:
+- Iterate metadata.diagrams to find which composite contains state
+- If found, highlight composite instead of individual state
+- Handle edge cases: standalone states, missing metadata, etc.
+```
+
+#### 3. **Diagram Switching Edge Cases**
+```javascript
+// Issue: Enrichment flag not cleared on diagram change
+loadDiagram('main') → enriched=true
+loadDiagram('SDXLLIFECYCLE') → still enriched=true (wrong!)
+// New diagram has different states, old enrichment invalid
+
+// Fix: Clear enrichment flag on every loadDiagram() call
+this.container.dataset.enriched = 'false';
+```
+
+#### 4. **SVG Structure Assumptions**
+```javascript
+// Fragile: Relies on Mermaid's SVG structure not changing
+const stateNodes = svg.querySelectorAll('g.node');
+const edgeLabels = svg.querySelectorAll('g.edgeLabels g.label');
+
+// Risk: Mermaid.js updates could break selectors
+// Reality: Happened across v1.0.33-40 iterations
+```
+
+### What Worked Well
+
+✅ **SVG Enrichment Concept**
+- Adding `data-state-id`, `data-state-clean`, `data-edge-event` attributes
+- Made DOM queries fast and debuggable
+- Clear separation between structure and state
+
+✅ **Fast Path Performance**
+- CSS-only updates were genuinely ~1ms (100x faster)
+- No flicker, smooth animations
+- When it worked, it was excellent
+
+✅ **Debugging Helpers**
+```javascript
+window.checkSvgEnrichment()  // Show enrichment status
+window.forceReEnrich()        // Re-enrich current SVG
+window.clearDiagramCache()    // Reset state
+```
+
+### What Didn't Work
+
+❌ **Complexity vs Reliability Trade-off**
+- 7 releases (v1.0.33-40) trying to fix edge cases
+- Each fix introduced new issues
+- Composite states never fully stable
+
+❌ **Mermaid Assumptions**
+- SVG structure is not guaranteed stable
+- Node IDs have unpredictable prefixes
+- Text content is most reliable but requires parsing
+
+❌ **Metadata Dependency**
+- Composite mapping requires `metadata.diagrams` structure
+- Async loading race conditions
+- Missing metadata = broken highlighting
+
+## v1.0.30 Approach: Why It Works
+
+### Simple & Reliable Architecture
+
+```javascript
+// 1. Fetch metadata asynchronously
+async findCompositeForState(stateName) {
+    const response = await fetch(`/api/diagram/${this.selectedMachine}/metadata`);
+    const metadata = await response.json();
+    
+    for (const [compositeName, info] of Object.entries(metadata.diagrams)) {
+        if (info.states && info.states.includes(stateName)) {
+            return compositeName;
+        }
+    }
+    return null;
+}
+
+// 2. Modify Mermaid diagram code with CSS classes
+async renderDiagram(highlightState = null) {
+    let diagramCode = this.currentDiagram;
+    
+    if (this.currentDiagramName === 'main') {
+        const composite = await this.findCompositeForState(highlightState);
+        if (composite) {
+            diagramCode += `\n\n    classDef activeComposite fill:#FFD700,stroke:#FF8C00,stroke-width:4px`;
+            diagramCode += `\n    class ${composite} activeComposite`;
+        }
+    } else {
+        diagramCode += `\n\n    classDef active fill:#90EE90,stroke:#006400,stroke-width:4px`;
+        diagramCode += `\n    class ${highlightState} active`;
+    }
+    
+    // 3. Mermaid processes CSS classes natively
+    await window.mermaid.run({ nodes: [mermaidEl] });
+}
+```
+
+### Advantages
+1. **Mermaid handles CSS natively** - no DOM manipulation
+2. **Metadata fetched fresh** - no caching issues
+3. **Composite logic centralized** - one place, simple
+4. **No SVG structure assumptions** - works with any Mermaid version
+5. **Proven in production** - v1.0.30 ran for weeks without issues
+
+### Disadvantages
+1. **Slower:** ~100-150ms per update vs 1ms
+2. **Full re-render:** Entire SVG regenerated
+3. **No animation reuse:** New SVG = new DOM elements
+
+## Next Implementation Approach: Hybrid Strategy
+
+### Goals
+- ✅ Keep v1.0.30 stability
+- ✅ Add CSS-only where it's safe
+- ✅ Fall back to full render for edge cases
+
+### Proposed Architecture
+
+```mermaid
+### Proposed Architecture
 
 ```mermaid
 flowchart TD
-    A[State Change Event] --> B[updateState called]
+    A[State Change Event] --> B{Diagram Type?}
     
-    B --> C{Is SVG enriched?}
+    B -->|Subdiagram| C[Simple Case]
+    B -->|Main Diagram| D[Complex Case]
     
-    C -->|Yes| D[🚀 FAST PATH]
-    C -->|No| E[🐌 SLOW PATH: First render]
+    C --> E{State in current diagram?}
+    E -->|Yes| F[✅ CSS-only update]
+    E -->|No| G[❌ Fall back to full render]
     
-    D --> F[querySelector data-state-id]
-    F --> G[Remove .active from all]
-    G --> H[Add .active to new state]
-    H --> I[querySelector data-edge-event]
-    I --> J[Add .last-transition-arrow]
-    J --> K[✅ Done: 1ms]
+    D --> H{State in metadata?}
+    H -->|Yes| I{Composite exists in SVG?}
+    I -->|Yes| J[✅ CSS-only composite highlight]
+    I -->|No| K[❌ Fall back to full render]
+    H -->|No| K
     
-    E --> L[Mermaid.run - render SVG]
-    L --> M[enrichSvgWithDataAttributes]
-    M --> N[Find all state nodes]
-    N --> O[Add data-state-id to each]
-    O --> P[Find all edge labels]
-    P --> Q[Add data-edge-event to paths]
-    Q --> R[Mark as enriched]
-    R --> S[✅ Done: 100ms]
+    F --> L[~1ms update]
+    J --> M[~1ms update]
+    K --> N[v1.0.30 full render ~150ms]
+    G --> N
     
-    style D fill:#90EE90,stroke:#006400,stroke-width:3px
-    style K fill:#90EE90,stroke:#006400,stroke-width:3px
-    style E fill:#FFD700,stroke:#FF8C00,stroke-width:2px
-    style S fill:#FFD700,stroke:#FF8C00,stroke-width:2px
+    style F fill:#90EE90,stroke:#006400
+    style J fill:#90EE90,stroke:#006400
+    style K fill:#FFD700,stroke:#FF8C00
+    style G fill:#FFD700,stroke:#FF8C00
+    style N fill:#87CEEB,stroke:#4682B4
 ```
 
-## Process Flow
+### Implementation Strategy: Conservative Hybrid
 
-```mermaid
-sequenceDiagram
-    participant SM as State Machine
-    participant DM as DiagramManager
-    participant SVG as SVG DOM
+#### Phase 1: Keep v1.0.30 as Foundation (Current - v1.0.41)
+- ✅ DONE: Stable composite state highlighting
+- ✅ DONE: Full Mermaid re-render approach
+- ✅ DONE: All edge cases handled
+
+#### Phase 2: Add CSS-Only for Subdiagrams ONLY (Low Risk)
+**Rationale:** Subdiagrams are simple - no composites, direct state mapping
+
+```javascript
+async renderDiagram(highlightState = null, transition = null) {
+    // Check if we can use CSS-only (ONLY for subdiagrams)
+    if (this.currentDiagramName !== 'main' && 
+        this.container.dataset.enriched === 'true' && 
+        highlightState) {
+        
+        // FAST PATH: Subdiagram CSS-only update
+        this.updateStateHighlight(highlightState, transition?.event);
+        return;
+    }
     
-    Note over DM: FIRST RENDER (or structure change)
+    // SLOW PATH: Full render (all main diagram updates + first subdiagram render)
+    await this.fullMermaidRender(highlightState, transition);
+}
+```
+
+**Why This Is Safe:**
+- ✅ Subdiagrams show actual states (no composite mapping needed)
+- ✅ State names match exactly (no prefix issues)
+- ✅ Simpler SVG structure
+- ✅ Fall back to full render on any failure
+
+#### Phase 3: Add CSS-Only for Main Diagram Simple States (Medium Risk)
+**Only after Phase 2 proven stable for 2+ weeks**
+
+```javascript
+// Only use CSS-only for standalone states on main diagram
+if (this.currentDiagramName === 'main') {
+    const compositeList = this.diagramMetadata?.diagrams?.main?.composites || [];
     
-    SM->>DM: updateState('processing')
-    DM->>DM: renderDiagram()
-    DM->>DM: Mermaid.run() [100ms]
-    DM->>SVG: Insert rendered SVG
+    // Is this state a standalone (not in any composite)?
+    const isStandalone = !compositeList.includes(highlightState) && 
+                        !this.belongsToComposite(highlightState);
     
-    DM->>DM: enrichSvgWithDataAttributes()
+    if (isStandalone && this.container.dataset.enriched === 'true') {
+        // FAST PATH: Standalone state on main diagram
+        this.updateStateHighlight(highlightState);
+        return;
+    }
+}
+
+// SLOW PATH: Use v1.0.30 approach for composites
+await this.fullMermaidRender(highlightState, transition);
+```
+
+#### Phase 4: Composite States (High Risk - May Never Implement)
+**Decision point:** Re-evaluate after Phases 2-3 are stable
+
+**Blockers:**
+- Composite mapping complexity (proven buggy in v1.0.33-40)
+- Metadata dependencies
+- SVG structure assumptions
+- Edge cases with entry/exit states
+
+**Alternative:** Accept 150ms for composite states, optimize only subdiagrams
+
+### Risk Mitigation Strategies
+
+#### 1. Feature Flags
+```javascript
+const ENABLE_CSS_ONLY_SUBDIAGRAMS = true;   // Phase 2
+const ENABLE_CSS_ONLY_STANDALONE = false;    // Phase 3 (disabled by default)
+const ENABLE_CSS_ONLY_COMPOSITES = false;    // Phase 4 (may never enable)
+```
+
+#### 2. Automatic Fallback on Failure
+```javascript
+updateStateHighlight(stateName) {
+    try {
+        const node = this.findStateNode(stateName);
+        if (!node) {
+            console.warn('[CSS-only] Node not found, falling back to full render');
+            this.container.dataset.enriched = 'false';
+            return false;  // Caller will trigger full render
+        }
+        // ... CSS update
+        return true;
+    } catch (error) {
+        console.error('[CSS-only] Error, falling back:', error);
+        this.container.dataset.enriched = 'false';
+        return false;
+    }
+}
+```
+
+#### 3. Enrichment Validation
+```javascript
+enrichSvgWithDataAttributes() {
+    const before = performance.now();
     
-    loop For each state node
-        DM->>SVG: Find node by ID pattern
-        DM->>SVG: node.dataset.stateId = 'processing'
-    end
+    // ... enrichment logic
     
-    loop For each edge label
-        DM->>SVG: Find label text (event name)
-        DM->>SVG: Find corresponding path
-        DM->>SVG: path.dataset.edgeEvent = 'new_job'
-    end
+    const enrichedNodes = svg.querySelectorAll('[data-state-id]').length;
+    const after = performance.now();
     
-    DM->>DM: Mark container as enriched
+    if (enrichedNodes === 0) {
+        console.error('[Enrich] FAILED: No nodes enriched');
+        return false;
+    }
     
-    Note over DM,SVG: SUBSEQUENT STATE CHANGES
+    console.log(`[Enrich] ✓ ${enrichedNodes} nodes in ${(after-before).toFixed(1)}ms`);
+    return true;
+}
+```
+
+#### 4. Performance Monitoring
+```javascript
+// Track which path is being used
+window.diagramPerformanceStats = {
+    cssOnlyUpdates: 0,
+    fullRenders: 0,
+    fallbacks: 0,
+    avgCssTime: 0,
+    avgRenderTime: 0
+};
+```
+
+### Testing Strategy
+
+#### Unit Tests (Before Implementation)
+```javascript
+describe('CSS-Only Subdiagram Updates', () => {
+    it('should use CSS-only for subdiagram state changes', async () => {
+        // Setup subdiagram
+        await diagramManager.loadDiagram('machine1', 'PROCESSING');
+        
+        // First render (full)
+        await diagramManager.updateState('generating');
+        expect(fullRenderCalled).toBe(true);
+        
+        // Second render (CSS-only)
+        await diagramManager.updateState('inpainting');
+        expect(cssOnlyCalled).toBe(true);
+        expect(fullRenderCalled).toBe(false);
+    });
     
-    SM->>DM: updateState('completed')
-    DM->>DM: updateStateHighlight('completed')
+    it('should fallback to full render on enrichment failure', async () => {
+        // Mock enrichment failure
+        diagramManager.enrichSvgWithDataAttributes = () => false;
+        
+        await diagramManager.updateState('waiting');
+        expect(fullRenderCalled).toBe(true);
+    });
+});
+```
+
+#### Integration Tests (Post-Implementation)
+1. **Load subdiagram, trigger 10 state changes**
+   - Expected: 1 full render + 9 CSS-only updates
+   - Verify: No console errors, states highlighted correctly
+
+2. **Switch between main and subdiagram**
+   - Expected: Full render on each switch
+   - Verify: Enrichment flag cleared on diagram load
+
+3. **Composite states on main diagram**
+   - Expected: Always use full render (v1.0.30 approach)
+   - Verify: Correct composite highlighted
+
+### Success Criteria
+
+#### Phase 2 (Subdiagrams)#### Phase 2 (Subdiagrams)
+- ✅ 95%+ of subdiagram updates use CSS-only path
+- ✅ Zero console errors during 24-hour test
+- ✅ States highlight correctly in all subdiagrams
+- ✅ Automatic fallback works on edge cases
+- ✅ Performance: <5ms average update time
+
+#### Phase 3 (Standalone States on Main)
+- ✅ Standalone states use CSS-only path
+- ✅ Composites still use v1.0.30 full render
+- ✅ No regressions in composite highlighting
+- ✅ Zero errors over 1-week production test
+
+#### Phase 4 (Composites) - Optional
+- Decision: Re-evaluate based on Phase 2-3 stability
+- May conclude: 150ms is acceptable for composite updates
+- Alternative: Optimize Mermaid rendering instead
+
+### Key Lessons Applied
+
+1. **Start Simple, Add Complexity Gradually**
+   - v1.0.33 tried to do everything at once → failed
+   - New approach: Subdiagrams only first → prove stability → expand
+
+2. **Always Have a Fallback**
+   - CSS-only is optimization, not requirement
+   - Full render as safety net on any failure
+
+3. **Validate Assumptions**
+   - Don't assume Mermaid SVG structure
+   - Check enrichment succeeded before using it
+   - Log everything for debugging
+
+4. **Stability > Performance**
+   - 150ms works fine for monitoring
+   - 1ms is nice-to-have, not critical
+   - Users don't notice 150ms, but DO notice bugs
+
+5. **Composites Are Complex**
+   - Mapping individual states → composites is hard
+   - Metadata dependencies create race conditions
+   - May not be worth optimizing
+
+### Code Structure (Proposed Phase 2)
+
+```javascript
+class DiagramManager {
+    constructor() {
+        // Feature flags
+        this.enableCssOnlySubdiagrams = true;  // Phase 2
+        this.enableCssOnlyStandalone = false;  // Phase 3
+        this.enableCssOnlyComposites = false;  // Phase 4 (likely never)
+    }
     
-    DM->>SVG: querySelectorAll('.active')
-    SVG-->>DM: [old nodes]
-    DM->>SVG: Remove .active class
+    async renderDiagram(highlightState = null, transition = null) {
+        // Attempt CSS-only update (safe cases only)
+        if (this.canUseCssOnly(highlightState)) {
+            const success = this.updateStateHighlight(highlightState, transition?.event);
+            if (success) {
+                console.log('[Render] ✓ CSS-only update (fast path)');
+                return;
+            }
+            console.warn('[Render] CSS-only failed, falling back to full render');
+        }
+        
+        // Full Mermaid render (v1.0.30 approach)
+        await this.fullMermaidRender(highlightState, transition);
+    }
     
-    DM->>SVG: querySelector('[data-state-id="completed"]')
-    SVG-->>DM: node
-    DM->>SVG: Add .active class
+    canUseCssOnly(highlightState) {
+        if (!highlightState) return false;
+        if (this.container.dataset.enriched !== 'true') return false;
+        
+        // Phase 2: Only subdiagrams
+        if (this.enableCssOnlySubdiagrams && this.currentDiagramName !== 'main') {
+            return true;
+        }
+        
+        // Phase 3: Standalone states on main (disabled by default)
+        if (this.enableCssOnlyStandalone && this.currentDiagramName === 'main') {
+            return this.isStandaloneState(highlightState);
+        }
+        
+        // Phase 4: Composites (disabled by default)
+        if (this.enableCssOnlyComposites && this.currentDiagramName === 'main') {
+            return true;  // Would need composite mapping logic
+        }
+        
+        return false;
+    }
     
-    Note over DM,SVG: ⚡ Total time: ~1ms, ZERO FLICKER
+    updateStateHighlight(stateName, eventName = null) {
+        try {
+            const svg = this.container.querySelector('svg');
+            if (!svg) {
+                console.warn('[CSS-only] No SVG found');
+                return false;
+            }
+            
+            // Remove old highlights
+            svg.querySelectorAll('.active, .activeComposite').forEach(el => {
+                el.classList.remove('active', 'activeComposite');
+            });
+            
+            // Find and highlight new state
+            const node = this.findStateNode(svg, stateName);
+            if (!node) {
+                console.warn(`[CSS-only] Node not found: ${stateName}`);
+                this.container.dataset.enriched = 'false';  // Force re-enrich
+                return false;
+            }
+            
+            node.classList.add('active');
+            console.log(`[CSS-only] ✓ Highlighted: ${stateName} (~1ms)`);
+            
+            // Highlight transition arrow
+            if (eventName) {
+                this.highlightTransitionArrow(svg, eventName);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('[CSS-only] Error:', error);
+            this.container.dataset.enriched = 'false';
+            return false;
+        }
+    }
+    
+    findStateNode(svg, stateName) {
+        // Try multiple selectors (most to least reliable)
+        let node = svg.querySelector(`[data-state-id="${stateName}"]`);
+        if (node) return node;
+        
+        node = svg.querySelector(`[data-state-clean="${stateName}"]`);
+        if (node) return node;
+        
+        // Fallback: text content matching
+        const textNodes = Array.from(svg.querySelectorAll('g.node text'));
+        const matchingText = textNodes.find(t => t.textContent.trim() === stateName);
+        if (matchingText) {
+            return matchingText.closest('g.node');
+        }
+        
+        return null;
+    }
+    
+    async fullMermaidRender(highlightState = null, transition = null) {
+        // v1.0.30 approach - proven stable
+        let diagramCode = this.currentDiagram;
+        
+        if (highlightState) {
+            if (this.currentDiagramName === 'main') {
+                // Composite state handling
+                const composite = await this.findCompositeForState(highlightState);
+                if (composite) {
+                    diagramCode += `\n\n    classDef activeComposite fill:#FFD700,stroke:#FF8C00,stroke-width:4px`;
+                    diagramCode += `\n    class ${composite} activeComposite`;
+                }
+            } else {
+                // Direct state highlighting
+                diagramCode += `\n\n    classDef active fill:#90EE90,stroke:#006400,stroke-width:4px`;
+                diagramCode += `\n    class ${highlightState} active`;
+            }
+        }
+        
+        // Render
+        this.container.classList.add('redrawing');
+        await new Promise(resolve => setTimeout(resolve, 50));
+        this.container.innerHTML = `<pre class="mermaid">${diagramCode}</pre>`;
+        
+        const mermaidEl = this.container.querySelector('.mermaid');
+        await window.mermaid.run({ nodes: [mermaidEl] });
+        
+        // Enrich for next CSS-only update
+        if (this.enableCssOnlySubdiagrams || this.enableCssOnlyStandalone) {
+            const enriched = this.enrichSvgWithDataAttributes();
+            if (enriched) {
+                this.container.dataset.enriched = 'true';
+            }
+        }
+        
+        this.container.classList.remove('redrawing');
+        this.attachCompositeClickHandlers();
+        
+        console.log('[Render] ✓ Full Mermaid render (~150ms)');
+    }
+}
+```
+
+## Implementation Timeline
+
+### Week 1: Preparation
+- [ ] Set up feature flags
+- [ ] Write unit tests for Phase 2
+- [ ] Document current v1.0.30 behavior as baseline
+- [ ] Create test plan for subdiagram updates
+
+### Week 2: Phase 2 Implementation
+- [ ] Implement `canUseCssOnly()` with subdiagram-only logic
+- [ ] Implement enrichment with validation
+- [ ] Implement `updateStateHighlight()` with fallback
+- [ ] Manual testing with simple_worker example
+- [ ] 24-hour stability test
+
+### Week 3: Phase 2 Refinement
+- [ ] Fix any issues found in testing
+- [ ] Performance monitoring integration
+- [ ] Documentation updates
+- [ ] Release as v1.0.42 (conservative, feature-flagged)
+
+### Week 4-5: Monitoring
+- [ ] Monitor production usage
+- [ ] Collect performance metrics
+- [ ] Evaluate: Proceed to Phase 3 or stop here?
+
+### Future: Phase 3 (TBD)
+- Decision point after Phase 2 proven stable
+- May conclude subdiagram optimization is sufficient
+- Main diagram composites can stay with full render
+
+## Appendix: v1.0.33-40 Detailed Changelog
+
+### v1.0.33 (Initial CSS-only)
+- Added `enrichSvgWithDataAttributes()`
+- Added `updateStateHighlight()`
+- Added enrichment flag checking
+- **Issue:** Didn't clear flag on diagram switch
+
+### v1.0.34 (Cleanup)
+- Removed deprecated arrow highlighting methods
+- ~136 lines of code removed
+- **Issue:** No functional changes, cleanup only
+
+### v1.0.35 (CLI Fix)
+- Changed CLI event field 'event_type' → 'type'
+- **Issue:** Unrelated to CSS-only updates
+
+### v1.0.36 (Diagram Switching Fix)
+- Clear enrichment flag in `loadDiagram()`
+- Fixed composite state CSS class (`activeComposite`)
+- **Issue:** Still had state name prefix mismatches
+
+### v1.0.37 (Prefix Fix)
+- Added `data-state-clean` attribute
+- 3-tier matching strategy
+- **Issue:** Composite state mapping still broken
+
+### v1.0.38 (Composite Mapping)
+- Added composite state detection
+- Iterate `metadata.diagrams` to find parent composite
+- **Issue:** Complex dual-check logic (unnecessary)
+
+### v1.0.39 (Composite Check)
+- Added "is it a composite" check
+- **Issue:** Backend never sends composite names (check was useless)
+
+### v1.0.40 (Simplification)
+- Removed dual-check, back to single loop
+- Enhanced logging
+- **Issue:** Still unreliable with real composite states
+
+### v1.0.41 (Rollback)
+- 🔄 Complete rollback to v1.0.30
+- Removed all CSS-only code
+- Restored full Mermaid re-render approach
+- **Result:** ✅ Stable again
+
+## Conclusion
+
+**Current Status:** v1.0.41 uses proven v1.0.30 approach - stable but slower
+
+**Next Steps:**
+1. Let v1.0.41 run in production for 2+ weeks
+2. If stability confirmed, consider Phase 2 (subdiagram CSS-only)
+3. Accept that main diagram composites may always use full render
+4. Prioritize stability over performance
+
+**Key Insight:** For a monitoring tool, seeing state changes reliably is more important than seeing them instantly. 150ms is acceptable. Bugs are not.
+
+---
+
+*Document updated: 2025-10-26 post v1.0.41 rollback*  
+*Next review: After 2 weeks of v1.0.41 stability testing*
 ```
 
 ## Key Simplifications

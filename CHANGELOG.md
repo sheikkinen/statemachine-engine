@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.41] - 2025-10-26
+
+### Changed
+- **ROLLBACK to v1.0.30 UI implementation**: Restored proven working DiagramManager.js from v1.0.30
+  - CSS-only updates (v1.0.33-40) caused issues with composite state highlighting
+  - v1.0.30 uses full Mermaid re-render approach (100-150ms) but is stable and proven
+  - Composite states work correctly with async `findCompositeForState()` metadata lookup
+  - Uses diagram code modification + CSS class injection for state highlighting
+  - All composite state edge cases handled properly
+
+### Technical Details
+- Removed: SVG enrichment, CSS-only updates, data attributes
+- Restored: Full Mermaid re-render on every state change
+- Restored: `findCompositeForState()` async method for composite lookup
+- Performance: ~100-150ms per update (vs 1ms CSS-only, but stable)
+- Rationale: Stability > Performance for state machine monitoring
+
 ## [1.0.40] - 2025-10-26
 
 ### Fixed

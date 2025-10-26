@@ -1,21 +1,5 @@
 /**
  * DiagramManager - Handles FSM diagram loading, rendering, and navigation
- * 
- * CSS-ONLY UPDATES:
- * - enrichSvgWithDataAttributes(): Parse SVG once, add data-state-id/data-state-clean/data-edge-event
- * - updateStateHighlight(): Fast CSS-only updates (~1ms vs 100-150ms full render)
- * - renderDiagram(): Smart path - use CSS if enriched, else full Mermaid render
- * 
- * COMPOSITE STATE LOGIC:
- * - When on main diagram: Backend sends individual states (e.g., "generating_image")
- * - UI maps state to parent composite using metadata.diagrams[composite].states
- * - Highlights composite with 'activeComposite' class instead of individual state
- * - When on composite subdiagram: Highlights individual state normally
- * 
- * STATE MATCHING (3-tier fallback):
- * 1. Exact match: [data-state-id="waiting"]
- * 2. With prefix: [data-state-id="state-waiting"] (Mermaid adds state- prefix)
- * 3. Clean match: [data-state-clean="waiting"] (stored during enrichment)
  */
 export class DiagramManager {
     constructor(container, breadcrumbNav, logger) {
@@ -32,165 +16,10 @@ export class DiagramManager {
         this.highlightTimestamp = null;
     }
 
-    /**
-     * Enrich SVG with data attributes for fast CSS-only updates
-     * Called once after Mermaid renders the diagram
-     */
-    enrichSvgWithDataAttributes() {
-        const svg = this.container.querySelector('svg');
-        if (!svg) {
-            console.warn('[Enrich] No SVG found');
-            return;
-        }
-        
-        let enrichedCount = 0;
-        
-        // 1. Enrich state nodes with data-state-id
-        const stateNodes = svg.querySelectorAll('g.node');
-        stateNodes.forEach(node => {
-            // Extract state name from text content (most reliable)
-            const textEl = node.querySelector('text');
-            let stateName = textEl ? textEl.textContent.trim() : '';
-            
-            // Fallback: extract from node ID
-            if (!stateName) {
-                const nodeId = node.id || '';
-                stateName = nodeId.replace(/^flowchart-/, '').replace(/-\d+$/, '');
-            }
-            
-            if (stateName) {
-                // Store original name with state- prefix AND clean name for matching
-                node.dataset.stateId = stateName;
-                // Also add clean version without state- prefix for backend matching
-                const cleanName = stateName.replace(/^state-/, '');
-                if (cleanName !== stateName) {
-                    node.dataset.stateClean = cleanName;
-                }
-                enrichedCount++;
-                console.log(`[Enrich] State: "${stateName}" -> clean: "${cleanName}"`);
-            }
-        });
-        
-        // 2. Enrich edge paths with data-edge-event
-        const edgeLabels = svg.querySelectorAll('g.edgeLabels g.label');
-        edgeLabels.forEach(label => {
-            const eventName = label.textContent.trim();
-            const dataId = label.getAttribute('data-id');
-            
-            if (eventName && dataId) {
-                const path = svg.querySelector(`path[data-id="${dataId}"]`);
-                if (path) {
-                    path.dataset.edgeEvent = eventName;
-                    enrichedCount++;
-                }
-            }
-        });
-        
-        // 3. Mark container as enriched
-        this.container.dataset.enriched = 'true';
-        console.log(`[Enrich] Added data attributes to ${enrichedCount} elements`);
-    }
-
-    /**
-     * Update state highlight using CSS-only approach
-     * 
-     * Fast path: ~1ms, zero flicker
-     */
-    updateStateHighlight(stateName, eventName = null) {
-        const svg = this.container.querySelector('svg');
-        if (!svg) {
-            console.warn('[CSS-only] No SVG found');
-            return;
-        }
-        
-        // Remove old highlights
-        svg.querySelectorAll('.active, .activeComposite').forEach(el => {
-            el.classList.remove('active', 'activeComposite');
-        });
-        
-        // Determine what to highlight based on current diagram
-        let targetState = stateName;
-        let isComposite = false;
-        
-        // If on main diagram, find which composite contains this state
-        if (this.currentDiagramName === 'main' && this.diagramMetadata?.diagrams) {
-            console.log('[CSS-only] Main diagram - checking if state belongs to composite');
-            console.log('[CSS-only] Available diagrams:', Object.keys(this.diagramMetadata.diagrams));
-            
-            // Iterate through all composite diagrams to find which one contains this state
-            for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
-                if (compositeName === 'main') continue;
-                
-                console.log(`[CSS-only] Checking composite ${compositeName}:`, compositeData.states);
-                
-                if (compositeData.states && compositeData.states.includes(stateName)) {
-                    targetState = compositeName;
-                    isComposite = true;
-                    console.log(`[CSS-only] ✓ State ${stateName} belongs to composite ${compositeName}, will highlight composite`);
-                    break;
-                }
-            }
-            
-            if (!isComposite) {
-                console.log(`[CSS-only] State ${stateName} not found in any composite - checking if it's a standalone state on main diagram`);
-            }
-        }
-        
-        // Try to find state node - 3-tier matching strategy
-        let stateNode = svg.querySelector(`[data-state-id="${targetState}"]`);
-        if (!stateNode) {
-            // Try matching with state- prefix (Mermaid adds this)
-            stateNode = svg.querySelector(`[data-state-id="state-${targetState}"]`);
-        }
-        if (!stateNode) {
-            // Try matching via clean name
-            stateNode = svg.querySelector(`[data-state-clean="${targetState}"]`);
-        }
-        
-        if (stateNode) {
-            const className = isComposite ? 'activeComposite' : 'active';
-            stateNode.classList.add(className);
-            
-            if (isComposite) {
-                console.log(`[CSS-only] ✓ Highlighted composite: ${targetState} (contains ${stateName}) (~1ms, zero flicker)`);
-            } else {
-                console.log(`[CSS-only] ✓ Highlighted state: ${targetState} (~1ms, zero flicker)`);
-            }
-        } else {
-            console.warn(`[CSS-only] ✗ State node not found in SVG: ${targetState} (original: ${stateName})`);
-            console.log(`[CSS-only] This may be normal if state not visible on current diagram view`);
-            console.log(`[CSS-only] Clearing enrichment flag to force full render next update`);
-            // Clear enrichment flag to force full render next time
-            this.container.dataset.enriched = 'false';
-        }
-        
-        // Highlight transition arrow
-        if (eventName) {
-            // Clear old arrow highlights
-            svg.querySelectorAll('.last-transition-arrow').forEach(el => {
-                el.classList.remove('last-transition-arrow');
-            });
-            
-            const edge = svg.querySelector(`[data-edge-event="${eventName}"]`);
-            if (edge) {
-                edge.classList.add('last-transition-arrow');
-                console.log(`[CSS-only] Highlighted arrow: ${eventName}`);
-                
-                // Auto-clear after 2 seconds
-                setTimeout(() => {
-                    edge.classList.remove('last-transition-arrow');
-                }, 2000);
-            }
-        }
-    }    
-    
     async loadDiagram(machineName, diagramName = 'main') {
         try {
             this.selectedMachine = machineName;
             this.logger.log('info', `Loading diagram for ${machineName}/${diagramName}...`);
-
-            // Clear enrichment flag when loading new diagram
-            this.container.dataset.enriched = 'false';
 
             // Try new format first
             let response = await fetch(`/api/diagram/${machineName}/${diagramName}`);
@@ -283,18 +112,33 @@ export class DiagramManager {
     }
 
     async renderDiagram(highlightState = null, transition = null) {
-        // Check if we can use CSS-only update (fast path)
-        if (this.container.dataset.enriched === 'true' && highlightState) {
-            const eventName = transition?.event;
-            this.updateStateHighlight(highlightState, eventName);
-            return; // FAST PATH - done in ~1ms, zero flicker
-        }
-
-        // SLOW PATH - full Mermaid render
         if (!this.currentDiagram) return;
 
         try {
             let diagramCode = this.currentDiagram;
+            let compositeToHighlight = null;
+
+            // Context-aware highlighting
+            if (highlightState) {
+                const currentDiagramStates = this.diagramMetadata?.states || [];
+                const isMainDiagram = this.currentDiagramName === 'main';
+                
+                // If we're on main diagram and have composite states
+                if (isMainDiagram) {
+                    // Find which composite contains the active state
+                    compositeToHighlight = await this.findCompositeForState(highlightState);
+                    if (compositeToHighlight) {
+                        console.log(`Main diagram: highlighting composite ${compositeToHighlight} containing state ${highlightState}`);
+                        diagramCode += `\n\n    classDef activeComposite fill:#FFD700,stroke:#FF8C00,stroke-width:4px`;
+                        diagramCode += `\n    class ${compositeToHighlight} activeComposite`;
+                    }
+                } else if (currentDiagramStates.includes(highlightState)) {
+                    // We're in a subdiagram and the state is here - highlight it directly
+                    console.log(`Subdiagram: highlighting state ${highlightState}`);
+                    diagramCode += `\n\n    classDef active fill:#90EE90,stroke:#006400,stroke-width:4px`;
+                    diagramCode += `\n    class ${highlightState} active`;
+                }
+            }
 
             // Add redrawing class for fade effect
             this.container.classList.add('redrawing');
@@ -307,9 +151,6 @@ export class DiagramManager {
             const mermaidEl = this.container.querySelector('.mermaid');
             await window.mermaid.run({ nodes: [mermaidEl] });
 
-            // ✨ NEW: Enrich SVG with data attributes for fast updates
-            this.enrichSvgWithDataAttributes();
-
             // Mark container as having diagram
             this.container.classList.add('has-diagram');
             this.container.classList.remove('redrawing');
@@ -317,17 +158,17 @@ export class DiagramManager {
             // Always attach composite click handlers after rendering
             this.attachCompositeClickHandlers();
 
-            // Initial highlight using CSS-only method
-            if (highlightState) {
-                const eventName = transition?.event;
-                this.updateStateHighlight(highlightState, eventName);
+            // Highlight transition arrow immediately if provided
+            if (transition && transition.from && transition.to) {
+                console.log(`[DiagramManager] Will highlight arrow for transition:`, transition);
+                this.highlightTransitionArrowDirect(transition);
+            } else {
+                console.log(`[DiagramManager] No valid transition to highlight:`, transition);
             }
-
         } catch (error) {
             console.error('Error rendering diagram:', error);
             this.logger.log('error', `Diagram rendering failed: ${error.message}`);
             this.container.classList.remove('redrawing');
-            this.container.dataset.enriched = 'false'; // Clear enriched flag on error
         }
     }
 
@@ -524,6 +365,53 @@ export class DiagramManager {
         console.log(`[Arrow Highlight Direct] ${timestamp} - ✗ Skipping animation - no specific edge found`);
     }
 
+    highlightTransitionArrow(fromState, toState) {
+        console.log(`[Arrow Highlight] Looking for transition: ${fromState} → ${toState}`);
+        
+        const svg = this.container.querySelector('svg');
+        if (!svg) return;
+
+        // Clear any existing arrow highlights first
+        this.clearArrowHighlights(svg);
+
+        // Get the event trigger for this transition from stored transitions
+        const transition = this.getStoredTransition(fromState, toState);
+        const eventTrigger = transition?.event;
+        
+        console.log(`[Arrow Highlight] Retrieved transition:`, transition);
+        console.log(`[Arrow Highlight] Event trigger: "${eventTrigger}"`);
+        
+        if (eventTrigger && eventTrigger !== 'unknown') {
+            console.log(`[Arrow Highlight] Searching by event trigger: "${eventTrigger}"`);
+            
+            // Find edge by matching label text with data-id
+            const edge = this.findEdgeByLabel(svg, eventTrigger);
+            
+            if (edge) {
+                console.log(`[Arrow Highlight] ✓ Found edge by label matching for "${eventTrigger}"`);
+                edge.classList.add('last-transition-arrow');
+                
+                // Store reference to clear later
+                this.currentHighlightedEdge = edge;
+                
+                setTimeout(() => {
+                    if (edge === this.currentHighlightedEdge) {
+                        edge.classList.remove('last-transition-arrow');
+                        this.currentHighlightedEdge = null;
+                    }
+                }, 2000);
+                return;
+            } else {
+                console.log(`[Arrow Highlight] ✗ Could not find edge by label for "${eventTrigger}"`);
+            }
+        } else {
+            console.log(`[Arrow Highlight] No valid event trigger found`);
+        }
+        
+        // No fallback - only highlight if we found the correct edge
+        console.log(`[Arrow Highlight] ✗ Skipping animation - no specific edge found`);
+    }
+
     clearArrowHighlights(svg) {
         // Remove highlight class from all edges
         const highlightedEdges = svg.querySelectorAll('.last-transition-arrow');
@@ -571,46 +459,86 @@ export class DiagramManager {
         return null;
     }
 
-    /**
-     * Debugging helper: Check SVG enrichment status
-     */
-    checkSvgEnrichment() {
-        const svg = this.container.querySelector('svg');
-        if (!svg) {
-            console.log('[Debug] No SVG found');
-            return;
-        }
-
-        const enriched = this.container.dataset.enriched === 'true';
-        const stateNodes = svg.querySelectorAll('[data-state-id]');
-        const edgePaths = svg.querySelectorAll('[data-edge-event]');
-
-        console.log('[Debug] SVG Enrichment Status:');
-        console.log(`  Enriched: ${enriched}`);
-        console.log(`  State nodes with data-state-id: ${stateNodes.length}`);
-        console.log(`  Edge paths with data-edge-event: ${edgePaths.length}`);
+    getStoredTransition(fromState, toState) {
+        // Look up transition info from the machine state manager's stored transitions
+        if (!this.selectedMachine) return null;
         
-        if (stateNodes.length > 0) {
-            console.log('  States:');
-            stateNodes.forEach(node => {
-                console.log(`    - ${node.dataset.stateId}`);
-            });
+        // Try to access the stored transition from localStorage or from the machine manager
+        try {
+            const persistedTransitions = localStorage.getItem('machineTransitions');
+            if (persistedTransitions) {
+                const transitions = JSON.parse(persistedTransitions);
+                const transitionEntry = transitions.find(([name]) => name === this.selectedMachine);
+                if (transitionEntry && transitionEntry[1]) {
+                    const transition = transitionEntry[1];
+                    if (transition.from === fromState && transition.to === toState) {
+                        return transition;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[Arrow Highlight] Failed to get stored transition:', error);
         }
         
-        if (edgePaths.length > 0) {
-            console.log('  Events:');
-            edgePaths.forEach(path => {
-                console.log(`    - ${path.dataset.edgeEvent}`);
-            });
+        return null;
+
+        if (edge) {
+            console.log(`[Arrow Highlight] ✓ Found transition arrow`);
+            edge.classList.add('last-transition-arrow');
+            setTimeout(() => {
+                edge.classList.remove('last-transition-arrow');
+            }, 2000);
+        } else {
+            console.log(`[Arrow Highlight] ✗ No edges found, debugging available elements...`);
+            this.debugSvgElements(svg);
         }
     }
 
-    /**
-     * Debugging helper: Force re-enrichment of current SVG
-     */
-    forceReEnrich() {
-        console.log('[Debug] Forcing re-enrichment...');
-        this.container.dataset.enriched = 'false';
-        this.enrichSvgWithDataAttributes();
+    debugSvgElements(svg) {
+        console.log(`[SVG Debug] Available elements:`);
+        
+        // Check edge labels specifically
+        const edgeLabels = svg.querySelectorAll('g.edgeLabels g.label');
+        console.log(`[SVG Debug] Found ${edgeLabels.length} edge label elements:`);
+        edgeLabels.forEach((label, index) => {
+            const dataId = label.getAttribute('data-id');
+            const text = label.textContent?.trim() || 'No text';
+            console.log(`  Label ${index}: data-id="${dataId}", text="${text}"`);
+        });
+        
+        // Check all paths
+        const paths = svg.querySelectorAll('path');
+        console.log(`[SVG Debug] Found ${paths.length} path elements:`);
+        paths.forEach((path, index) => {
+            const dataId = path.getAttribute('data-id');
+            const id = path.id;
+            const className = path.className.baseVal || path.getAttribute('class');
+            console.log(`  Path ${index}: id="${id}", data-id="${dataId}", class="${className}"`);
+        });
+        
+        // Check for common Mermaid edge classes
+        const commonSelectors = [
+            'path.edge',
+            'path[class*="edge"]', 
+            '.flowchart-link',
+            'path[class*="link"]',
+            'path[class*="transition"]',
+            '[data-id*="new_job"]',
+            '[data-id*="initialized"]',
+            '[data-id*="no_jobs"]'
+        ];
+        
+        commonSelectors.forEach(selector => {
+            const elements = svg.querySelectorAll(selector);
+            if (elements.length > 0) {
+                console.log(`[SVG Debug] Found ${elements.length} elements with selector "${selector}"`);
+                elements.forEach((el, i) => {
+                    const dataId = el.getAttribute('data-id');
+                    const id = el.id;
+                    const className = el.className.baseVal || el.getAttribute('class');
+                    console.log(`    Element ${i}: id="${id}", data-id="${dataId}", class="${className}"`);
+                });
+            }
+        });
     }
 }

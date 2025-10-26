@@ -796,7 +796,16 @@ export class DiagramManager {
                 setTimeout(() => {
                     edge.classList.remove('last-transition-arrow');
                 }, 2000);
+            } else {
+                console.warn(`[CSS-only] ✗ Arrow not found for event: "${eventName}"`);
+                // Debug: Show what edges we DO have
+                const allEdges = Array.from(svg.querySelectorAll('[data-edge-event]'));
+                if (allEdges.length > 0) {
+                    console.log(`[CSS-only] Available edges:`, allEdges.map(e => e.dataset.edgeEvent));
+                }
             }
+        } else {
+            console.log(`[CSS-only] No event provided for arrow highlighting`);
         }
 
         return true;

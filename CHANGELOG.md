@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.55] - 2025-10-26
+
+### Added
+- **Arrow highlighting debugging and validation**
+  - Added warning when arrow not found for event
+  - Log available edges to help diagnose event name mismatches
+  - Log when no event provided for arrow highlighting
+  - New test: "should highlight arrow for image_scaled event (exit transition)"
+  - Validates exit transitions like scaling_image → COMPLETIONPHASE work correctly
+
+### Improved
+- **Better debugging for transition arrow issues**
+  - DiagramManager now shows all available edges when arrow not found
+  - Helps identify event name format mismatches
+  - All 62 tests passing (61 + 1 new arrow test)
+
+## [1.0.54] - 2025-10-26
+
+### Changed
+- **ARCHITECTURE: Simplified to "Render Clean, Enrich, Style" pattern**
+  - Removed Mermaid classDef inline styling from slow path
+  - All highlighting now via CSS classes only (no inline styles)
+  - Initial render: Clean Mermaid → Enrich SVG → Apply CSS classes
+  - Subsequent updates: Toggle CSS classes only
+  - **Eliminates inline style vs CSS class conflicts**
+
+### Removed
+- Removed ~30 lines of inline style cleanup code
+- Removed Mermaid classDef injection in renderDiagram()
+- Removed redundant arrow highlighting (now in updateStateHighlight)
+- Removed dual styling approach complexity
+
+### Improved
+- **Simpler code**: Single styling mechanism (CSS classes only)
+- **Easier maintenance**: All colors in CSS, not duplicated in JS
+- **More reliable**: No inline style pollution or cleanup needed
+- **Consistent behavior**: Same mechanism for initial and subsequent highlights
+- All 61 tests passing with simplified architecture
+
 ## [1.0.53] - 2025-10-26
 
 ### Fixed

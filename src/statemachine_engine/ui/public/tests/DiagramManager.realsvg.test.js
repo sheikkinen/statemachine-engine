@@ -299,6 +299,35 @@ describe('Real SDXL SVG from Production', () => {
             // At least the ones we know should work
             expect(results.find(r => r.state === 'scaling_image').success).toBe(true);
         });
+        
+        it('should highlight arrow for image_scaled event (exit transition)', () => {
+            console.log(`\n[Arrow Test] Testing image_scaled event (scaling_image → COMPLETIONPHASE)`);
+            
+            // This is the "exit" transition from scaling_image to COMPLETIONPHASE
+            const success = manager.updateStateHighlight('scaling_image', 'image_scaled');
+            
+            const svg = container.querySelector('svg');
+            const edge = svg.querySelector('[data-edge-event="image_scaled"]');
+            
+            console.log(`  Edge found: ${edge ? '✅' : '❌'}`);
+            if (edge) {
+                console.log(`  Edge ID: ${edge.id}`);
+                console.log(`  Has arrow class: ${edge.classList.contains('last-transition-arrow')}`);
+                expect(edge.classList.contains('last-transition-arrow')).toBe(true);
+            } else {
+                console.error('  ❌ Edge with data-edge-event="image_scaled" not found');
+                
+                // Debug: Show what edges we have
+                const allEdges = Array.from(svg.querySelectorAll('[data-edge-event]'));
+                console.log(`  Available edges (${allEdges.length}):`);
+                allEdges.forEach(e => {
+                    console.log(`    - ${e.dataset.edgeEvent} (${e.id})`);
+                });
+            }
+            
+            expect(edge).not.toBeNull();
+            expect(success).toBe(true);
+        });
     });
     
     describe('Text Content Extraction Methods', () => {

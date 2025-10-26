@@ -110,20 +110,12 @@ app.get('/api/diagram/:machine_name/:diagram_name', (req, res) => {
         
         const mermaidCode = fs.readFileSync(diagramPath, 'utf-8');
         
-        // Return diagram + metadata
+        // Return diagram + COMPLETE metadata (needed for state highlighting map)
         res.json({
             machine_name,
             diagram_name,
             mermaid_code: mermaidCode,
-            metadata: {
-                title: diagramInfo.title || diagram_name,
-                description: diagramInfo.description || '',
-                composites: diagramInfo.composites || [],
-                states: diagramInfo.states || [],
-                parent: diagramInfo.parent || null,
-                entry_states: diagramInfo.entry_states || [],
-                exit_states: diagramInfo.exit_states || []
-            }
+            metadata: metadata  // Return the full metadata object with all diagrams
         });
     } catch (error) {
         console.error(`Error reading diagram ${machine_name}/${diagram_name}:`, error);

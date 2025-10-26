@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.38] - 2025-10-26
+
+### Fixed
+- **Composite state highlighting on main diagram**: When viewing the main diagram, state changes for states inside composites now correctly highlight the parent composite state instead of trying to highlight the individual state (which doesn't exist on the main diagram)
+  - Backend sends individual states (e.g., `generating_image`)
+  - UI now checks if current state belongs to a composite using `metadata.diagrams[composite].states`
+  - Highlights parent composite with gold `activeComposite` class
+  - Logs: "State X belongs to composite Y, highlighting composite"
+
+### Changed
+- Enhanced header documentation in `DiagramManager.js` with CSS-only update logic, composite state mapping, and 3-tier state matching strategy
+
 ## [1.0.37] - 2025-10-26
 
 ### Fixed

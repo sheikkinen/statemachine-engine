@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.46] - 2025-10-26
+
+### Fixed
+- **CRITICAL: server.cjs now included in package distribution**
+  - Added `*.cjs` to MANIFEST.in recursive-include pattern
+  - Without this, `pip install` did not copy server.cjs to site-packages
+  - This was the root cause of "server.cjs not found" errors
+  - Package installation now properly includes all required files
+
+### Changed
+- **MANIFEST.in updates**
+  - Pattern: `*.js *.cjs *.json *.html *.css` (added `*.cjs`)
+  - Ensures CommonJS server file is packaged correctly
+
+### Notes
+- This completes the ES module fix trilogy
+- v1.0.44: Renamed server.js → server.cjs + updated package.json
+- v1.0.45: Updated CLI to use server.cjs
+- v1.0.46: Added *.cjs to MANIFEST.in (packaging fix) ✅
+- All three fixes required for full functionality
+
 ## [1.0.45] - 2025-10-26
 
 ### Fixed

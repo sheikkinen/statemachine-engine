@@ -1,12 +1,13 @@
 /**
  * DiagramManager - Handles FSM diagram loading, rendering, and navigation
- * 
- * VERSION: v1.0.41 (Restored from v1.0.30 - Proven Stable)
- * 
- * ARCHITECTURE: Full Mermaid Re-render Approach
- * - Every state change triggers complete Mermaid.run() (~100-150ms)
- * - Modifies diagram code to inject CSS classes for highlighting
- * - Proven stable with composite states (v1.0.33-40 CSS-only attempts failed)
+ *
+ * VERSION: v1.0.42 (CSS-Only Updates with Metadata-Driven Approach)
+ *
+ * ARCHITECTURE: Hybrid Fast/Slow Path
+ * - FAST PATH: CSS-only updates (~1ms) using metadata-driven lookup table
+ * - SLOW PATH: Full Mermaid.run() (~100-150ms) with automatic fallback
+ * - First render always uses slow path, subsequent updates use fast path
+ * - Addresses v1.0.33-40 failures via metadata-first approach
  * 
  * COMPOSITE STATE LOGIC:
  * - Main diagram: Shows composite states (e.g., "SDXLLIFECYCLE", "QUEUEMANAGEMENT")
@@ -70,7 +71,7 @@ export class DiagramManager {
         this.container = container;
         this.breadcrumbNav = breadcrumbNav;
         this.logger = logger;
-        
+
         this.currentDiagram = null;
         this.currentDiagramName = 'main';
         this.diagramMetadata = null;
@@ -78,12 +79,19 @@ export class DiagramManager {
         this.currentState = null;
         this.currentHighlightedEdge = null;
         this.highlightTimestamp = null;
+
+        // CSS-only update state (v1.0.42+)
+        this.stateHighlightMap = null;
     }
 
     async loadDiagram(machineName, diagramName = 'main') {
         try {
             this.selectedMachine = machineName;
             this.logger.log('info', `Loading diagram for ${machineName}/${diagramName}...`);
+
+            // Clear fast path state when loading new diagram
+            this.container.dataset.enriched = 'false';
+            this.stateHighlightMap = null;
 
             // Try new format first
             let response = await fetch(`/api/diagram/${machineName}/${diagramName}`);
@@ -178,6 +186,17 @@ export class DiagramManager {
     async renderDiagram(highlightState = null, transition = null) {
         if (!this.currentDiagram) return;
 
+        // FAST PATH: Attempt CSS-only update if possible
+        if (highlightState) {
+            const success = this.updateStateHighlight(highlightState, transition?.event);
+            if (success) {
+                console.log('[Render] ✓ Fast path (~1ms)');
+                return;
+            }
+            console.log('[Render] Fast path failed, using slow path');
+        }
+
+        // SLOW PATH: Full Mermaid render (v1.0.30 approach)
         try {
             let diagramCode = this.currentDiagram;
             let compositeToHighlight = null;
@@ -186,7 +205,7 @@ export class DiagramManager {
             if (highlightState) {
                 const currentDiagramStates = this.diagramMetadata?.states || [];
                 const isMainDiagram = this.currentDiagramName === 'main';
-                
+
                 // If we're on main diagram and have composite states
                 if (isMainDiagram) {
                     // Find which composite contains the active state
@@ -219,6 +238,21 @@ export class DiagramManager {
             this.container.classList.add('has-diagram');
             this.container.classList.remove('redrawing');
 
+            // Build map for next fast path
+            this.stateHighlightMap = this.buildStateHighlightMap();
+
+            if (this.stateHighlightMap) {
+                const enriched = this.enrichSvgWithDataAttributes();
+                if (enriched) {
+                    this.container.dataset.enriched = 'true';
+                    console.log('[Render] ✓ Ready for fast path');
+                } else {
+                    this.container.dataset.enriched = 'false';
+                }
+            } else {
+                this.container.dataset.enriched = 'false';
+            }
+
             // Always attach composite click handlers after rendering
             this.attachCompositeClickHandlers();
 
@@ -229,10 +263,14 @@ export class DiagramManager {
             } else {
                 console.log(`[DiagramManager] No valid transition to highlight:`, transition);
             }
+
+            console.log('[Render] ✓ Full render (~150ms)');
+
         } catch (error) {
             console.error('Error rendering diagram:', error);
             this.logger.log('error', `Diagram rendering failed: ${error.message}`);
             this.container.classList.remove('redrawing');
+            this.container.dataset.enriched = 'false';
         }
     }
 
@@ -604,5 +642,171 @@ export class DiagramManager {
                 });
             }
         });
+    }
+
+    /**
+     * Build state highlight lookup map from metadata
+     * Pre-computes what to highlight for each state (composite vs individual)
+     * Called ONCE after each diagram render
+     *
+     * @returns {Object|null} Map of state → {type, target, class} or null if no metadata
+     */
+    buildStateHighlightMap() {
+        const map = {};
+
+        if (!this.diagramMetadata?.diagrams) {
+            console.warn('[Map] No metadata - will fallback to full render');
+            return null;
+        }
+
+        const currentDiagram = this.diagramMetadata.diagrams[this.currentDiagramName];
+        if (!currentDiagram) {
+            console.warn(`[Map] No metadata for ${this.currentDiagramName}`);
+            return null;
+        }
+
+        // Main diagram: Map states → composites
+        if (this.currentDiagramName === 'main') {
+            for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
+                if (compositeName === 'main') continue;
+
+                if (compositeData.states && Array.isArray(compositeData.states)) {
+                    for (const stateName of compositeData.states) {
+                        map[stateName] = {
+                            type: 'composite',
+                            target: compositeName,
+                            class: 'activeComposite'
+                        };
+                    }
+                }
+            }
+            console.log(`[Map] Main diagram: ${Object.keys(map).length} states → composites`);
+        }
+        // Subdiagram: Direct state mapping
+        else {
+            if (currentDiagram.states && Array.isArray(currentDiagram.states)) {
+                for (const stateName of currentDiagram.states) {
+                    map[stateName] = {
+                        type: 'state',
+                        target: stateName,
+                        class: 'active'
+                    };
+                }
+                console.log(`[Map] ${this.currentDiagramName}: ${Object.keys(map).length} states`);
+            }
+        }
+
+        return map;
+    }
+
+    /**
+     * Enrich SVG with data attributes for fast DOM queries
+     * Adds data-state-id to state nodes and data-edge-event to transition arrows
+     * Uses stateHighlightMap to know which nodes to enrich
+     *
+     * @returns {boolean} True if enrichment succeeded, false otherwise
+     */
+    enrichSvgWithDataAttributes() {
+        const svg = this.container.querySelector('svg');
+        if (!svg || !this.stateHighlightMap) return false;
+
+        let enrichedCount = 0;
+        const targets = new Set(Object.values(this.stateHighlightMap).map(e => e.target));
+
+        // Enrich state nodes
+        const stateNodes = svg.querySelectorAll('g.node');
+        stateNodes.forEach(node => {
+            const textEl = node.querySelector('text');
+            const stateName = textEl ? textEl.textContent.trim() : '';
+
+            if (stateName && targets.has(stateName)) {
+                node.dataset.stateId = stateName;
+                enrichedCount++;
+            }
+        });
+
+        // Enrich edge paths
+        const edgeLabels = svg.querySelectorAll('g.edgeLabels g.label');
+        edgeLabels.forEach(label => {
+            const eventName = label.textContent.trim();
+            const dataId = label.dataset.id;
+            if (eventName && dataId) {
+                const path = svg.querySelector(`path[data-id="${dataId}"]`);
+                if (path) {
+                    path.dataset.edgeEvent = eventName;
+                    enrichedCount++;
+                }
+            }
+        });
+
+        console.log(`[Enrich] ✓ ${enrichedCount} elements enriched`);
+        return enrichedCount > 0;
+    }
+
+    /**
+     * Update state highlight using CSS-only approach (FAST PATH)
+     * Lookup state in map → Query by data attribute → Toggle CSS class
+     * Returns false to trigger fallback to full render if anything fails
+     *
+     * @param {string} stateName - State to highlight
+     * @param {string} eventName - Optional event for transition arrow
+     * @returns {boolean} True if CSS-only update succeeded, false to trigger fallback
+     */
+    updateStateHighlight(stateName, eventName = null) {
+        const svg = this.container.querySelector('svg');
+        if (!svg) return false;
+
+        // Check if we have the map
+        if (!this.stateHighlightMap) {
+            console.warn('[CSS-only] No state map - fallback');
+            return false;
+        }
+
+        // Lookup what to highlight
+        const entry = this.stateHighlightMap[stateName];
+        if (!entry) {
+            console.warn(`[CSS-only] State "${stateName}" not in map - fallback`);
+            return false;
+        }
+
+        // Remove old highlights
+        svg.querySelectorAll('.active, .activeComposite').forEach(el => {
+            el.classList.remove('active', 'activeComposite');
+        });
+
+        // Find target node
+        const node = svg.querySelector(`[data-state-id="${entry.target}"]`);
+        if (!node) {
+            console.warn(`[CSS-only] Node not found for "${entry.target}" - fallback`);
+            return false;
+        }
+
+        // Apply highlighting
+        node.classList.add(entry.class);
+
+        if (entry.type === 'composite') {
+            console.log(`[CSS-only] ✓ Composite: ${entry.target} (~1ms)`);
+        } else {
+            console.log(`[CSS-only] ✓ State: ${entry.target} (~1ms)`);
+        }
+
+        // Highlight arrow
+        if (eventName) {
+            svg.querySelectorAll('.last-transition-arrow').forEach(el => {
+                el.classList.remove('last-transition-arrow');
+            });
+
+            const edge = svg.querySelector(`[data-edge-event="${eventName}"]`);
+            if (edge) {
+                edge.classList.add('last-transition-arrow');
+                console.log(`[CSS-only] ✓ Arrow: ${eventName}`);
+
+                setTimeout(() => {
+                    edge.classList.remove('last-transition-arrow');
+                }, 2000);
+            }
+        }
+
+        return true;
     }
 }

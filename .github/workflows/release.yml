@@ -33,8 +33,32 @@ jobs:
       run: |
         pytest tests/ -v
 
+  ui-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install UI dependencies
+      working-directory: src/statemachine_engine/ui
+      run: |
+        if [ -f package-lock.json ]; then
+          npm ci
+        else
+          npm install
+        fi
+    
+    - name: Run UI tests
+      working-directory: src/statemachine_engine/ui
+      run: npm test
+
   build:
-    needs: test
+    needs: [test, ui-tests]
     runs-on: ubuntu-latest
     
     steps:

@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.52] - 2025-10-26
+
+### Fixed
+- **CRITICAL: UI enrichment text extraction for statediagram nodes**
+  - Fixed text content extraction to check `<p>` elements (statediagram) before `<text>` elements (flowchart)
+  - Mermaid v11 statediagram puts text in `<foreignObject><p>` not `<text>`
+  - Previous code only checked `<text>` causing enrichment to fail for all statediagram nodes
+  - Change: `const stateName = (pEl?.textContent?.trim() || textEl?.textContent?.trim() || '')`
+  - **This was the root cause of all "Node not found - fallback" errors**
+  - Fast path now works correctly for statediagram formats
+
+### Added
+- **Real production SVG test suite**
+  - New test: `DiagramManager.realsvg.test.js` using actual SDXLGENERATIONPHASE SVG
+  - Tests with real Mermaid v11 output (28KB fixture, coordinates stripped)
+  - 11 new tests validating SVG structure, enrichment, and fast path
+  - Exposed the `<p>` vs `<text>` element bug through detailed logging
+  - All 61 UI tests passing (50 existing + 11 new)
+
+### Improved
+- **Test fixtures infrastructure**
+  - Created `tests/fixtures/` directory for real SVG fixtures
+  - Captured production SVG: `sdxlgenerationphase.svg`
+  - Coordinate stripping for readability (300KB → 28KB)
+  - Simple test harness plan documented in `docs/diagram-test-harness.md`
+
 ## [1.0.51] - 2025-10-26
 
 ### Fixed

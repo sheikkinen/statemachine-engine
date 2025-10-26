@@ -720,8 +720,11 @@ export class DiagramManager {
         // Enrich state nodes (supports both flowchart and statediagram)
         const stateNodes = svg.querySelectorAll('g.node, g.statediagram-state');
         stateNodes.forEach(node => {
+            // Flowchart: text in <text> element
+            // Statediagram: text in <p> element inside <foreignObject>
             const textEl = node.querySelector('text');
-            const stateName = textEl ? textEl.textContent.trim() : '';
+            const pEl = node.querySelector('p');
+            const stateName = (pEl?.textContent?.trim() || textEl?.textContent?.trim() || '');
 
             if (stateName && targets.has(stateName)) {
                 node.dataset.stateId = stateName;

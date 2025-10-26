@@ -131,6 +131,11 @@ export class DiagramManager {
                         break;
                     }
                 }
+                
+                // If still not found, state may not be on main diagram (not in any composite)
+                if (!isComposite && targetState === stateName) {
+                    console.log(`[CSS-only] State ${stateName} not found in any composite - may not be visible on main diagram`);
+                }
             }
         }
         

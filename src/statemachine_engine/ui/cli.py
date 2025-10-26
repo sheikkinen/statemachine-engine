@@ -15,11 +15,11 @@ from pathlib import Path
 
 
 def find_ui_server():
-    """Find the UI server.js file in the package installation."""
+    """Find the UI server.cjs file in the package installation."""
     try:
         import statemachine_engine
         package_dir = Path(statemachine_engine.__file__).parent
-        server_path = package_dir / "ui" / "server.js"
+        server_path = package_dir / "ui" / "server.cjs"
         if server_path.exists():
             return server_path
         else:
@@ -119,7 +119,7 @@ def main():
     
     try:
         # Start the Node.js server
-        subprocess.run(['node', 'server.js'], cwd=ui_dir, env=env, check=True)
+        subprocess.run(['node', 'server.cjs'], cwd=ui_dir, env=env, check=True)
     except subprocess.CalledProcessError as e:
         print(f"❌ UI server failed with exit code {e.returncode}")
         cleanup()

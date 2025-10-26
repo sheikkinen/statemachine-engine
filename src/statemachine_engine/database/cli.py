@@ -371,7 +371,7 @@ def cmd_send_event(args):
                 # Format event for WebSocket server (matches engine.py format)
                 ws_event_msg = json.dumps({
                     'machine_name': args.source or 'cli',
-                    'event_type': args.type,
+                    'type': args.type,  # Use 'type' for client compatibility (not 'event_type')
                     'payload': parsed_payload
                 })
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)

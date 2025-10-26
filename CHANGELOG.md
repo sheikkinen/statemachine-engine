@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.35] - 2025-10-26
+
+### Fixed
+- **CLI WebSocket Event Field**: Changed `'event_type'` to `'type'` in cli.py line 374
+  - Issue: CLI was sending events with field 'event_type', but UI expects 'type'
+  - Root cause: Inconsistency between cli.py and engine.py/WebSocketManager.js
+  - Fix: Now uses 'type' to match engine.py:390 and WebSocketManager.js:71
+  - Result: Resolves "Unknown event type: undefined" warning in UI
+
+### Technical Details
+- **File**: `src/statemachine_engine/database/cli.py`
+- **Line**: 374
+- **Before**: `'event_type': args.type`
+- **After**: `'type': args.type`
+- All components now use consistent 'type' field for event messages
+
 ## [1.0.34] - 2025-10-26
 
 ### Changed

@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.50] - 2025-10-26
+
+### Fixed
+- **UI CSS-only fast path for statediagram nodes**
+  - Fixed SVG enrichment selector to support both Mermaid diagram types
+  - Updated selector from `g.node` to `g.node, g.statediagram-state`
+  - Resolves "Node not found - fallback" errors for state diagrams
+  - Fast path now works correctly for both flowchart and statediagram formats
+  - Improves state highlighting performance (~1ms fast path vs ~150ms fallback)
+
+### Improved
+- **SVG enrichment logging**
+  - Added detailed logging showing which nodes are enriched
+  - Logs state name, CSS classes, and node ID for each enriched element
+  - Helps diagnose enrichment issues across different diagram types
+
 ## [1.0.49] - 2025-10-26
 
 ### Fixed

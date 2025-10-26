@@ -715,9 +715,10 @@ export class DiagramManager {
 
         let enrichedCount = 0;
         const targets = new Set(Object.values(this.stateHighlightMap).map(e => e.target));
+        const enrichedNodes = [];
 
-        // Enrich state nodes
-        const stateNodes = svg.querySelectorAll('g.node');
+        // Enrich state nodes (supports both flowchart and statediagram)
+        const stateNodes = svg.querySelectorAll('g.node, g.statediagram-state');
         stateNodes.forEach(node => {
             const textEl = node.querySelector('text');
             const stateName = textEl ? textEl.textContent.trim() : '';
@@ -725,6 +726,11 @@ export class DiagramManager {
             if (stateName && targets.has(stateName)) {
                 node.dataset.stateId = stateName;
                 enrichedCount++;
+                enrichedNodes.push({
+                    stateName,
+                    classes: node.className.baseVal || node.getAttribute('class'),
+                    id: node.id
+                });
             }
         });
 
@@ -743,6 +749,9 @@ export class DiagramManager {
         });
 
         console.log(`[Enrich] ✓ ${enrichedCount} elements enriched`);
+        if (enrichedNodes.length > 0) {
+            console.log('[Enrich] Enriched nodes:', enrichedNodes);
+        }
         return enrichedCount > 0;
     }
 

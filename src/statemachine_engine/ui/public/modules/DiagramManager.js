@@ -112,17 +112,24 @@ export class DiagramManager {
         let targetState = stateName;
         let isComposite = false;
         
-        // If on main diagram and state belongs to a composite, highlight the composite instead
+        // If on main diagram, check if this is a composite state or belongs to one
         if (this.currentDiagramName === 'main' && this.diagramMetadata?.diagrams) {
-            // Check if stateName belongs to any composite
-            for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
-                if (compositeName === 'main') continue;
-                
-                if (compositeData.states && compositeData.states.includes(stateName)) {
-                    targetState = compositeName;
-                    isComposite = true;
-                    console.log(`[CSS-only] State ${stateName} belongs to composite ${compositeName}, highlighting composite`);
-                    break;
+            // First check: Is stateName itself a composite?
+            const compositeList = this.diagramMetadata.diagrams.main?.composites || [];
+            if (compositeList.includes(stateName)) {
+                isComposite = true;
+                console.log(`[CSS-only] ${stateName} is a composite state`);
+            } else {
+                // Second check: Does stateName belong to any composite?
+                for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
+                    if (compositeName === 'main') continue;
+                    
+                    if (compositeData.states && compositeData.states.includes(stateName)) {
+                        targetState = compositeName;
+                        isComposite = true;
+                        console.log(`[CSS-only] State ${stateName} belongs to composite ${compositeName}, highlighting composite`);
+                        break;
+                    }
                 }
             }
         }

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.39] - 2025-10-26
+
+### Fixed
+- **Composite state detection**: Fixed error "State node not found" for composite states on main diagram
+  - Added check to detect if stateName itself IS a composite (via `metadata.diagrams.main.composites`)
+  - Now uses two-step logic: 1) Is it a composite? 2) Does it belong to a composite?
+  - Fixes case where backend sends composite name directly (e.g., `monitoring_sdxl`)
+
 ## [1.0.38] - 2025-10-26
 
 ### Fixed

@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.40] - 2025-10-26
+
+### Fixed
+- **Composite state highlighting logic**: Reimplemented based on v1.0.30 working approach
+  - Removed unnecessary "is it a composite" check (backend never sends composite names)
+  - Simplified to single loop: iterate composites, check if state is in composite.states array
+  - Added comprehensive debug logging showing available composites and state matching
+  - Clearer error messages explaining when states aren't visible on current diagram
+
+### Changed
+- Enhanced logging for composite state detection with detailed diagnostic output
+- More informative messages: "State X belongs to composite Y, will highlight composite"
+
 ## [1.0.39] - 2025-10-26
 
 ### Fixed

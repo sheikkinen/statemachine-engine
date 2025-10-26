@@ -112,37 +112,34 @@ export class DiagramManager {
         let targetState = stateName;
         let isComposite = false;
         
-        // If on main diagram, check if this is a composite state or belongs to one
+        // If on main diagram, find which composite contains this state
         if (this.currentDiagramName === 'main' && this.diagramMetadata?.diagrams) {
-            // First check: Is stateName itself a composite?
-            const compositeList = this.diagramMetadata.diagrams.main?.composites || [];
-            if (compositeList.includes(stateName)) {
-                isComposite = true;
-                console.log(`[CSS-only] ${stateName} is a composite state`);
-            } else {
-                // Second check: Does stateName belong to any composite?
-                for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
-                    if (compositeName === 'main') continue;
-                    
-                    if (compositeData.states && compositeData.states.includes(stateName)) {
-                        targetState = compositeName;
-                        isComposite = true;
-                        console.log(`[CSS-only] State ${stateName} belongs to composite ${compositeName}, highlighting composite`);
-                        break;
-                    }
-                }
+            console.log('[CSS-only] Main diagram - checking if state belongs to composite');
+            console.log('[CSS-only] Available diagrams:', Object.keys(this.diagramMetadata.diagrams));
+            
+            // Iterate through all composite diagrams to find which one contains this state
+            for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
+                if (compositeName === 'main') continue;
                 
-                // If still not found, state may not be on main diagram (not in any composite)
-                if (!isComposite && targetState === stateName) {
-                    console.log(`[CSS-only] State ${stateName} not found in any composite - may not be visible on main diagram`);
+                console.log(`[CSS-only] Checking composite ${compositeName}:`, compositeData.states);
+                
+                if (compositeData.states && compositeData.states.includes(stateName)) {
+                    targetState = compositeName;
+                    isComposite = true;
+                    console.log(`[CSS-only] ✓ State ${stateName} belongs to composite ${compositeName}, will highlight composite`);
+                    break;
                 }
+            }
+            
+            if (!isComposite) {
+                console.log(`[CSS-only] State ${stateName} not found in any composite - checking if it's a standalone state on main diagram`);
             }
         }
         
-        // Try to find state node - first by exact match, then by clean name
+        // Try to find state node - 3-tier matching strategy
         let stateNode = svg.querySelector(`[data-state-id="${targetState}"]`);
         if (!stateNode) {
-            // Try matching with state- prefix
+            // Try matching with state- prefix (Mermaid adds this)
             stateNode = svg.querySelector(`[data-state-id="state-${targetState}"]`);
         }
         if (!stateNode) {
@@ -155,13 +152,14 @@ export class DiagramManager {
             stateNode.classList.add(className);
             
             if (isComposite) {
-                console.log(`[CSS-only] Highlighted composite: ${targetState} (contains ${stateName}) (~1ms, zero flicker)`);
+                console.log(`[CSS-only] ✓ Highlighted composite: ${targetState} (contains ${stateName}) (~1ms, zero flicker)`);
             } else {
-                console.log(`[CSS-only] Highlighted state: ${targetState} (~1ms, zero flicker)`);
+                console.log(`[CSS-only] ✓ Highlighted state: ${targetState} (~1ms, zero flicker)`);
             }
         } else {
-            console.warn(`[CSS-only] State node not found: ${targetState} (original: ${stateName})`);
-            console.log(`[CSS-only] Fallback to full render`);
+            console.warn(`[CSS-only] ✗ State node not found in SVG: ${targetState} (original: ${stateName})`);
+            console.log(`[CSS-only] This may be normal if state not visible on current diagram view`);
+            console.log(`[CSS-only] Clearing enrichment flag to force full render next update`);
             // Clear enrichment flag to force full render next time
             this.container.dataset.enriched = 'false';
         }

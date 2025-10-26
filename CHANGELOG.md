@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.48] - 2025-10-26
+
+### Fixed
+- **Composite state click handlers restored**
+  - Fixed `attachCompositeClickHandlers()` to use new metadata structure
+  - Changed from `diagramMetadata.composites` to `diagramMetadata.diagrams[name].composites`
+  - Fixes regression from v1.0.47 where drill-down stopped working
+  - Composite states now clickable again for detailed subdiagram view
+  
+- **Slow path fallback metadata access**
+  - Fixed `renderDiagram()` slow path to use new metadata structure
+  - Changed from `diagramMetadata.states` to `diagramMetadata.diagrams[currentDiagramName].states`
+  - Ensures slow path works correctly when fast path fails
+  - Completes metadata structure migration from v1.0.47
+
+### Testing
+- **UI test suite improved**
+  - Fixed all 5 failing tests in DiagramManager.test.js
+  - Removed jest global dependencies (not compatible with ES modules)
+  - Added 8 new tests for metadata structure migration
+  - Added 3 new tests for composite click handler edge cases
+  - Total: 43 tests passing (up from 30 passing, 5 failing)
+  
+- **CI workflow enhanced**
+  - Added automated UI testing to GitHub Actions
+  - New `ui-tests` job runs Jest tests on every push/PR
+  - Runs alongside existing Python test matrix
+
+### Technical Debt
+- Metadata structure migration complete across all DiagramManager methods
+- All code now uses `metadata.diagrams[name]` pattern with optional chaining
+- Test coverage for regression prevention
+
 ## [1.0.47] - 2025-10-26
 
 ### Fixed

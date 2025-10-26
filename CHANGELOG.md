@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.44] - 2025-10-26
+
+### Fixed
+- **ES module error when starting UI server**
+  - Fixed `ReferenceError: require is not defined in ES module scope`
+  - Renamed `server.js` to `server.cjs` to use CommonJS syntax
+  - Updated `package.json` to reference `server.cjs` instead of `server.js`
+  - Server now starts correctly with `statemachine-ui` command
+
+### Changed
+- **package.json updates**
+  - main: `server.cjs` (was `server.js`)
+  - scripts: Updated start/dev to use `server.cjs`
+  - Maintains `"type": "module"` for frontend ES6 modules
+
 ## [1.0.43] - 2025-10-26
 
 ### Changed

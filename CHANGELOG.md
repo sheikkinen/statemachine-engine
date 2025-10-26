@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.49] - 2025-10-26
+
+### Fixed
+- **CI/CD npm installation**
+  - Fixed Jest installation error in GitHub Actions CI
+  - Updated workflow to use `npm ci` when package-lock.json exists
+  - Regenerated package-lock.json with clean install
+  - Resolves "Cannot find module jest-cli/build/index.js" error
+
+### Improved
+- **Release workflow enhanced**
+  - Added UI tests to release workflow (previously only Python tests)
+  - Build now depends on both Python and JavaScript tests passing
+  - Ensures complete test coverage before PyPI publish
+  - Maintains consistency between CI and release testing
+
+### CI/CD
+- **Automated testing workflow**
+  - 196 Python tests across 4 Python versions (3.9-3.12)
+  - 43 JavaScript/UI tests
+  - All tests must pass before releases
+
 ## [1.0.48] - 2025-10-26
 
 ### Fixed

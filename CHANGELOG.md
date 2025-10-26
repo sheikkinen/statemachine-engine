@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.43] - 2025-10-26
+
+### Changed
+- **Version bump and test validation**
+  - Confirmed all 196 Python backend tests passing
+  - No regressions from v1.0.42 UI changes
+  - JavaScript test suite documented (480 lines, Jest format)
+  - Ready for manual UI testing
+
+### Documentation
+- Added comprehensive planning documents
+  - `docs/plan-barebones-ui-css-updates.md` - Implementation plan (946 lines)
+  - `docs/replan-ui-animation-css-only-updates.md` - Detailed analysis (1,110 lines)
+  - Both documents include lessons learned from v1.0.33-40 failures
+
+### Notes
+- This release validates v1.0.42 implementation
+- Backend stability confirmed (196/196 tests passing)
+- UI fast path ready for production testing
+- See v1.0.42 for detailed feature list
+
 ## [1.0.42] - 2025-10-26
 
 ### Added

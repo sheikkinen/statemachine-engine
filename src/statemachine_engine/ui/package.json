@@ -2,11 +2,11 @@
   "name": "statemachine-ui-mvp",
   "version": "1.0.42",
   "description": "Web interface for monitoring face-changer state machines",
-  "main": "server.js",
+  "main": "server.cjs",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "node server.cjs",
+    "dev": "node server.cjs",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch"
   },

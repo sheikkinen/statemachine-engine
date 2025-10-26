@@ -784,9 +784,17 @@ export class DiagramManager {
             return false;
         }
 
-        // Remove old highlights
+        // Remove old highlights (both class and inline styles from Mermaid classDef)
         svg.querySelectorAll('.active, .activeComposite').forEach(el => {
             el.classList.remove('active', 'activeComposite');
+            // Clear inline styles that Mermaid's classDef might have applied
+            const shapes = el.querySelectorAll('path[fill], rect[fill], polygon[fill]');
+            shapes.forEach(shape => {
+                shape.removeAttribute('style');
+                shape.removeAttribute('fill');
+                shape.removeAttribute('stroke');
+                shape.removeAttribute('stroke-width');
+            });
         });
 
         // Find target node

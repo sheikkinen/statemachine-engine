@@ -422,6 +422,15 @@ header p {
     }
 }
 
+@keyframes glow-gold {
+    0%, 100% {
+        filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
+    }
+    50% {
+        filter: drop-shadow(0 0 16px rgba(255, 140, 0, 1));
+    }
+}
+
 /* Active state styling - applied by Mermaid classDef */
 .diagram-container svg g[id*="-"].active rect,
 .diagram-container svg g[id*="-"].active polygon {
@@ -438,6 +447,24 @@ header p {
 
 .diagram-container svg .active {
     animation: glow 2s ease-in-out infinite;
+}
+
+/* Active composite state styling (gold/orange for composite machines) */
+.diagram-container svg g[id*="-"].activeComposite rect,
+.diagram-container svg g[id*="-"].activeComposite polygon {
+    fill: #FFD700 !important;
+    stroke: #FF8C00 !important;
+    stroke-width: 3px !important;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.diagram-container svg g[id*="-"].activeComposite text {
+    font-weight: bold !important;
+    fill: #8B4500 !important;
+}
+
+.diagram-container svg .activeComposite {
+    animation: glow-gold 2s ease-in-out infinite;
 }
 
 /* Transition arrow highlighting */

@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.34] - 2025-10-26
+
+### Changed
+- **UI Code Cleanup**: Removed deprecated code from DiagramManager.js (~136 lines)
+  - Removed `highlightTransitionArrow()` method (replaced by CSS-only updates)
+  - Removed `getStoredTransition()` helper method (no longer needed)
+  - Removed `debugSvgElements()` method (obsolete debugging code)
+  - Removed orphaned code fragment after return statement
+  - Cleaner codebase with only active CSS-only update system
+
+### Technical Details
+- Removed methods were part of old arrow highlighting system
+- New CSS-only approach using `data-edge-event` attributes is cleaner and faster
+- No functional changes - purely code cleanup
+- Reduces file size and improves maintainability
+
 ## [1.0.33] - 2025-10-26
 
 ### Added

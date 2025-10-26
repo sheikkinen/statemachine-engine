@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.53] - 2025-10-26
+
+### Fixed
+- **UI CSS-only highlighting for composite states**
+  - Added missing CSS styles for `.activeComposite` class (gold/orange composite states)
+  - Added `glow-gold` animation for composite state halos (matching gold/orange theme)
+  - Fixed inline style clearing when removing Mermaid classDef highlights
+  - Now properly removes `fill`, `stroke`, `stroke-width` attributes from previous highlights
+  - All three visual effects now update correctly: fill color, stroke, and glow halo
+
+### Changed
+- **CSS visual effects now complete**
+  - Regular states: Green fill (#90EE90), dark green stroke, green glow
+  - Composite states: Gold fill (#FFD700), orange stroke (#FF8C00), gold/orange glow
+  - Both support pulse animation and drop-shadow glow effects
+  - Transition arrows: Red stroke with dash animation (unchanged)
+
 ## [1.0.52] - 2025-10-26
 
 ### Fixed

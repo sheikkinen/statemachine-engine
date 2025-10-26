@@ -1,13 +1,14 @@
 /**
  * DiagramManager - Handles FSM diagram loading, rendering, and navigation
  *
- * VERSION: v1.0.42 (CSS-Only Updates with Metadata-Driven Approach)
+ * VERSION: v1.0.53 (Clean Render + CSS-Only Updates)
  *
- * ARCHITECTURE: Hybrid Fast/Slow Path
- * - FAST PATH: CSS-only updates (~1ms) using metadata-driven lookup table
- * - SLOW PATH: Full Mermaid.run() (~100-150ms) with automatic fallback
- * - First render always uses slow path, subsequent updates use fast path
- * - Addresses v1.0.33-40 failures via metadata-first approach
+ * ARCHITECTURE: Hybrid Fast/Slow Path with Pure CSS Styling
+ * - FAST PATH: CSS-only updates (~1ms) via class toggling
+ * - SLOW PATH: Mermaid render + enrich + CSS styling (~150ms)
+ * - NO INLINE STYLES: All styling via CSS classes (simpler, cleaner)
+ * - First render: Mermaid.run() → enrich SVG → apply CSS classes
+ * - Subsequent updates: Toggle CSS classes only
  * 
  * COMPOSITE STATE LOGIC:
  * - Main diagram: Shows composite states (e.g., "SDXLLIFECYCLE", "QUEUEMANAGEMENT")
@@ -17,14 +18,12 @@
  * 
  * STATE HIGHLIGHTING FLOW:
  * 1. renderDiagram(highlightState, transition) called
- * 2. If main diagram: findCompositeForState(highlightState) → returns composite name
- * 3. If composite found: Append CSS class to diagram code
- *    - classDef activeComposite fill:#FFD700,stroke:#FF8C00,stroke-width:4px
- *    - class SDXLLIFECYCLE activeComposite
- * 4. If subdiagram: Append CSS class for individual state
- *    - classDef active fill:#90EE90,stroke:#006400,stroke-width:4px
- *    - class monitoring_sdxl active
- * 5. Mermaid.run() processes modified code → renders with highlighting
+ * 2. Render clean Mermaid diagram (NO classDef in code)
+ * 3. enrichSvgWithDataAttributes() adds data-state-id to nodes
+ * 4. updateStateHighlight() applies CSS classes:
+ *    - .active (green) for regular states
+ *    - .activeComposite (gold/orange) for composite states
+ * 5. All visual effects via CSS animations (no inline styles)
  * 6. attachCompositeClickHandlers() makes composites clickable
  * 
  * DIAGRAM NAVIGATION:
@@ -38,8 +37,8 @@
  * - Ensures UI shows last known state even after refresh
  * 
  * TRANSITION ARROW HIGHLIGHTING:
- * - highlightTransitionArrowDirect() finds edge by label text
- * - Matches event name in edge labels
+ * - updateStateHighlight() handles both state and arrow highlighting
+ * - Finds edge by data-edge-event attribute
  * - Adds .last-transition-arrow class
  * - Auto-clears after 2 seconds
  * 
@@ -196,33 +195,11 @@ export class DiagramManager {
             console.log('[Render] Fast path failed, using slow path');
         }
 
-        // SLOW PATH: Full Mermaid render (v1.0.30 approach)
+        // SLOW PATH: Full Mermaid render (clean - no inline styles)
         try {
-            let diagramCode = this.currentDiagram;
-            let compositeToHighlight = null;
-
-            // Context-aware highlighting
-            if (highlightState) {
-                const currentDiagram = this.diagramMetadata?.diagrams?.[this.currentDiagramName];
-                const currentDiagramStates = currentDiagram?.states || [];
-                const isMainDiagram = this.currentDiagramName === 'main';
-
-                // If we're on main diagram and have composite states
-                if (isMainDiagram) {
-                    // Find which composite contains the active state
-                    compositeToHighlight = await this.findCompositeForState(highlightState);
-                    if (compositeToHighlight) {
-                        console.log(`Main diagram: highlighting composite ${compositeToHighlight} containing state ${highlightState}`);
-                        diagramCode += `\n\n    classDef activeComposite fill:#FFD700,stroke:#FF8C00,stroke-width:4px`;
-                        diagramCode += `\n    class ${compositeToHighlight} activeComposite`;
-                    }
-                } else if (currentDiagramStates.includes(highlightState)) {
-                    // We're in a subdiagram and the state is here - highlight it directly
-                    console.log(`Subdiagram: highlighting state ${highlightState}`);
-                    diagramCode += `\n\n    classDef active fill:#90EE90,stroke:#006400,stroke-width:4px`;
-                    diagramCode += `\n    class ${highlightState} active`;
-                }
-            }
+            // Render diagram WITHOUT any classDef styling
+            // Highlighting will be applied via CSS classes after enrichment
+            const diagramCode = this.currentDiagram;
 
             // Add redrawing class for fade effect
             this.container.classList.add('redrawing');
@@ -247,6 +224,14 @@ export class DiagramManager {
                 if (enriched) {
                     this.container.dataset.enriched = 'true';
                     console.log('[Render] ✓ Ready for fast path');
+                    
+                    // Apply highlighting immediately via CSS classes (no inline styles)
+                    if (highlightState) {
+                        const highlighted = this.updateStateHighlight(highlightState, transition?.event);
+                        if (highlighted) {
+                            console.log(`[Render] ✓ Initial highlight applied: ${highlightState}`);
+                        }
+                    }
                 } else {
                     this.container.dataset.enriched = 'false';
                 }
@@ -256,14 +241,6 @@ export class DiagramManager {
 
             // Always attach composite click handlers after rendering
             this.attachCompositeClickHandlers();
-
-            // Highlight transition arrow immediately if provided
-            if (transition && transition.from && transition.to) {
-                console.log(`[DiagramManager] Will highlight arrow for transition:`, transition);
-                this.highlightTransitionArrowDirect(transition);
-            } else {
-                console.log(`[DiagramManager] No valid transition to highlight:`, transition);
-            }
 
             console.log('[Render] ✓ Full render (~150ms)');
 
@@ -784,17 +761,9 @@ export class DiagramManager {
             return false;
         }
 
-        // Remove old highlights (both class and inline styles from Mermaid classDef)
+        // Remove old highlights (CSS classes only - no inline styles to clean)
         svg.querySelectorAll('.active, .activeComposite').forEach(el => {
             el.classList.remove('active', 'activeComposite');
-            // Clear inline styles that Mermaid's classDef might have applied
-            const shapes = el.querySelectorAll('path[fill], rect[fill], polygon[fill]');
-            shapes.forEach(shape => {
-                shape.removeAttribute('style');
-                shape.removeAttribute('fill');
-                shape.removeAttribute('stroke');
-                shape.removeAttribute('stroke-width');
-            });
         });
 
         // Find target node

@@ -1,5 +1,69 @@
 /**
  * DiagramManager - Handles FSM diagram loading, rendering, and navigation
+ * 
+ * VERSION: v1.0.41 (Restored from v1.0.30 - Proven Stable)
+ * 
+ * ARCHITECTURE: Full Mermaid Re-render Approach
+ * - Every state change triggers complete Mermaid.run() (~100-150ms)
+ * - Modifies diagram code to inject CSS classes for highlighting
+ * - Proven stable with composite states (v1.0.33-40 CSS-only attempts failed)
+ * 
+ * COMPOSITE STATE LOGIC:
+ * - Main diagram: Shows composite states (e.g., "SDXLLIFECYCLE", "QUEUEMANAGEMENT")
+ * - Subdiagrams: Show individual states (e.g., "monitoring_sdxl", "checking_queue")
+ * - Backend sends: Individual state names (never composite names)
+ * - UI mapping: async findCompositeForState() looks up which composite contains state
+ * 
+ * STATE HIGHLIGHTING FLOW:
+ * 1. renderDiagram(highlightState, transition) called
+ * 2. If main diagram: findCompositeForState(highlightState) → returns composite name
+ * 3. If composite found: Append CSS class to diagram code
+ *    - classDef activeComposite fill:#FFD700,stroke:#FF8C00,stroke-width:4px
+ *    - class SDXLLIFECYCLE activeComposite
+ * 4. If subdiagram: Append CSS class for individual state
+ *    - classDef active fill:#90EE90,stroke:#006400,stroke-width:4px
+ *    - class monitoring_sdxl active
+ * 5. Mermaid.run() processes modified code → renders with highlighting
+ * 6. attachCompositeClickHandlers() makes composites clickable
+ * 
+ * DIAGRAM NAVIGATION:
+ * - Main diagram: Overview with composite states (clickable)
+ * - Click composite → loadDiagram(machine, compositeName) → show subdiagram
+ * - Breadcrumb: "Overview > CompositeName" for navigation
+ * 
+ * STATE PERSISTENCE:
+ * - localStorage stores machine states and transitions
+ * - Restored on page reload or diagram switch
+ * - Ensures UI shows last known state even after refresh
+ * 
+ * TRANSITION ARROW HIGHLIGHTING:
+ * - highlightTransitionArrowDirect() finds edge by label text
+ * - Matches event name in edge labels
+ * - Adds .last-transition-arrow class
+ * - Auto-clears after 2 seconds
+ * 
+ * METADATA STRUCTURE:
+ * {
+ *   "machine_name": "controller",
+ *   "diagrams": {
+ *     "main": {
+ *       "file": "main.mermaid",
+ *       "composites": ["SDXLLIFECYCLE", "FACELIFECYCLE", ...]
+ *     },
+ *     "SDXLLIFECYCLE": {
+ *       "file": "SDXLLIFECYCLE.mermaid",
+ *       "states": ["monitoring_sdxl", "completing_sdxl_job", ...],
+ *       "entry_states": [...],
+ *       "exit_states": [...],
+ *       "parent": "main"
+ *     }
+ *   }
+ * }
+ * 
+ * PERFORMANCE:
+ * - Full render: ~100-150ms (acceptable for monitoring)
+ * - Includes DOM destruction, Mermaid parsing, SVG generation
+ * - Visible fade effect (50ms) masks render time
  */
 export class DiagramManager {
     constructor(container, breadcrumbNav, logger) {

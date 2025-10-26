@@ -324,7 +324,9 @@ export class DiagramManager {
             return;
         }
         
-        const composites = this.diagramMetadata.composites || [];
+        // Get composites from the current diagram in the new metadata structure
+        const currentDiagram = this.diagramMetadata.diagrams?.[this.currentDiagramName];
+        const composites = currentDiagram?.composites || [];
         console.log('[Composite] Looking for composites:', composites);
         
         composites.forEach(compositeName => {

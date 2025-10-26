@@ -87,10 +87,17 @@ export class DiagramManager {
         // Add new highlight using data attribute
         const stateNode = svg.querySelector(`[data-state-id="${stateName}"]`);
         if (stateNode) {
-            stateNode.classList.add('active');
-            console.log(`[CSS-only] Highlighted state: ${stateName} (~1ms, zero flicker)`);
+            // Check if this is a composite state (has metadata listing it as composite)
+            const isComposite = this.diagramMetadata?.composites?.includes(stateName) || false;
+            const className = isComposite ? 'activeComposite' : 'active';
+            
+            stateNode.classList.add(className);
+            console.log(`[CSS-only] Highlighted ${isComposite ? 'composite' : 'state'}: ${stateName} (~1ms, zero flicker)`);
         } else {
             console.warn(`[CSS-only] State node not found: ${stateName}`);
+            console.log(`[CSS-only] Fallback to full render`);
+            // Clear enrichment flag to force full render next time
+            this.container.dataset.enriched = 'false';
         }
         
         // Highlight transition arrow
@@ -117,6 +124,9 @@ export class DiagramManager {
         try {
             this.selectedMachine = machineName;
             this.logger.log('info', `Loading diagram for ${machineName}/${diagramName}...`);
+
+            // Clear enrichment flag when loading new diagram
+            this.container.dataset.enriched = 'false';
 
             // Try new format first
             let response = await fetch(`/api/diagram/${machineName}/${diagramName}`);

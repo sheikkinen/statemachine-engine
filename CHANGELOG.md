@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.36] - 2025-10-26
+
+### Fixed
+- **UI CSS-only Updates**: Fixed two critical issues with diagram rendering
+  
+  **Issue 1: "State node not found" error when switching diagrams**
+  - Root cause: Enrichment flag remained `'true'` from previous diagram
+  - Fix: Clear enrichment flag to `'false'` at start of `loadDiagram()`
+  - Result: New diagrams now properly trigger full render + enrichment
+  
+  **Issue 2: Composite states not highlighted**
+  - Root cause: Composite states need `activeComposite` class, not `active`
+  - Fix: Check `diagramMetadata.composites` to apply correct CSS class
+  - Result: Composite states now highlight properly with CSS-only updates
+  
+  **Enhancement: Auto-recovery from enrichment failures**
+  - If state node not found, clear enrichment flag for next update
+  - Ensures system falls back to full render when needed
+
+### Technical Details
+- **File**: `src/statemachine_engine/ui/public/modules/DiagramManager.js`
+- **Changes**:
+  - `loadDiagram()`: Added `this.container.dataset.enriched = 'false'` before loading
+  - `updateStateHighlight()`: Added composite state detection and auto-recovery
+  - Proper CSS class selection: `active` for regular states, `activeComposite` for composites
+
 ## [1.0.35] - 2025-10-26
 
 ### Fixed

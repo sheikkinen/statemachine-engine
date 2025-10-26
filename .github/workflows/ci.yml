@@ -53,7 +53,12 @@ jobs:
     
     - name: Install UI dependencies
       working-directory: src/statemachine_engine/ui
-      run: npm install
+      run: |
+        if [ -f package-lock.json ]; then
+          npm ci
+        else
+          npm install
+        fi
     
     - name: Run UI tests
       working-directory: src/statemachine_engine/ui

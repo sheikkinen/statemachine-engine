@@ -745,14 +745,22 @@ export class DiagramManager {
             const pEl = node.querySelector('p');
             const stateName = (pEl?.textContent?.trim() || textEl?.textContent?.trim() || '');
 
-            if (stateName && targets.has(stateName)) {
-                node.dataset.stateId = stateName;
-                enrichedCount++;
-                enrichedNodes.push({
-                    stateName,
-                    classes: node.className.baseVal || node.getAttribute('class'),
-                    id: node.id
-                });
+            if (stateName) {
+                // Check if it's in our target map
+                const inMap = targets.has(stateName);
+                
+                // Also check if it's a known composite (even if not in the map yet)
+                const isKnownComposite = this.diagramMetadata?.diagrams?.hasOwnProperty(stateName);
+                
+                if (inMap || isKnownComposite) {
+                    node.dataset.stateId = stateName;
+                    enrichedCount++;
+                    enrichedNodes.push({
+                        stateName,
+                        classes: node.className.baseVal || node.getAttribute('class'),
+                        id: node.id
+                    });
+                }
             }
         });
 

@@ -391,7 +391,67 @@ export class DiagramManager {
         }
 
         this.currentState = currentState;
+        
+        // Check if current state belongs to currently displayed diagram
+        const needsNavigationChange = this.checkDiagramNavigation(currentState);
+        if (needsNavigationChange) {
+            console.log(`[DiagramManager] ✓ Navigation change handled, diagram switched`);
+            // loadDiagram will call renderDiagram, so we're done
+            return;
+        }
+        
         this.renderDiagram(currentState, transition);
+    }
+    
+    /**
+     * Check if the current state requires navigating to a different diagram
+     * Returns true if navigation was performed, false otherwise
+     */
+    checkDiagramNavigation(stateName) {
+        if (!this.diagramMetadata?.diagrams) {
+            return false;
+        }
+        
+        // If we're already on main diagram, no navigation needed
+        if (this.currentDiagramName === 'main') {
+            console.log(`[Navigation] Already on main diagram, no check needed`);
+            return false;
+        }
+        
+        // Check if state belongs to currently displayed composite diagram
+        const currentDiagramData = this.diagramMetadata.diagrams[this.currentDiagramName];
+        const currentDiagramStates = currentDiagramData?.states || [];
+        
+        console.log(`[Navigation] Current diagram: ${this.currentDiagramName}`);
+        console.log(`[Navigation] States in current diagram:`, currentDiagramStates);
+        console.log(`[Navigation] Looking for state: ${stateName}`);
+        
+        if (currentDiagramStates.includes(stateName)) {
+            console.log(`[Navigation] ✓ State belongs to current diagram`);
+            return false;
+        }
+        
+        // State doesn't belong to current diagram - find which composite it belongs to
+        console.log(`[Navigation] ⚠️  State NOT in current diagram - searching other composites`);
+        
+        for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
+            if (compositeName === 'main') continue;
+            
+            const compositeStates = compositeData.states || [];
+            if (compositeStates.includes(stateName)) {
+                console.log(`[Navigation] ✓ Found state in composite: ${compositeName}`);
+                console.log(`[Navigation] Switching from ${this.currentDiagramName} to main diagram`);
+                
+                // Switch back to main diagram to show the composite
+                this.loadDiagram(this.selectedMachine, 'main');
+                return true;
+            }
+        }
+        
+        // State not found in any composite - might be a main diagram state
+        console.log(`[Navigation] State not found in any composite, switching to main diagram`);
+        this.loadDiagram(this.selectedMachine, 'main');
+        return true;
     }
 
     highlightTransitionArrowDirect(transition) {

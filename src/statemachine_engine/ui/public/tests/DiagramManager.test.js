@@ -31,8 +31,22 @@ describe('buildStateHighlightMap', () => {
 
         // Verify
         expect(map).not.toBeNull();
-        expect(Object.keys(map).length).toBe(4);
+        expect(Object.keys(map).length).toBe(6); // 2 composites + 4 substates
 
+        // Composites should map to themselves
+        expect(map['SDXLLIFECYCLE']).toEqual({
+            type: 'composite',
+            target: 'SDXLLIFECYCLE',
+            class: 'activeComposite'
+        });
+
+        expect(map['QUEUEMANAGEMENT']).toEqual({
+            type: 'composite',
+            target: 'QUEUEMANAGEMENT',
+            class: 'activeComposite'
+        });
+
+        // Substates should map to their parent composite
         expect(map['monitoring_sdxl']).toEqual({
             type: 'composite',
             target: 'SDXLLIFECYCLE',
@@ -132,7 +146,14 @@ describe('buildStateHighlightMap', () => {
 
         const map = diagramManager.buildStateHighlightMap();
 
-        expect(map).toEqual({});
+        // Even with no substates, composite should map to itself
+        expect(map).toEqual({
+            TEST: {
+                type: 'composite',
+                target: 'TEST',
+                class: 'activeComposite'
+            }
+        });
     });
 });
 

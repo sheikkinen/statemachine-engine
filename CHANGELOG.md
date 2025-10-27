@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.59] - 2025-10-27
+
+### Fixed
+- **UI test suite updates for composite self-mapping**
+  - Updated test expectations to match v1.0.58 composite mapping behavior
+  - Tests now validate that composites map to themselves in addition to substates
+  - Adjusted map size expectations (composites + substates counted separately)
+  - All 62 UI tests passing with new behavior
+
+### Testing
+- Python tests: 196 passed, 9 skipped
+- UI tests: 62 passed (Jest)
+- Full test coverage for composite state highlighting system
+
 ## [1.0.58] - 2025-10-27
 
 ### Fixed

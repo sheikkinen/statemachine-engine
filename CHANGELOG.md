@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.58] - 2025-10-27
+
+### Fixed
+- **Critical: Composite state mapping and enrichment**
+  - Fixed map building: Composites now map to themselves (e.g., `COMPLETIONPHASE → COMPLETIONPHASE`)
+  - Previously only substates mapped to composites (e.g., `reporting_completion → COMPLETIONPHASE`)
+  - Fixed enrichment selector: Now includes `g.statediagram-cluster` nodes
+  - Previously only enriched `g.node` and `g.statediagram-state` nodes
+  - Result: Composite states are now properly added to highlight map and enriched with `data-state-id` attributes
+  - Enables fast CSS-only highlighting for composite states on main diagram
+
+### Technical Details
+- Map building now adds composite self-reference before iterating substates
+- Enrichment query expanded: `'g.node, g.statediagram-state, g.statediagram-cluster'`
+- Composite cluster nodes now receive `data-state-id` attributes during enrichment
+- Eliminates "not in map - fallback" warnings for composite states
+
 ## [1.0.57] - 2025-10-27
 
 ### Added

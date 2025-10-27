@@ -647,12 +647,16 @@ export class DiagramManager {
 
         // Main diagram: Map states → composites
         if (this.currentDiagramName === 'main') {
+            console.log(`[Map] Building map for main diagram`);
+            console.log(`[Map] Available diagrams:`, Object.keys(this.diagramMetadata.diagrams));
+            
             for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
                 if (compositeName === 'main') continue;
 
                 console.log(`[Map] Checking composite "${compositeName}":`, compositeData);
 
                 if (compositeData.states && Array.isArray(compositeData.states)) {
+                    console.log(`[Map] ${compositeName}: ${compositeData.states.length} states`, compositeData.states);
                     for (const stateName of compositeData.states) {
                         map[stateName] = {
                             type: 'composite',
@@ -660,6 +664,8 @@ export class DiagramManager {
                             class: 'activeComposite'
                         };
                     }
+                } else {
+                    console.warn(`[Map] ${compositeName}: No states array found`);
                 }
             }
             console.log(`[Map] Main diagram: ${Object.keys(map).length} states → composites`);
@@ -758,11 +764,34 @@ export class DiagramManager {
         }
 
         // Lookup what to highlight
-        const entry = this.stateHighlightMap[stateName];
+        let entry = this.stateHighlightMap[stateName];
         if (!entry) {
-            console.warn(`[CSS-only] State "${stateName}" not in map - fallback`);
-            console.log(`[CSS-only] Available states in map:`, Object.keys(this.stateHighlightMap));
-            return false;
+            console.warn(`[CSS-only] State "${stateName}" not in map - checking if it's in a composite`);
+            
+            // If we're on main diagram, check if this state is in any composite
+            if (this.currentDiagramName === 'main' && this.diagramMetadata?.diagrams) {
+                for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
+                    if (compositeName === 'main') continue;
+                    
+                    if (compositeData.states && compositeData.states.includes(stateName)) {
+                        console.log(`[CSS-only] ✓ Found "${stateName}" in composite "${compositeName}" - highlighting composite`);
+                        entry = {
+                            type: 'composite',
+                            target: compositeName,
+                            class: 'activeComposite'
+                        };
+                        // Also add to map for next time
+                        this.stateHighlightMap[stateName] = entry;
+                        break;
+                    }
+                }
+            }
+            
+            if (!entry) {
+                console.warn(`[CSS-only] State "${stateName}" not found in any composite - fallback`);
+                console.log(`[CSS-only] Available states in map:`, Object.keys(this.stateHighlightMap));
+                return false;
+            }
         }
         
         console.log(`[CSS-only] Map lookup for "${stateName}":`, entry);

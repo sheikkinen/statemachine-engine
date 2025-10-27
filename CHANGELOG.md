@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.60] - 2025-10-27
+
+### Fixed
+- **Cross-composite transition highlighting on subdiagrams**
+  - When viewing a composite diagram and state transitions to a different composite, 
+    the system now highlights the target composite node if it exists on the current diagram
+  - Eliminates unnecessary navigation changes - users stay on current diagram view
+  - Example: On INPAINTING_PHASE diagram, transitioning to POST_PROCESSING highlights 
+    the POST_PROCESSING composite node instead of switching to main diagram
+  - Improved UX for hierarchical state machine visualization
+
+### Changed
+- Removed automatic navigation logic that switched to main diagram on cross-composite transitions
+- Enhanced composite lookup to check for composite nodes on current diagram view
+- Runtime fallback now works for both main and composite diagram contexts
+
 ## [1.0.59] - 2025-10-27
 
 ### Fixed

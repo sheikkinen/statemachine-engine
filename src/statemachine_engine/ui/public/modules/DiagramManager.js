@@ -391,67 +391,31 @@ export class DiagramManager {
         }
 
         this.currentState = currentState;
-        
-        // Check if current state belongs to currently displayed diagram
-        const needsNavigationChange = this.checkDiagramNavigation(currentState);
-        if (needsNavigationChange) {
-            console.log(`[DiagramManager] ✓ Navigation change handled, diagram switched`);
-            // loadDiagram will call renderDiagram, so we're done
-            return;
-        }
-        
         this.renderDiagram(currentState, transition);
     }
     
     /**
-     * Check if the current state requires navigating to a different diagram
-     * Returns true if navigation was performed, false otherwise
+     * Check if the target state is a composite state on the current diagram
+     * If so, return the composite name; otherwise return null
      */
-    checkDiagramNavigation(stateName) {
+    findCompositeForState(stateName) {
         if (!this.diagramMetadata?.diagrams) {
-            return false;
+            return null;
         }
         
-        // If we're already on main diagram, no navigation needed
-        if (this.currentDiagramName === 'main') {
-            console.log(`[Navigation] Already on main diagram, no check needed`);
-            return false;
-        }
-        
-        // Check if state belongs to currently displayed composite diagram
-        const currentDiagramData = this.diagramMetadata.diagrams[this.currentDiagramName];
-        const currentDiagramStates = currentDiagramData?.states || [];
-        
-        console.log(`[Navigation] Current diagram: ${this.currentDiagramName}`);
-        console.log(`[Navigation] States in current diagram:`, currentDiagramStates);
-        console.log(`[Navigation] Looking for state: ${stateName}`);
-        
-        if (currentDiagramStates.includes(stateName)) {
-            console.log(`[Navigation] ✓ State belongs to current diagram`);
-            return false;
-        }
-        
-        // State doesn't belong to current diagram - find which composite it belongs to
-        console.log(`[Navigation] ⚠️  State NOT in current diagram - searching other composites`);
-        
+        // Search all composites to find which one contains this state
         for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
             if (compositeName === 'main') continue;
             
             const compositeStates = compositeData.states || [];
             if (compositeStates.includes(stateName)) {
-                console.log(`[Navigation] ✓ Found state in composite: ${compositeName}`);
-                console.log(`[Navigation] Switching from ${this.currentDiagramName} to main diagram`);
-                
-                // Switch back to main diagram to show the composite
-                this.loadDiagram(this.selectedMachine, 'main');
-                return true;
+                console.log(`[Composite Lookup] State "${stateName}" found in composite: ${compositeName}`);
+                return compositeName;
             }
         }
         
-        // State not found in any composite - might be a main diagram state
-        console.log(`[Navigation] State not found in any composite, switching to main diagram`);
-        this.loadDiagram(this.selectedMachine, 'main');
-        return true;
+        console.log(`[Composite Lookup] State "${stateName}" not found in any composite`);
+        return null;
     }
 
     highlightTransitionArrowDirect(transition) {
@@ -837,19 +801,43 @@ export class DiagramManager {
         if (!entry) {
             console.warn(`[CSS-only] State "${stateName}" not in map - checking if it's in a composite`);
             
-            // If we're on main diagram, check if this state is in any composite
-            if (this.currentDiagramName === 'main' && this.diagramMetadata?.diagrams) {
+            // Check if this state is in any composite
+            if (this.diagramMetadata?.diagrams) {
                 for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
                     if (compositeName === 'main') continue;
                     
                     if (compositeData.states && compositeData.states.includes(stateName)) {
-                        console.log(`[CSS-only] ✓ Found "${stateName}" in composite "${compositeName}" - highlighting composite`);
-                        entry = {
-                            type: 'composite',
-                            target: compositeName,
-                            class: 'activeComposite'
-                        };
-                        // Also add to map for next time
+                        console.log(`[CSS-only] ✓ Found "${stateName}" in composite "${compositeName}"`);
+                        
+                        // If we're on the main diagram, highlight the composite
+                        if (this.currentDiagramName === 'main') {
+                            console.log(`[CSS-only] On main diagram - highlighting composite`);
+                            entry = {
+                                type: 'composite',
+                                target: compositeName,
+                                class: 'activeComposite'
+                            };
+                        } 
+                        // If we're on a composite diagram, check if the composite exists as a node here
+                        else {
+                            console.log(`[CSS-only] On composite diagram "${this.currentDiagramName}" - checking if composite node exists`);
+                            const svg = this.container.querySelector('svg');
+                            const compositeNode = svg?.querySelector(`[data-state-id="${compositeName}"]`);
+                            
+                            if (compositeNode) {
+                                console.log(`[CSS-only] ✓ Composite node "${compositeName}" exists on current diagram - highlighting it`);
+                                entry = {
+                                    type: 'composite',
+                                    target: compositeName,
+                                    class: 'activeComposite'
+                                };
+                            } else {
+                                console.log(`[CSS-only] Composite node "${compositeName}" not found on current diagram`);
+                                return false;
+                            }
+                        }
+                        
+                        // Cache for next time
                         this.stateHighlightMap[stateName] = entry;
                         break;
                     }

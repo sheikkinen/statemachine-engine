@@ -655,6 +655,14 @@ export class DiagramManager {
 
                 console.log(`[Map] Checking composite "${compositeName}":`, compositeData);
 
+                // Add the composite itself to the map (for when it's shown on diagram)
+                map[compositeName] = {
+                    type: 'composite',
+                    target: compositeName,
+                    class: 'activeComposite'
+                };
+
+                // Add all substates → composite mapping
                 if (compositeData.states && Array.isArray(compositeData.states)) {
                     console.log(`[Map] ${compositeName}: ${compositeData.states.length} states`, compositeData.states);
                     for (const stateName of compositeData.states) {
@@ -704,7 +712,8 @@ export class DiagramManager {
         const enrichedNodes = [];
 
         // Enrich state nodes (supports both flowchart and statediagram)
-        const stateNodes = svg.querySelectorAll('g.node, g.statediagram-state');
+        // Also includes composite clusters (statediagram-cluster)
+        const stateNodes = svg.querySelectorAll('g.node, g.statediagram-state, g.statediagram-cluster');
         stateNodes.forEach(node => {
             // Flowchart: text in <text> element
             // Statediagram: text in <p> element inside <foreignObject>

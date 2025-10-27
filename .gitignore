@@ -12,6 +12,10 @@ htmlcov/
 .env
 venv/
 
+# Node.js
+node_modules/
+package-lock.json
+
 # MCP garbage
 audio/
 docs/forge.md

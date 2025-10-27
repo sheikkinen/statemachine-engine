@@ -650,6 +650,8 @@ export class DiagramManager {
             for (const [compositeName, compositeData] of Object.entries(this.diagramMetadata.diagrams)) {
                 if (compositeName === 'main') continue;
 
+                console.log(`[Map] Checking composite "${compositeName}":`, compositeData);
+
                 if (compositeData.states && Array.isArray(compositeData.states)) {
                     for (const stateName of compositeData.states) {
                         map[stateName] = {
@@ -661,6 +663,7 @@ export class DiagramManager {
                 }
             }
             console.log(`[Map] Main diagram: ${Object.keys(map).length} states → composites`);
+            console.log(`[Map] Full map:`, map);
         }
         // Subdiagram: Direct state mapping
         else {
@@ -758,8 +761,11 @@ export class DiagramManager {
         const entry = this.stateHighlightMap[stateName];
         if (!entry) {
             console.warn(`[CSS-only] State "${stateName}" not in map - fallback`);
+            console.log(`[CSS-only] Available states in map:`, Object.keys(this.stateHighlightMap));
             return false;
         }
+        
+        console.log(`[CSS-only] Map lookup for "${stateName}":`, entry);
 
         // Remove old highlights (CSS classes only - no inline styles to clean)
         svg.querySelectorAll('.active, .activeComposite').forEach(el => {
@@ -770,6 +776,9 @@ export class DiagramManager {
         const node = svg.querySelector(`[data-state-id="${entry.target}"]`);
         if (!node) {
             console.warn(`[CSS-only] Node not found for "${entry.target}" - fallback`);
+            // Debug: Show what nodes we DO have
+            const allNodes = Array.from(svg.querySelectorAll('[data-state-id]'));
+            console.log(`[CSS-only] Available nodes:`, allNodes.map(n => n.dataset.stateId));
             return false;
         }
 

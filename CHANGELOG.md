@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.56] - 2025-10-27
+
+### Added
+- **Enhanced debugging for composite state highlighting**
+  - Added logging when state not found in highlight map - shows all available states
+  - Added logging of map lookup result for state transitions
+  - Added logging when target node not found - shows all available nodes
+  - Added detailed composite state enumeration during map building
+  - Helps diagnose issues when transitioning to states within composites (e.g., resizing_images inside POST_PROCESSING)
+
+### Improved
+- **Better visibility into state highlight map construction**
+  - Logs each composite and its states during map building
+  - Shows full map contents after construction
+  - Easier to debug metadata/enrichment mismatches
+
 ## [1.0.55] - 2025-10-26
 
 ### Added

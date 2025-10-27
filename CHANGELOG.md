@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.61] - 2025-10-27
+
+### Fixed
+- **CRITICAL: Composite node enrichment on subdiagrams**
+  - Fixed enrichment process to include all composite nodes visible on diagram
+  - Previously only enriched nodes explicitly in the highlight map
+  - Now also enriches nodes matching known composites from metadata
+  - Fixes "Composite node not found on current diagram" error
+  - Enables POST_PROCESSING highlighting on INPAINTING_PHASE diagram
+
+### Technical Details
+- Enrichment now checks: `inMap || isKnownComposite`
+- All transition target composites get `data-state-id` attributes
+- Fast CSS-only highlighting now works for cross-composite transitions
+
 ## [1.0.60] - 2025-10-27
 
 ### Fixed

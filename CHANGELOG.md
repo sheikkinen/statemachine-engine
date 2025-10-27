@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.57] - 2025-10-27
+
+### Added
+- **Mermaid SVG analysis tool (`tools/analyze_diagram.sh`)**
+  - Generates Mermaid diagrams from YAML config files
+  - Renders to SVG using mermaid-cli
+  - Analyzes SVG structure for state nodes and transitions
+  - Extracts coordinates, IDs, and relationships
+  - Identifies composite state containment
+  - Provides enrichment recommendations for fast highlighting
+  - Supports HTML namespace in foreignObject elements (Mermaid v11+)
+
+### Fixed
+- **HTML namespace handling in SVG parser**
+  - Added support for `{http://www.w3.org/1999/xhtml}` namespace
+  - Correctly extracts text from `<p>` elements inside `foreignObject`
+  - Uses `itertext()` for robust text extraction across namespace boundaries
+  - Handles both SVG and HTML namespaced elements properly
+
+### Added (Test)
+- **Test configuration (`tools/test_face_processor.yaml`)**
+  - Example YAML config with composite states
+  - Matches structure from production face_processor
+  - Used for validating SVG analysis pipeline
+
 ## [1.0.56] - 2025-10-27
 
 ### Added

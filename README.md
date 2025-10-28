@@ -293,6 +293,107 @@ pip install statemachine-engine[dev]
 # Ubuntu: apt install nodejs npm
 ```
 
+## Timeout Events
+
+Timeout events automatically fire after a specified duration if no other events occur. This is useful for watchdog timers, retry logic, polling intervals, and graceful degradation.
+
+### Syntax
+
+Add timeout transitions using the special `timeout(N)` event syntax where `N` is the duration in seconds (supports decimals):
+
+```yaml
+transitions:
+  - from: waiting
+    to: timed_out
+    event: timeout(5)    # Fires after 5 seconds if still in 'waiting' state
+  
+  - from: processing
+    to: timeout_error
+    event: timeout(30.5) # Fires after 30.5 seconds
+```
+
+### How It Works
+
+1. **State Entry**: When entering a state with timeout transitions, the engine starts an asyncio timer task
+2. **Timer Active**: The timer counts down in the background
+3. **Event Cancels**: If ANY other event arrives, all timeout timers are cancelled
+4. **Timeout Fires**: If the timer completes, the timeout event is automatically processed
+
+### Example
+
+```yaml
+# examples/timeout_demo/config/timeout_worker.yaml
+transitions:
+  # Wait for work with 5-second timeout
+  - from: waiting
+    to: timed_out
+    event: timeout(5)
+  
+  - from: waiting
+    to: processing
+    event: start_work    # Cancels the timeout if received
+  
+  # Process with 10-second timeout
+  - from: processing
+    to: timed_out
+    event: timeout(10)
+  
+  - from: processing
+    to: completed
+    event: work_done     # Cancels the timeout if received
+  
+  # Retry after timeout
+  - from: timed_out
+    to: waiting
+    event: retry
+
+actions:
+  timed_out:
+    - type: log
+      message: "⏰ TIMEOUT! Operation took too long"
+      level: warning
+    - type: bash
+      command: "sleep 3 && echo 'Retrying...'"
+      success: retry
+```
+
+### Use Cases
+
+- **Watchdog timers**: Ensure states don't hang indefinitely
+- **Retry logic**: Retry failed operations after a delay
+- **Polling intervals**: Periodically check for conditions
+- **Graceful degradation**: Fall back to alternate paths when operations are slow
+- **Resource cleanup**: Clean up stale resources after inactivity
+- **SLA enforcement**: Ensure operations complete within time limits
+
+### Multiple Timeouts
+
+You can have multiple timeout transitions from the same state, but only the shortest timeout will fire (as entering a new state cancels all active timeouts):
+
+```yaml
+transitions:
+  - from: waiting
+    to: short_timeout_path
+    event: timeout(5)    # Fires first after 5 seconds
+  
+  - from: waiting
+    to: long_timeout_path
+    event: timeout(30)   # Would fire after 30s, but short fires first
+```
+
+### Testing Timeout Events
+
+See the [timeout demo](examples/timeout_demo/) for a complete working example:
+
+```bash
+# Run the timeout demo
+cd examples/timeout_demo
+python -m statemachine_engine.cli config/timeout_worker.yaml
+
+# In another terminal, send events to cancel the timeout
+echo '{"type": "start_work", "payload": {}}' | nc -U /tmp/statemachine-control-timeout_worker.sock
+```
+
 ## Built-In Actions
 
 ### log - Activity Logging

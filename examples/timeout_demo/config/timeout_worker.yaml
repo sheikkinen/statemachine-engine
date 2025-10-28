@@ -1,0 +1,113 @@
+# Timeout Event Demo
+# Demonstrates automatic timeout transitions using timeout(N) event syntax
+
+name: "Timeout Demo Worker"
+description: "Example showing timeout events that fire after N seconds"
+
+initial_state: initializing
+
+metadata:
+  machine_name: timeout_worker
+  version: "1.0.0"
+
+states:
+  - initializing
+  - waiting
+  - processing
+  - timed_out
+  - completed
+
+events:
+  - initialized
+  - start_work
+  - work_done
+  - timeout(5)        # Timeout event - fires after 5 seconds
+  - timeout(10)       # Another timeout - fires after 10 seconds
+  - retry
+  - stop
+
+transitions:
+  # Initialization
+  - from: initializing
+    to: waiting
+    event: initialized
+
+  # Waiting with 5-second timeout
+  - from: waiting
+    to: timed_out
+    event: timeout(5)   # If no event within 5s, transition to timed_out
+
+  - from: waiting
+    to: processing
+    event: start_work   # Manual event cancels the timeout
+
+  # Processing with 10-second timeout
+  - from: processing
+    to: timed_out
+    event: timeout(10)  # If work takes >10s, timeout
+
+  - from: processing
+    to: completed
+    event: work_done
+
+  # Timeout recovery
+  - from: timed_out
+    to: waiting
+    event: retry
+
+  # Stop from anywhere
+  - from: "*"
+    to: completed
+    event: stop
+
+actions:
+  initializing:
+    - type: log
+      message: "🚀 Timeout demo initializing..."
+      level: info
+    - type: bash
+      command: "echo 'Initialization complete'"
+      timeout: 5
+      success: initialized
+
+  waiting:
+    - type: log
+      message: "⏳ Waiting for work (5-second timeout active)..."
+      level: info
+    - type: log
+      message: "Send 'start_work' event to begin, or wait 5s for timeout"
+      level: info
+
+  processing:
+    - type: log
+      message: "🔄 Processing work (10-second timeout active)..."
+      level: info
+    - type: log
+      message: "Simulating work... will timeout in 10s unless completed"
+      level: info
+    # Uncomment to auto-complete:
+    # - type: bash
+    #   command: "sleep 2 && echo 'Work completed'"
+    #   timeout: 15
+    #   success: work_done
+
+  timed_out:
+    - type: log
+      message: "⏰ TIMEOUT! Operation took too long"
+      level: warning
+    - type: log
+      message: "Waiting 3 seconds before retrying..."
+      level: info
+    - type: bash
+      command: "sleep 3 && echo 'Retrying...'"
+      timeout: 5
+      success: retry
+
+  completed:
+    - type: log
+      message: "✅ Demo completed"
+      level: info
+    - type: bash
+      command: "echo 'Cleanup complete'"
+      timeout: 5
+      success: stop

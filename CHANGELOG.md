@@ -9,6 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.62] - 2025-10-28
+
+### Added
+- **Timeout Events Feature**
+  - Automatic state transitions after specified duration using `timeout(N)` event syntax
+  - Example: `event: timeout(5)` fires after 5 seconds if no other event occurs
+  - Supports decimal durations (e.g., `timeout(2.5)`)
+  - Timeouts automatically cancelled when any other event arrives
+  - Timeouts restart when re-entering a state with timeout transitions
+  - Multiple timeout transitions supported (shortest fires first)
+  - Proper cleanup on engine shutdown
+
+### Documentation
+- Added comprehensive timeout events section to README.md
+- Created `examples/timeout_demo/` with working example and documentation
+- Syntax examples, use cases, and testing instructions included
+
+### Technical Details
+- Added `timeout_tasks` dict to track active asyncio timer tasks
+- `_get_timeout_transitions()`: Parses `timeout(N)` regex pattern from transitions
+- `_timeout_handler()`: Async coroutine that sleeps then fires timeout event
+- `_start_timeout_tasks()`: Creates tasks on state entry
+- `_cancel_timeout_tasks()`: Cancels tasks on state change or shutdown
+- Modified `process_event()` to only cancel timeouts when actually transitioning
+- Modified `execute_state_machine()` to start initial state timeouts
+- Modified `_cleanup_sockets()` to clean up timeout tasks
+
+### Tests
+- Added `tests/core/test_timeout_events.py` with 6 comprehensive tests
+- All tests passing (208 total: 202 existing + 6 new)
+- Test coverage for: timeout firing, cancellation, restart, multiple timeouts, parsing, cleanup
+
+### Use Cases
+- Watchdog timers (prevent states from hanging indefinitely)
+- Retry logic (retry failed operations after delay)
+- Polling intervals (periodic condition checking)
+- Graceful degradation (fallback when operations are slow)
+- Resource cleanup (clean up stale resources after inactivity)
+- SLA enforcement (ensure operations complete within time limits)
+
 ## [1.0.61] - 2025-10-27
 
 ### Fixed

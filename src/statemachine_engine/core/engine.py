@@ -31,6 +31,7 @@ import yaml
 import socket
 import json
 import time
+import re
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 from datetime import datetime
@@ -99,6 +100,7 @@ class StateMachineEngine:
         self.control_socket: Optional[socket.socket] = None  # Control socket for receiving events
         self.is_running = True
         self.propagation_count = 0  # Track frequency of job context propagation
+        self.timeout_tasks: Dict[str, asyncio.Task] = {}  # Track active timeout tasks per state
         
     async def load_config(self, yaml_path: str) -> None:
         """Load state machine configuration from YAML file"""
@@ -225,6 +227,9 @@ class StateMachineEngine:
         
         logger.info(f"[{self.machine_name}] Starting state machine execution from state: {self.current_state}")
         
+        # Start timeout tasks for initial state (if any)
+        self._start_timeout_tasks(self.current_state)
+        
         # Start with initial event
         await self.process_event("start", self.context)
         
@@ -269,7 +274,12 @@ class StateMachineEngine:
         
         # Find valid transition
         new_state = await self._find_transition(self.current_state, event)
-        if new_state:            
+        if new_state:
+            # Cancel any active timeout tasks when transitioning to a new state
+            # (unless the event itself is a timeout event)
+            if not event.startswith('timeout('):
+                self._cancel_timeout_tasks()
+            
             # Only log state transitions for important events, skip idle cycles and self-loops
             is_self_loop = (self.current_state == new_state)
             is_idle_event = event in ['wake_up', 'no_events', 'no_jobs']
@@ -341,6 +351,9 @@ class StateMachineEngine:
             # Skip self-loop idle transitions to reduce UI spam
             should_emit_to_ui = not (is_self_loop and is_idle_event)
             await self._log_state_change(previous_state, new_state, event, emit_to_ui=should_emit_to_ui)
+            
+            # Start timeout tasks for the new state (if any timeout transitions exist)
+            self._start_timeout_tasks(new_state)
             
             return True
         else:
@@ -451,6 +464,76 @@ class StateMachineEngine:
                 return to_state
                 
         return None
+    
+    def _get_timeout_transitions(self, state: str) -> List[Dict[str, Any]]:
+        """Get all timeout transitions for a given state
+        
+        Returns list of dicts with keys: 'to_state', 'duration', 'event_name'
+        """
+        timeout_pattern = re.compile(r'^timeout\((\d+(?:\.\d+)?)\)$')
+        transitions = self.config.get('transitions', [])
+        timeout_transitions = []
+        
+        for transition in transitions:
+            from_state = transition.get('from')
+            to_state = transition.get('to')
+            on_event = transition.get('event')
+            
+            # Check if this is a timeout event for current state
+            if from_state == state or from_state == '*':
+                match = timeout_pattern.match(on_event)
+                if match:
+                    duration = float(match.group(1))
+                    timeout_transitions.append({
+                        'to_state': to_state,
+                        'duration': duration,
+                        'event_name': on_event
+                    })
+        
+        return timeout_transitions
+    
+    async def _timeout_handler(self, state: str, event_name: str, duration: float) -> None:
+        """Handle timeout for a state - sleeps for duration then fires event"""
+        try:
+            await asyncio.sleep(duration)
+            # If we reach here, timeout wasn't cancelled - fire the timeout event
+            logger.info(f"[{self.machine_name}] ⏰ Timeout {event_name} fired after {duration}s in state '{state}'")
+            await self.process_event(event_name)
+        except asyncio.CancelledError:
+            # Timeout was cancelled (expected when leaving state or receiving other event)
+            logger.debug(f"[{self.machine_name}] Timeout {event_name} cancelled for state '{state}'")
+    
+    def _start_timeout_tasks(self, state: str) -> None:
+        """Start timeout tasks for a state"""
+        # Cancel any existing timeout tasks first
+        self._cancel_timeout_tasks()
+        
+        # Get timeout transitions for this state
+        timeout_transitions = self._get_timeout_transitions(state)
+        
+        if timeout_transitions:
+            for timeout_spec in timeout_transitions:
+                event_name = timeout_spec['event_name']
+                duration = timeout_spec['duration']
+                to_state = timeout_spec['to_state']
+                
+                # Create timeout task
+                task = asyncio.create_task(
+                    self._timeout_handler(state, event_name, duration)
+                )
+                self.timeout_tasks[event_name] = task
+                
+                logger.debug(
+                    f"[{self.machine_name}] ⏰ Started timeout {event_name} "
+                    f"({duration}s) for state '{state}' -> '{to_state}'"
+                )
+    
+    def _cancel_timeout_tasks(self) -> None:
+        """Cancel all active timeout tasks"""
+        for event_name, task in self.timeout_tasks.items():
+            if not task.done():
+                task.cancel()
+        self.timeout_tasks.clear()
     
     def _propagate_job_context(self) -> None:
         """Propagate job data from current_job to main context for variable substitution"""
@@ -662,7 +745,10 @@ class StateMachineEngine:
             await self.process_event('error')
     
     def _cleanup_sockets(self) -> None:
-        """Clean up Unix sockets on shutdown"""
+        """Clean up Unix sockets and timeout tasks on shutdown"""
+        # Cancel any active timeout tasks
+        self._cancel_timeout_tasks()
+        
         if self.control_socket:
             try:
                 socket_path = f'/tmp/statemachine-control-{self.machine_name}.sock'

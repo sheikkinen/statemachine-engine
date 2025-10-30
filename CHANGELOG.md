@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.65] - 2025-10-30
+
+### Fixed
+- **Critical: Resolved hardcoded port 3002 issue**
+  - Added `/api/config` endpoint to UI server providing dynamic WebSocket configuration
+  - Updated `WebSocketManager.js` to fetch WebSocket URL from configuration endpoint instead of hardcoded `ws://localhost:3002/ws/events`
+  - Pass `WEBSOCKET_PORT` environment variable from CLI to UI server
+  - Enable frontend to connect to correct WebSocket port for each engine instance
+  - **BREAKING FIX**: Multiple engines can now run truly independently without port conflicts
+
+### Enhanced
+- Frontend WebSocket connection now uses async initialization for configuration fetching
+- Improved error handling with fallback to default port if configuration fetch fails
+- Updated deprecation messages to reference new configuration endpoint
+
 ## [1.0.64] - 2025-10-30
 
 ### Added

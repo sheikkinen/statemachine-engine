@@ -225,7 +225,7 @@ async def lifespan(app: FastAPI):
         # Store tasks for potential monitoring
         app.state.background_tasks = tasks
         
-        logger.info(f"WebSocket server started on port 3002 with {len(tasks)} background tasks")
+        logger.info(f"WebSocket server started with {len(tasks)} background tasks")
         logger.info("🐕 Watchdog thread monitoring for hangs (15s timeout)")
         
         # Log task status after brief delay

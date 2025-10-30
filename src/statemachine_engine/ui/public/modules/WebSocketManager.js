@@ -25,8 +25,10 @@ export class WebSocketManager {
             } catch (error) {
                 console.error('Failed to fetch WebSocket configuration:', error);
                 this.log('error', 'Failed to get WebSocket configuration');
-                // Fallback to default
-                this.websocketUrl = 'ws://localhost:3002/ws/events';
+                // Fallback to default port 3002 or derive from UI port
+                const uiPort = window.location.port || '3001';
+                const fallbackWsPort = uiPort === '3001' ? '3002' : (parseInt(uiPort) + 1);
+                this.websocketUrl = `ws://localhost:${fallbackWsPort}/ws/events`;
                 this.log('warning', 'Using fallback WebSocket URL: ' + this.websocketUrl);
             }
         }

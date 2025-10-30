@@ -12,7 +12,7 @@ from pathlib import Path
 from statemachine_engine.core.engine import StateMachineEngine
 from statemachine_engine.database.models import get_job_model
 
-async def run_state_machine(config_path: str, debug: bool = False, machine_name: str = None, actions_dir: str = None):
+async def run_state_machine(config_path: str, debug: bool = False, machine_name: str = None, actions_dir: str = None, event_socket_path: str = None, control_socket_prefix: str = None):
     """Run the state machine with given configuration"""
     # Set up logging
     level = logging.DEBUG if debug else logging.INFO
@@ -37,7 +37,7 @@ async def run_state_machine(config_path: str, debug: bool = False, machine_name:
         actions_dir = str(actions_path)
     
     # Create and configure state machine
-    engine = StateMachineEngine(machine_name=machine_name, actions_root=actions_dir)
+    engine = StateMachineEngine(machine_name=machine_name, actions_root=actions_dir, event_socket_path=event_socket_path, control_socket_prefix=control_socket_prefix)
     
     try:
         await engine.load_config(config_path)
@@ -63,10 +63,12 @@ async def async_main():
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--machine-name', help='Override machine name (default: read from config)')
     parser.add_argument('--actions-dir', help='Custom actions directory (absolute or relative path)')
+    parser.add_argument('--event-socket-path', help='Custom event socket path (default: /tmp/statemachine-events.sock)')
+    parser.add_argument('--control-socket-prefix', help='Custom control socket prefix (default: /tmp/statemachine-control)')
 
     args = parser.parse_args()
 
-    return await run_state_machine(args.config, args.debug, args.machine_name, args.actions_dir)
+    return await run_state_machine(args.config, args.debug, args.machine_name, args.actions_dir, args.event_socket_path, args.control_socket_prefix)
 
 def main():
     """Synchronous entry point for setuptools"""

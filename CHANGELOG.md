@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.63] - 2025-10-30
+
+### Added
+- **Multiple Engine Support**
+  - CLI option `--event-socket-path` to customize event socket path
+  - CLI option `--control-socket-prefix` to customize control socket prefix
+  - WebSocket server options `--host`, `--port`, and `--event-socket-path`
+  - Multiple engines can now run simultaneously without socket conflicts
+
+### Fixed
+- **Hardcoded Address Issue**
+  - Removed hardcoded event socket path `/tmp/statemachine-events.sock`
+  - Removed hardcoded WebSocket server port `3002`
+  - Removed hardcoded control socket prefix `/tmp/statemachine-control`
+  - All socket paths and ports now configurable via CLI
+
+### Changed
+- EventSocketManager constructor now accepts optional `socket_path` parameter
+- StateMachineEngine constructor now accepts `event_socket_path` and `control_socket_prefix` parameters
+- WebSocket server now supports command line arguments for configuration
+
 ## [1.0.62] - 2025-10-28
 
 ### Added

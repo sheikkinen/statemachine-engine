@@ -40,6 +40,9 @@ logger.info("WebSocket Server with async-safe logging initialized")
 logger.info("Using QueueHandler to prevent blocking I/O in event loop")
 logger.info("=" * 80)
 
+# Global socket path (configurable via CLI)
+unix_socket_path = '/tmp/statemachine-events.sock'
+
 # ============================================================================
 # SAFE JSON SERIALIZATION
 # ============================================================================
@@ -262,10 +265,9 @@ async def lifespan(app: FastAPI):
     logger.info("Logging thread stopped")
     
     # Cleanup Unix socket
-    socket_path = '/tmp/statemachine-events.sock'
-    if Path(socket_path).exists():
-        Path(socket_path).unlink()
-        logger.info(f"Cleaned up Unix socket: {socket_path}")
+    if Path(unix_socket_path).exists():
+        Path(unix_socket_path).unlink()
+        logger.info(f"Cleaned up Unix socket: {unix_socket_path}")
 
 app = FastAPI(title="State Machine Event Stream", lifespan=lifespan)
 
@@ -474,18 +476,18 @@ async def websocket_endpoint(websocket: WebSocket):
 
 async def unix_socket_listener():
     """Listen for events from state machines via Unix socket"""
-    socket_path = '/tmp/statemachine-events.sock'
+    global unix_socket_path
 
     # Remove existing socket file
-    if Path(socket_path).exists():
-        Path(socket_path).unlink()
+    if Path(unix_socket_path).exists():
+        Path(unix_socket_path).unlink()
 
     # Create Unix socket
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-    sock.bind(socket_path)
+    sock.bind(unix_socket_path)
     sock.setblocking(False)
 
-    logger.info(f"Listening on Unix socket: {socket_path}")
+    logger.info(f"Listening on Unix socket: {unix_socket_path}")
 
     loop = asyncio.get_event_loop()
     event_count = 0
@@ -615,4 +617,17 @@ async def get_initial_endpoint():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=3002, log_level="info")
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="WebSocket server for state machine monitoring")
+    parser.add_argument('--host', default='127.0.0.1', help='Host to bind to (default: 127.0.0.1)')
+    parser.add_argument('--port', type=int, default=3002, help='Port to bind to (default: 3002)')
+    parser.add_argument('--event-socket-path', default='/tmp/statemachine-events.sock', 
+                       help='Path to event socket (default: /tmp/statemachine-events.sock)')
+    
+    args = parser.parse_args()
+    
+    # Update the Unix socket path for event listening
+    unix_socket_path = args.event_socket_path
+    
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")

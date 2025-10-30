@@ -10,6 +10,7 @@ Event-driven state machine framework with real-time monitoring and database-back
 - **Database-Backed Queue**: SQLite-based persistent job queue
 - **Unix Socket Communication**: Low-latency inter-machine events
 - **Multi-Machine Coordination**: Event-driven machine-to-machine communication
+- **Multiple Engine Support**: Run multiple engines simultaneously with configurable socket paths
 
 ## Installation
 
@@ -167,6 +168,63 @@ python -m statemachine_engine.monitoring.websocket_server --port 8765
 
 **Endpoints:**
 - WebSocket: `ws://localhost:8765/ws`
+
+## Multiple Engines Support
+
+As of version 1.0.63, you can run multiple state machine engines simultaneously with configurable socket paths and ports.
+
+### Configuration Options
+
+**State Machine CLI:**
+```bash
+statemachine config.yaml [options]
+
+Options:
+  --event-socket-path PATH     Custom event socket path (default: /tmp/statemachine-events.sock)
+  --control-socket-prefix PATH Custom control socket prefix (default: /tmp/statemachine-control)
+```
+
+**WebSocket Server:**
+```bash
+python -m statemachine_engine.monitoring.websocket_server [options]
+
+Options:
+  --host HOST                  Host to bind to (default: 127.0.0.1)
+  --port PORT                  Port to bind to (default: 3002)
+  --event-socket-path PATH     Path to event socket (default: /tmp/statemachine-events.sock)
+```
+
+### Example: Running Multiple Engines
+
+```bash
+# Terminal 1 - Engine 1
+statemachine engine1_config.yaml \
+    --machine-name engine1 \
+    --event-socket-path /tmp/engine1-events.sock \
+    --control-socket-prefix /tmp/engine1-control
+
+# Terminal 2 - Engine 2  
+statemachine engine2_config.yaml \
+    --machine-name engine2 \
+    --event-socket-path /tmp/engine2-events.sock \
+    --control-socket-prefix /tmp/engine2-control
+
+# Terminal 3 - Monitor Engine 1
+python -m statemachine_engine.monitoring.websocket_server \
+    --port 3002 \
+    --event-socket-path /tmp/engine1-events.sock
+
+# Terminal 4 - Monitor Engine 2
+python -m statemachine_engine.monitoring.websocket_server \
+    --port 3003 \
+    --event-socket-path /tmp/engine2-events.sock
+```
+
+**Web interfaces:**
+- Engine 1: http://localhost:3002
+- Engine 2: http://localhost:3003
+
+**Backward compatibility:** All default values remain unchanged, so existing scripts continue to work without modification.
 - Health check: `http://localhost:8765/health`
 
 #### 4. Generate Diagrams

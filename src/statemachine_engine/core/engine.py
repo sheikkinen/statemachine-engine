@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 class EventSocketManager:
     """Manages Unix socket connection for real-time event emission"""
 
-    def __init__(self, socket_path: str = '/tmp/statemachine-events.sock'):
-        self.socket_path = socket_path
+    def __init__(self, socket_path: str = None):
+        self.socket_path = socket_path or '/tmp/statemachine-events.sock'
         self.sock: Optional[socket.socket] = None
         self.logger = logging.getLogger(__name__)
         self._connect()
@@ -89,14 +89,15 @@ class StateMachineEngine:
     
     """
     
-    def __init__(self, machine_name: str = None, actions_root: str = None):
+    def __init__(self, machine_name: str = None, actions_root: str = None, event_socket_path: str = None, control_socket_prefix: str = None):
         self.config = None
         self.current_state = None
         self.context = {}
         self.actions = {}
         self.machine_name = machine_name
         self.actions_root = actions_root  # Custom actions directory
-        self.event_socket = EventSocketManager()  # NEW: Unix socket for real-time events
+        self.control_socket_prefix = control_socket_prefix or '/tmp/statemachine-control'  # Control socket prefix
+        self.event_socket = EventSocketManager(socket_path=event_socket_path)  # NEW: Unix socket for real-time events
         self.control_socket: Optional[socket.socket] = None  # Control socket for receiving events
         self.is_running = True
         self.propagation_count = 0  # Track frequency of job context propagation
@@ -135,7 +136,7 @@ class StateMachineEngine:
     
     def _create_control_socket(self) -> None:
         """Create Unix socket for receiving control events"""
-        socket_path = f'/tmp/statemachine-control-{self.machine_name}.sock'
+        socket_path = f'{self.control_socket_prefix}-{self.machine_name}.sock'
         
         try:
             # Remove stale socket file if it exists
@@ -751,7 +752,7 @@ class StateMachineEngine:
         
         if self.control_socket:
             try:
-                socket_path = f'/tmp/statemachine-control-{self.machine_name}.sock'
+                socket_path = f'{self.control_socket_prefix}-{self.machine_name}.sock'
                 self.control_socket.close()
                 
                 # Remove socket file

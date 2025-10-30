@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.64] - 2025-10-30
+
+### Added
+- **Enhanced statemachine-ui CLI**
+  - Added `--event-socket-path` option to configure custom event socket path for WebSocket server
+  - Added `--websocket-port` option to configure custom WebSocket server port
+  - Enable multiple UI instances with different socket/port configurations
+  - Maintain full backward compatibility with default values
+
+### Enhanced
+- **Complete Multiple Engine Support**
+  - UI now supports custom socket paths and ports via CLI options
+  - Multiple engines can each have dedicated UI and WebSocket monitoring
+  - Updated documentation with enhanced usage examples
+  - Added comprehensive multiple engine setup instructions
+
 ## [1.0.63] - 2025-10-30
 
 ### Added

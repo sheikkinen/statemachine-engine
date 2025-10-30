@@ -14,7 +14,11 @@ class StateMachineMonitor {
         this.initializeModules();
         
         // Start connections
-        this.wsManager.connect();
+        this.initializeConnections();
+    }
+
+    async initializeConnections() {
+        await this.wsManager.connect();
     }
 
     createDiagramTabs(machines) {

@@ -5,6 +5,9 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const WEBSOCKET_PORT = process.env.WEBSOCKET_PORT || 3002;
+
+console.log(`🌐 UI Port: ${PORT}, 🔌 WebSocket Port: ${WEBSOCKET_PORT}`);
 
 // Middleware
 app.use(express.static('public'));
@@ -12,6 +15,16 @@ app.use(express.json());
 
 // Path to the project root - use environment variable if set, otherwise assume UI is in src/statemachine_engine/ui/
 const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(__dirname, '../../..');
+
+// API Configuration endpoint
+app.get('/api/config', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.json({
+        websocket_url: `ws://localhost:${WEBSOCKET_PORT}/ws/events`,
+        websocket_port: parseInt(WEBSOCKET_PORT),
+        ui_port: parseInt(PORT)
+    });
+});
 
 // API Routes
 
@@ -124,10 +137,10 @@ app.get('/api/diagram/:machine_name/:diagram_name', (req, res) => {
 });
 
 // Legacy SSE endpoint - DEPRECATED
-// The web UI now uses WebSocket connection to ws://localhost:3002/ws/events
+// The web UI now uses WebSocket connection via /api/config
 // This endpoint is kept for backward compatibility but should not be used
 app.get('/api/events', (req, res) => {
-    console.warn('⚠️  DEPRECATED: Client requested /api/events (SSE). Please use WebSocket at ws://localhost:3002/ws/events');
+    console.warn('⚠️  DEPRECATED: Client requested /api/events (SSE). Please use WebSocket from /api/config');
     
     res.writeHead(410, {
         'Content-Type': 'application/json',
@@ -139,7 +152,7 @@ app.get('/api/events', (req, res) => {
         message: 'This endpoint has been replaced with WebSocket for real-time communication.',
         migration: {
             old: 'EventSource(\'/api/events\')',
-            new: 'WebSocket(\'ws://localhost:3002/ws/events\')',
+            new: 'WebSocket configured via /api/config',
             documentation: 'See docs/plan-websocket-migration.md for details'
         }
     }));

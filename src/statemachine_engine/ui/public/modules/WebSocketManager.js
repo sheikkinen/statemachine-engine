@@ -9,13 +9,30 @@ export class WebSocketManager {
         this.maxReconnectDelay = 30000; // 30 seconds
         this.pingInterval = null;
         this.eventHandlers = eventHandlers;
+        this.websocketUrl = null;
     }
 
-    connect() {
+    async connect() {
         this.log('info', 'Connecting to WebSocket server...');
 
+        // Fetch configuration if not already available
+        if (!this.websocketUrl) {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                this.websocketUrl = config.websocket_url;
+                this.log('info', `WebSocket URL: ${this.websocketUrl}`);
+            } catch (error) {
+                console.error('Failed to fetch WebSocket configuration:', error);
+                this.log('error', 'Failed to get WebSocket configuration');
+                // Fallback to default
+                this.websocketUrl = 'ws://localhost:3002/ws/events';
+                this.log('warning', 'Using fallback WebSocket URL: ' + this.websocketUrl);
+            }
+        }
+
         try {
-            this.websocket = new WebSocket('ws://localhost:3002/ws/events');
+            this.websocket = new WebSocket(this.websocketUrl);
 
             this.websocket.onopen = () => {
                 this.isConnected = true;
@@ -105,8 +122,8 @@ export class WebSocketManager {
         this.reconnectAttempts++;
         this.log('info', `Reconnecting in ${delay/1000}s...`);
 
-        setTimeout(() => {
-            this.connect();
+        setTimeout(async () => {
+            await this.connect();
         }, delay);
     }
 

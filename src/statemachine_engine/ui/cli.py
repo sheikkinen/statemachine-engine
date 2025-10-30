@@ -121,6 +121,7 @@ def main():
     env = os.environ.copy()
     env['PROJECT_ROOT'] = project_root
     env['PORT'] = str(args.port)
+    env['WEBSOCKET_PORT'] = str(args.websocket_port if args.websocket_port else 3002)
     
     # Change to UI directory and start server
     ui_dir = server_path.parent

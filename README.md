@@ -152,6 +152,24 @@ statemachine-ui --port 8080
 
 # Skip WebSocket server (if already running)
 statemachine-ui --no-websocket
+
+# Start with custom WebSocket configuration (NEW in v1.0.63)
+statemachine-ui \
+    --port 3001 \
+    --websocket-port 3002 \
+    --event-socket-path /tmp/custom-events.sock
+```
+
+**Enhanced UI Options (v1.0.63+):**
+```bash
+statemachine-ui [options]
+
+Options:
+  --port PORT                      Port for the web server (default: 3001)
+  --project-root PROJECT_ROOT      Project root directory (default: current directory)
+  --no-websocket                   Skip starting the WebSocket server
+  --event-socket-path PATH         Custom event socket path for WebSocket server
+  --websocket-port PORT            Custom port for WebSocket server (default: 3002)
 ```
 
 **Access at:** http://localhost:3001
@@ -209,20 +227,34 @@ statemachine engine2_config.yaml \
     --event-socket-path /tmp/engine2-events.sock \
     --control-socket-prefix /tmp/engine2-control
 
-# Terminal 3 - Monitor Engine 1
+# Terminal 3 - Monitor Engine 1 (Option 1: Separate WebSocket server)
 python -m statemachine_engine.monitoring.websocket_server \
     --port 3002 \
     --event-socket-path /tmp/engine1-events.sock
 
-# Terminal 4 - Monitor Engine 2
+# Terminal 4 - Monitor Engine 2 (Option 1: Separate WebSocket server)
 python -m statemachine_engine.monitoring.websocket_server \
     --port 3003 \
+    --event-socket-path /tmp/engine2-events.sock
+
+# OR
+
+# Terminal 3 - Monitor Engine 1 (Option 2: Enhanced UI with integrated WebSocket)
+statemachine-ui \
+    --port 3001 \
+    --websocket-port 3002 \
+    --event-socket-path /tmp/engine1-events.sock
+
+# Terminal 4 - Monitor Engine 2 (Option 2: Enhanced UI with integrated WebSocket)
+statemachine-ui \
+    --port 3004 \
+    --websocket-port 3003 \
     --event-socket-path /tmp/engine2-events.sock
 ```
 
 **Web interfaces:**
-- Engine 1: http://localhost:3002
-- Engine 2: http://localhost:3003
+- Engine 1: http://localhost:3001 (UI) + http://localhost:3002 (WebSocket)
+- Engine 2: http://localhost:3004 (UI) + http://localhost:3003 (WebSocket)
 
 **Backward compatibility:** All default values remain unchanged, so existing scripts continue to work without modification.
 - Health check: `http://localhost:8765/health`

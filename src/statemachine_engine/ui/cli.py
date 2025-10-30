@@ -40,15 +40,25 @@ def check_node():
         return False
 
 
-def start_websocket_server():
-    """Start the WebSocket server in background."""
+def start_websocket_server(event_socket_path=None, websocket_port=None):
+    """Start the WebSocket server in background with custom parameters."""
     try:
-        process = subprocess.Popen([
-            sys.executable, '-m', 'statemachine_engine.monitoring.websocket_server'
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        cmd = [sys.executable, '-m', 'statemachine_engine.monitoring.websocket_server']
+        
+        # Add custom parameters if provided
+        if websocket_port:
+            cmd.extend(['--port', str(websocket_port)])
+        if event_socket_path:
+            cmd.extend(['--event-socket-path', event_socket_path])
+            
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         time.sleep(2)  # Give it time to start
         if process.poll() is None:  # Still running
             print("✓ WebSocket server started")
+            if websocket_port:
+                print(f"  WebSocket server on port: {websocket_port}")
+            if event_socket_path:
+                print(f"  Event socket path: {event_socket_path}")
             return process
         else:
             print("❌ WebSocket server failed to start")
@@ -68,6 +78,10 @@ def main():
                        help='Project root directory (default: current directory)')
     parser.add_argument('--no-websocket', action='store_true',
                        help='Skip starting the WebSocket server')
+    parser.add_argument('--event-socket-path', type=str, default=None,
+                       help='Custom event socket path for WebSocket server (default: /tmp/statemachine-events.sock)')
+    parser.add_argument('--websocket-port', type=int, default=None,
+                       help='Custom port for WebSocket server (default: 3002)')
     
     args = parser.parse_args()
     
@@ -77,7 +91,11 @@ def main():
     
     print(f"🚀 Starting statemachine-engine UI server...")
     print(f"📁 Project root: {project_root}")
-    print(f"🌐 Port: {args.port}")
+    print(f"🌐 UI Port: {args.port}")
+    if args.websocket_port:
+        print(f"🔌 WebSocket Port: {args.websocket_port}")
+    if args.event_socket_path:
+        print(f"📡 Event Socket: {args.event_socket_path}")
     
     # Check requirements
     if not check_node():
@@ -94,7 +112,10 @@ def main():
     ws_process = None
     if not args.no_websocket:
         print("🌐 Starting WebSocket server...")
-        ws_process = start_websocket_server()
+        ws_process = start_websocket_server(
+            event_socket_path=args.event_socket_path,
+            websocket_port=args.websocket_port
+        )
     
     # Set environment variables
     env = os.environ.copy()

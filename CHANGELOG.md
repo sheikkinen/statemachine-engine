@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.66] - 2025-10-30
+
+### Fixed
+- **Remaining hardcoded port 3002 references**
+  - Improved fallback WebSocket URL detection in `WebSocketManager.js` to use smart port derivation (UI port + 1) instead of hardcoded `ws://localhost:3002/ws/events`
+  - Removed hardcoded port reference from WebSocket server startup log message
+  - Enhanced error resilience when `/api/config` endpoint is unavailable
+  - **Result**: WebSocket connections now work correctly even with custom ports when configuration fetch fails
+
 ## [1.0.65] - 2025-10-30
 
 ### Fixed

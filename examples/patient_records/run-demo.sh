@@ -29,6 +29,16 @@ cleanup() {
     echo "🧹 Cleaning up patient records demo..."
     pkill -f "statemachine.*patient.*record" 2>/dev/null || true
     
+    # Stop WebSocket server if running
+    if [[ -f "$LOG_DIR/websocket_server.pid" ]]; then
+        local ws_pid=$(cat "$LOG_DIR/websocket_server.pid")
+        if ps -p "$ws_pid" >/dev/null 2>&1; then
+            kill "$ws_pid" 2>/dev/null || true
+            echo "✓ WebSocket server stopped"
+        fi
+        rm -f "$LOG_DIR/websocket_server.pid"
+    fi
+    
     # Stop UI server if running
     if [[ -f "$LOG_DIR/ui_server.pid" ]]; then
         local ui_pid=$(cat "$LOG_DIR/ui_server.pid")

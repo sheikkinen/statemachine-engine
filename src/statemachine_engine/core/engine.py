@@ -404,7 +404,9 @@ class StateMachineEngine:
                     """, (self.machine_name, current_state, time.time(), os.getpid(), None, self.config_name))
                     conn.commit()
             except Exception as e:
-                logger.debug(f"[{self.machine_name}] Failed to update machine_state: {e}")
+                logger.warning(f"[{self.machine_name}] Failed to update machine_state: {e}")
+        else:
+            logger.warning(f"[{self.machine_name}] Cannot update machine_state: job_model={job_model is not None}, machine_name={self.machine_name}")
     
     def _emit_realtime_event(self, event_type: str, payload: dict):
         """Emit event via Unix socket with database fallback"""

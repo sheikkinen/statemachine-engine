@@ -4,13 +4,19 @@ stateDiagram-v2
     %% IDLE (1 states)
     state IDLE
 
-    %% PROCESSING (2 states)
-    state PROCESSING
+    %% SUMMARIZING (1 states)
+    state SUMMARIZING
 
-    %% COMPLETION (3 states)
-    state COMPLETION
+    %% FACT_CHECKING (1 states)
+    state FACT_CHECKING
+
+    %% COMPLETED (3 states)
+    state COMPLETED
 
     %% Transitions between composites
-    IDLE --> PROCESSING : new_report
-    PROCESSING --> COMPLETION : timeout(5)
-    COMPLETION --> IDLE : retry_report
+    IDLE --> SUMMARIZING : new_report
+    SUMMARIZING --> FACT_CHECKING : timeout(10)
+    FACT_CHECKING --> COMPLETED : timeout(5)
+    FACT_CHECKING --> SUMMARIZING : validation_failed
+    SUMMARIZING --> COMPLETED : processing_error
+    COMPLETED --> IDLE : retry_report

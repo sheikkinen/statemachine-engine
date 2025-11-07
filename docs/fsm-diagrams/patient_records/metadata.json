@@ -7,8 +7,9 @@
       "description": "High-level state machine flow with composite states",
       "composites": [
         "IDLE",
-        "PROCESSING",
-        "COMPLETION"
+        "SUMMARIZING",
+        "FACT_CHECKING",
+        "COMPLETED"
       ]
     },
     "IDLE": {
@@ -26,27 +27,40 @@
       ],
       "parent": "main"
     },
-    "PROCESSING": {
-      "file": "PROCESSING.mermaid",
-      "title": "PROCESSING",
-      "description": "Detailed view of processing",
+    "SUMMARIZING": {
+      "file": "SUMMARIZING.mermaid",
+      "title": "SUMMARIZING",
+      "description": "Detailed view of summarizing",
       "states": [
-        "summarizing",
-        "fact_checking"
+        "summarizing"
       ],
       "entry_states": [
         "summarizing"
       ],
       "exit_states": [
-        "fact_checking",
         "summarizing"
       ],
       "parent": "main"
     },
-    "COMPLETION": {
-      "file": "COMPLETION.mermaid",
-      "title": "COMPLETION",
-      "description": "Detailed view of completion",
+    "FACT_CHECKING": {
+      "file": "FACT_CHECKING.mermaid",
+      "title": "FACT_CHECKING",
+      "description": "Detailed view of fact_checking",
+      "states": [
+        "fact_checking"
+      ],
+      "entry_states": [
+        "fact_checking"
+      ],
+      "exit_states": [
+        "fact_checking"
+      ],
+      "parent": "main"
+    },
+    "COMPLETED": {
+      "file": "COMPLETED.mermaid",
+      "title": "COMPLETED",
+      "description": "Detailed view of completed",
       "states": [
         "ready",
         "failed",

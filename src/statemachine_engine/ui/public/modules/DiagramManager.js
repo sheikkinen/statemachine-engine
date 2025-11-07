@@ -65,6 +65,9 @@
  * - Includes DOM destruction, Mermaid parsing, SVG generation
  * - Visible fade effect (50ms) masks render time
  */
+
+import { StateGroupManager } from './StateGroupManager.js';
+
 export class DiagramManager {
     constructor(container, breadcrumbNav, logger) {
         this.container = container;
@@ -81,6 +84,9 @@ export class DiagramManager {
 
         // CSS-only update state (v1.0.42+)
         this.stateHighlightMap = null;
+        
+        // State group manager for organizing states
+        this.stateGroupManager = new StateGroupManager(null);
     }
 
     async loadDiagram(machineName, diagramName = 'main') {
@@ -101,6 +107,9 @@ export class DiagramManager {
                 this.currentDiagram = data.mermaid_code;
                 this.currentDiagramName = diagramName;
                 this.diagramMetadata = data.metadata;
+                
+                // Update state group manager with new metadata
+                this.stateGroupManager.setMetadata(data.metadata);
                 
                 this.updateBreadcrumb(machineName, diagramName);
                 
@@ -912,5 +921,25 @@ export class DiagramManager {
         }
 
         return true;
+    }
+    
+    /**
+     * Get the list of states for the current diagram
+     * Delegates to StateGroupManager
+     * 
+     * @returns {string[]|null} Array of state names or null if not available
+     */
+    getStates() {
+        return this.stateGroupManager.getStates(this.currentDiagramName);
+    }
+    
+    /**
+     * Get state groups for the current diagram
+     * Delegates to StateGroupManager
+     * 
+     * @returns {Array<{name: string, states: string[]}>|null} Array of state groups or null
+     */
+    getStateGroups() {
+        return this.stateGroupManager.getStateGroups(this.currentDiagramName);
     }
 }

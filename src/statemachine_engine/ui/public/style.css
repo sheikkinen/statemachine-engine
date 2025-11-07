@@ -511,3 +511,214 @@ header p {
         opacity: 0.5;
     }
 }
+
+/* Kanban View Styles */
+.kanban-view {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    display: none;
+}
+
+.kanban-view.kanban-visible {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+/* Kanban Groups - Horizontal layout */
+.kanban-view.kanban-visible.grouped {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    overflow-x: auto;
+}
+
+.kanban-group {
+    flex: 1;
+    min-width: 250px;
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.kanban-group-header {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2d3748;
+    padding: 12px 16px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.kanban-group-states {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex: 1;
+}
+
+.kanban-group-state {
+    display: flex;
+    flex-direction: column;
+}
+
+.kanban-state-heading {
+    font-weight: 600;
+    color: #4a5568;
+    padding: 8px 12px;
+    background: #edf2f7;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    text-align: left;
+    font-size: 0.9rem;
+}
+
+.kanban-state-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 60px;
+}
+
+/* Kanban Toggle Button */
+.kanban-toggle-button {
+    padding: 10px 20px;
+    margin-left: 10px;
+    border: 2px solid #4299e1;
+    background: white;
+    border-radius: 8px;
+    font-weight: 500;
+    color: #4299e1;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.kanban-toggle-button:hover {
+    background: #4299e1;
+    color: white;
+}
+
+.kanban-toggle-button.active {
+    background: #4299e1;
+    color: white;
+}
+
+/* Kanban Columns */
+.kanban-column {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+.kanban-column-header {
+    font-weight: 600;
+    color: #2d3748;
+    padding: 10px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    text-align: center;
+    font-size: 0.9rem;
+    word-wrap: break-word;
+}
+
+.kanban-cards {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Kanban Cards */
+.kanban-card {
+    background: white;
+    border-radius: 6px;
+    padding: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+    cursor: pointer;
+    border-left: 4px solid #4299e1;
+    font-size: 0.9rem;
+    color: #2d3748;
+    font-weight: 500;
+}
+
+.kanban-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* State-specific card colors */
+.kanban-column[data-state="waiting_for_report"] .kanban-card {
+    border-left-color: #718096;
+}
+
+.kanban-column[data-state="summarizing"] .kanban-card {
+    border-left-color: #4299e1;
+}
+
+.kanban-column[data-state="fact_checking"] .kanban-card {
+    border-left-color: #ed8936;
+}
+
+.kanban-column[data-state="ready"] .kanban-card {
+    border-left-color: #48bb78;
+}
+
+.kanban-column[data-state="failed"] .kanban-card {
+    border-left-color: #f56565;
+}
+
+.kanban-column[data-state="shutdown"] .kanban-card {
+    border-left-color: #a0aec0;
+    opacity: 0.7;
+}
+
+/* Card animation on add */
+@keyframes slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.kanban-card {
+    animation: slide-in 0.3s ease-out;
+}
+
+/* Responsive Kanban */
+@media (max-width: 1200px) {
+    .kanban-view.kanban-visible {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .kanban-view.kanban-visible {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .kanban-column-header {
+        font-size: 0.8rem;
+    }
+    
+    .kanban-card {
+        font-size: 0.85rem;
+        padding: 10px;
+    }
+}

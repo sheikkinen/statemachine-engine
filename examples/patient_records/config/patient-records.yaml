@@ -3,12 +3,13 @@ initial_state: waiting_for_report
 
 # Define states with composite groupings for diagram visualization
 states:
-  # === IDLE STATES ===
+  # === IDLE ===
   - waiting_for_report
-  # === PROCESSING STATES ===
+  # === SUMMARIZING ===
   - summarizing
+  # === FACT_CHECKING ===
   - fact_checking
-  # === COMPLETION STATES ===
+  # === COMPLETED ===
   - ready  
   - failed
   - shutdown

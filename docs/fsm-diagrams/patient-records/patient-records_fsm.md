@@ -21,21 +21,26 @@ stateDiagram-v2
         waiting_for_report --> [*] : new_report
     }
 
-    %% PROCESSING
-    state PROCESSING {
+    %% SUMMARIZING
+    state SUMMARIZING {
         [*] --> summarizing
-        summarizing --> fact_checking : timeout(10)
-        summarizing --> fact_checking : summary_complete
         summarizing --> summarizing : summary_invalid
-        fact_checking --> summarizing : validation_failed
+        summarizing --> [*] : timeout(10)
+        summarizing --> [*] : summary_complete
+        summarizing --> [*] : processing_error
+    }
+
+    %% FACT_CHECKING
+    state FACT_CHECKING {
+        [*] --> fact_checking
         fact_checking --> [*] : timeout(5)
         fact_checking --> [*] : validation_passed
-        summarizing --> [*] : processing_error
+        fact_checking --> [*] : validation_failed
         fact_checking --> [*] : processing_error
     }
 
-    %% COMPLETION
-    state COMPLETION {
+    %% COMPLETED
+    state COMPLETED {
         [*] --> failed
         [*] --> ready
         [*] --> shutdown
@@ -44,13 +49,16 @@ stateDiagram-v2
     }
 
     %% Transitions
-    IDLE --> PROCESSING : new_report
-    PROCESSING --> COMPLETION : timeout(5)
-    PROCESSING --> COMPLETION : validation_passed
-    PROCESSING --> COMPLETION : processing_error
-    PROCESSING --> COMPLETION : processing_error
-    COMPLETION --> IDLE : retry_report
-    COMPLETION --> IDLE : process_next
+    IDLE --> SUMMARIZING : new_report
+    SUMMARIZING --> FACT_CHECKING : timeout(10)
+    SUMMARIZING --> FACT_CHECKING : summary_complete
+    FACT_CHECKING --> COMPLETED : timeout(5)
+    FACT_CHECKING --> COMPLETED : validation_passed
+    FACT_CHECKING --> SUMMARIZING : validation_failed
+    SUMMARIZING --> COMPLETED : processing_error
+    FACT_CHECKING --> COMPLETED : processing_error
+    COMPLETED --> IDLE : retry_report
+    COMPLETED --> IDLE : process_next
 
 ```
 
@@ -61,8 +69,8 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
     %% Error Handling Flow
-    failed : failed
     summarizing : summarizing
+    failed : failed
     fact_checking : fact_checking
     summarizing --> failed : processing_error
     fact_checking --> failed : processing_error

@@ -6,8 +6,9 @@ stateDiagram-v2
     %% Internal transitions
 
     %% External composites
-    state PROCESSING
-    state COMPLETION
+    state SUMMARIZING
+    state FACT_CHECKING
+    state COMPLETED
 
     %% Transitions to other composites
-    waiting_for_report --> PROCESSING : new_report
+    waiting_for_report --> SUMMARIZING : new_report

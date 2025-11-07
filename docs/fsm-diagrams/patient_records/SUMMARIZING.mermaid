@@ -1,0 +1,17 @@
+stateDiagram-v2
+    %% Detailed view of SUMMARIZING
+
+    [*] --> summarizing
+
+    %% Internal transitions
+    summarizing --> summarizing : summary_invalid
+
+    %% External composites
+    state IDLE
+    state FACT_CHECKING
+    state COMPLETED
+
+    %% Transitions to other composites
+    summarizing --> FACT_CHECKING : timeout(10)
+    summarizing --> FACT_CHECKING : summary_complete
+    summarizing --> COMPLETED : processing_error

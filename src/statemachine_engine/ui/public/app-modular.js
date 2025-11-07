@@ -7,9 +7,12 @@ import { WebSocketManager } from './modules/WebSocketManager.js';
 import { DiagramManager } from './modules/DiagramManager.js';
 import { MachineStateManager } from './modules/MachineStateManager.js';
 import { ActivityLogger } from './modules/ActivityLogger.js';
+import KanbanView from './modules/KanbanView.js';
 
 class StateMachineMonitor {
     constructor() {
+        this.kanbanView = null;
+        this.kanbanVisible = false;
         this.initializeUI();
         this.initializeModules();
         
@@ -32,7 +35,16 @@ class StateMachineMonitor {
 
         if (machines.length === 0) {
             tabsContainer.innerHTML = '<div class="no-machines">No machines running. Start a machine to see diagrams.</div>';
+            // Hide Kanban toggle if no machines
+            if (this.kanbanToggleBtn) {
+                this.kanbanToggleBtn.style.display = 'none';
+            }
             return;
+        }
+        
+        // Show Kanban toggle button when machines are available
+        if (this.kanbanToggleBtn) {
+            this.kanbanToggleBtn.style.display = 'inline-block';
         }
 
         machines.forEach((machine, index) => {
@@ -53,6 +65,8 @@ class StateMachineMonitor {
                 const diagramType = machine.config_type || machine.machine_name;
                 this.diagramManager.loadDiagram(diagramType).then(() => {
                     console.log(`[App] Switched to ${machine.machine_name} diagram (type: ${diagramType})`);
+                    // Rebuild Kanban view for new template
+                    this.rebuildKanbanView();
                 });
             });
 
@@ -60,6 +74,80 @@ class StateMachineMonitor {
         });
 
         this.logger.log('success', `Created ${machines.length} diagram tab(s)`);
+    }
+    
+    toggleKanbanView() {
+        this.kanbanVisible = !this.kanbanVisible;
+        
+        if (this.kanbanVisible) {
+            // Show Kanban, hide diagram
+            this.diagramContainer.style.display = 'none';
+            this.breadcrumbNav.style.display = 'none';
+            if (this.kanbanView) {
+                this.kanbanView.show();
+            }
+            this.kanbanToggleBtn.textContent = 'Show Diagram';
+            this.kanbanToggleBtn.classList.add('active');
+        } else {
+            // Show diagram, hide Kanban
+            this.diagramContainer.style.display = '';
+            this.breadcrumbNav.style.display = '';
+            if (this.kanbanView) {
+                this.kanbanView.hide();
+            }
+            this.kanbanToggleBtn.textContent = 'Show Kanban View';
+            this.kanbanToggleBtn.classList.remove('active');
+        }
+    }
+    
+    rebuildKanbanView() {
+        // Get states from current diagram
+        const states = this.diagramManager.getStates();
+        if (!states || states.length === 0) {
+            console.log('[Kanban] No states available for Kanban view');
+            return;
+        }
+        
+        // Get state groups (if available)
+        const stateGroups = this.diagramManager.getStateGroups();
+        
+        const templateName = this.diagramManager.selectedMachine;
+        console.log(`[Kanban] Rebuilding view for template: ${templateName}`);
+        console.log(`[Kanban] States:`, states);
+        console.log(`[Kanban] State groups:`, stateGroups);
+        
+        // Create or recreate Kanban view
+        this.kanbanView = new KanbanView(
+            this.kanbanContainer,
+            templateName,
+            states,
+            this.logger,
+            stateGroups  // Pass state groups (null for flat view)
+        );
+        this.kanbanView.render();
+        
+        // Add CSS class for grouped display
+        if (stateGroups) {
+            this.kanbanContainer.classList.add('grouped');
+        } else {
+            this.kanbanContainer.classList.remove('grouped');
+        }
+        
+        // Add all current machines matching this template
+        if (this.machineManager && this.machineManager.machines) {
+            this.machineManager.machines.forEach(machine => {
+                const machineType = machine.config_type || machine.machine_name;
+                if (machineType === templateName) {
+                    console.log(`[Kanban] Adding card for ${machine.machine_name} in state ${machine.current_state}`);
+                    this.kanbanView.addCard(machine.machine_name, machine.current_state);
+                }
+            });
+        }
+        
+        // Keep visibility state
+        if (this.kanbanVisible) {
+            this.kanbanView.show();
+        }
     }
 
     initializeUI() {
@@ -71,6 +159,15 @@ class StateMachineMonitor {
         this.activityLog = document.getElementById('activity-log');
         this.diagramContainer = document.getElementById('fsm-diagram');
         this.breadcrumbNav = document.querySelector('.breadcrumb-nav');
+        this.kanbanContainer = document.getElementById('kanban-container');
+        this.kanbanToggleBtn = document.getElementById('kanban-toggle');
+        
+        // Set up Kanban toggle button
+        if (this.kanbanToggleBtn) {
+            this.kanbanToggleBtn.addEventListener('click', () => {
+                this.toggleKanbanView();
+            });
+        }
     }
 
     initializeModules() {
@@ -111,7 +208,10 @@ class StateMachineMonitor {
                         const firstMachine = data.machines[0];
                         const diagramType = firstMachine.config_type || firstMachine.machine_name;
                         this.logger.log('info', `Loading diagram for ${firstMachine.machine_name} (type: ${diagramType})`);
-                        this.diagramManager.loadDiagram(diagramType);
+                        this.diagramManager.loadDiagram(diagramType).then(() => {
+                            // Build Kanban view after diagram loads
+                            this.rebuildKanbanView();
+                        });
                     }
                 }
             },
@@ -133,6 +233,17 @@ class StateMachineMonitor {
                         machine.current_state,
                         transition
                     );
+                    
+                    // Update Kanban view if visible
+                    if (this.kanbanView && this.kanbanVisible) {
+                        console.log(`[App] ${timestamp} - Updating Kanban card for ${data.machine_name}`);
+                        // Check if card exists, if not add it
+                        if (!this.kanbanView.cards[data.machine_name]) {
+                            this.kanbanView.addCard(data.machine_name, machine.current_state);
+                        } else {
+                            this.kanbanView.updateCard(data.machine_name, machine.current_state);
+                        }
+                    }
                 } else {
                     console.log(`[App] ${timestamp} - Skipping diagram update - wrong type (machine ${data.machine_name} type ${machineConfigType} vs selected ${this.diagramManager.selectedMachine})`);
                 }

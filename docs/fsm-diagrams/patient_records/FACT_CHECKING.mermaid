@@ -1,0 +1,17 @@
+stateDiagram-v2
+    %% Detailed view of FACT_CHECKING
+
+    [*] --> fact_checking
+
+    %% Internal transitions
+
+    %% External composites
+    state IDLE
+    state SUMMARIZING
+    state COMPLETED
+
+    %% Transitions to other composites
+    fact_checking --> COMPLETED : timeout(5)
+    fact_checking --> COMPLETED : validation_passed
+    fact_checking --> SUMMARIZING : validation_failed
+    fact_checking --> COMPLETED : processing_error

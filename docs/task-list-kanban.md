@@ -1,165 +1,248 @@
-# Kanban Implementation Task List (TDD)
+# Kanban Implementation Task List (TDD) - REVISED
 
 ## 🎯 Objective
-Add Kanban view for concurrent FSM visualization - patient records demo with 10+ instances
+Add Kanban view for concurrent FSM visualization - patient records demo with multiple instances
+
+## Phase 1: Visual Kanban Toggle & Template View
+**Goal:** Toggle between diagram and Kanban view for active FSM template with all matching instances
+
+### Scope
+- Visual toggle button in UI (not keyboard shortcut)
+- Show Kanban for currently selected template (e.g., "patient_records")
+- Display all machine instances matching that template (patient_record_1, _2, _3, etc.)
+- Column-based layout using individual states as columns (waiting_for_report, summarizing, fact_checking, ready, failed, shutdown)
+- Real-time updates via WebSocket events
+
+### Out of Scope (Phase 2)
+- Keyboard shortcuts (K key)
+- Drill-in/out functionality
+- State group aggregation (use individual states first)
+- Multi-template view
+- Card drag-and-drop
 
 ## Initial Checklist
 - [x] Patient records FSM created (`examples/patient_records/config/patient-records.yaml`)
-- [x] State groups added for new diagram format (3 composite subdiagrams)
+- [x] States defined: waiting_for_report, summarizing, fact_checking, ready, failed, shutdown
 - [x] Demo script created (`examples/patient_records/run-demo.sh`)
-- [x] Check Pytest and npm test suites pass before starting
-- [x] Plan finalized with modular KanbanManager.js approach
-- [x] Check that 10 concurrent instances run without errors: 10 machines processing simultaneously, ui starts with current fsm view
+- [x] Pytest test suite passes (214 tests)
+- [x] Multiple concurrent instances working (tested with 3 machines)
 - [x] Database enhancement: config_type field for diagram mapping
 - [x] Engine extracts config name from YAML and populates config_type
-- [x] UI uses config_type for diagram loading (resolves patient_record_1 → patient_records mapping)
+- [x] UI uses config_type for diagram loading
+- [x] WebSocket state updates match by config_type
 
-## Initialization Tasks
-- [x] Add configurable instance count to demo script (default: 1, test with 10)
-- [x] Add generic job initialization for all machines (job_1, job_2, etc.)
-- [x] Send start event to all machines after initialization
-- [x] Test single instance workflow end-to-end
-- [x] Generate FSM diagrams automatically on demo start
-- [x] Start UI server automatically (Node.js on port 3001)
-- [x] Start WebSocket server automatically (port 3002)
-- [x] Test 10 concurrent instances with job events
-- [x] Verify UI shows all instances with correct states
+**Initialization Complete!** Foundation ready for Kanban implementation.
 
-**Initialization Complete!** All 10 machines running with generic job events (job_1..job_10).
-Demo now includes automatic diagram generation and UI server startup.
-
-## 🔴 RED: Write Tests First
+## 🔴 RED: Write Tests First (Phase 1)
 
 ### Test Files to Create
-- [ ] Create `src/statemachine_engine/ui/public/tests/KanbanManager.test.js`
-  - [ ] Test: KanbanManager constructor initializes correctly
-  - [ ] Test: `detectBatchStates()` groups machines by FSM type
-  - [ ] Test: `showKanbanModal()` displays modal with correct columns
-  - [ ] Test: `updateInstance()` moves cards between columns
-  - [ ] Test: `closeKanbanModal()` hides modal properly
-  - [ ] Test: `_renderBoard()` creates CSS Grid layout
-  - [ ] Test: `_createCard()` generates correct HTML structure
-  - [ ] Test: `_animateCardMovement()` applies transition classes
-  - [ ] Test: `_bindEvents()` attaches click handlers correctly
+- [ ] Create `src/statemachine_engine/ui/public/tests/KanbanView.test.js`
+  - [ ] Test: KanbanView constructor initializes with template name
+  - [ ] Test: `render()` creates column for each state
+  - [ ] Test: `addCard()` places machine in correct state column
+  - [ ] Test: `updateCard()` moves card to new state column on state change
+  - [ ] Test: `removeCard()` removes terminated machines
+  - [ ] Test: `hide()` hides Kanban view
+  - [ ] Test: `show()` displays Kanban view
+  - [ ] Test: Columns created from states list in YAML config
 
 ### Integration Tests
-- [ ] Update existing test files with Kanban integration tests
-  - [ ] Test: app-modular.js imports KanbanManager correctly
-  - [ ] Test: Keyboard shortcut (K) triggers Kanban modal
+- [ ] Update existing test files with Kanban integration
+  - [ ] Test: app-modular.js imports KanbanView correctly
+  - [ ] Test: Toggle button switches between diagram and Kanban
   - [ ] Test: WebSocket state_change events update Kanban cards
-  - [ ] Test: MachineStateManager provides correct batch data
-  - [ ] Test: Modal doesn't interfere with existing diagram functionality
+  - [ ] Test: Only shows instances matching active template
+  - [ ] Test: Kanban view doesn't break diagram functionality
 
 ### Test Setup
 - [ ] Add Kanban test data fixtures
-  - [ ] Mock patient record instances (10+ machines)
+  - [ ] Mock patient_records template with 3 instances
+  - [ ] Mock states: waiting_for_report, summarizing, fact_checking, ready, failed, shutdown
   - [ ] Mock WebSocket state change events
-  - [ ] Mock MachineStateManager batch data
-- [ ] Add DOM test utilities for modal testing
-- [ ] Add CSS transition test helpers
-- [ ] Test. Test. Test. Ensure all tests fail initially (RED)
+- [ ] Add DOM test utilities for view testing
+- [ ] Ensure all tests fail initially (RED)
 
-## 🟢 GREEN: Implement Minimum Code
+## 🟢 GREEN: Implement Minimum Code (Phase 1)
 
 ### Step 1: Core Module (Minimum Implementation)
-- [ ] Create `src/statemachine_engine/ui/public/modules/KanbanManager.js` 
-  - [ ] Basic class constructor (pass failing tests)
-  - [ ] Stub methods that return empty/default values
-  - [ ] `detectBatchStates()` returns empty object
-  - [ ] `showKanbanModal()` creates basic modal structure
-  - [ ] `updateInstance()` basic card movement logic
-  - [ ] `closeKanbanModal()` hides modal
+- [ ] Create `src/statemachine_engine/ui/public/modules/KanbanView.js`
+  - [ ] Constructor accepts (container, templateName, states, logger)
+  - [ ] Store states array (e.g., ['waiting_for_report', 'summarizing', 'fact_checking', 'ready', 'failed', 'shutdown'])
+  - [ ] `render()` creates one column per state
+  - [ ] `addCard(machineName, state)` adds card to state column
+  - [ ] `updateCard(machineName, newState)` moves card
+  - [ ] `removeCard(machineName)` removes card
+  - [ ] `show()` displays view
+  - [ ] `hide()` hides view
 
-### Step 2: UI Structure (Test-Required HTML)
+### Step 2: UI Structure (Toggle Button)
 - [ ] Update `src/statemachine_engine/ui/public/index.html`
-  - [ ] Add minimal `#kanban-modal` div for tests
-  - [ ] Add basic modal structure that tests expect
+  - [ ] Add toggle button in diagram controls area
+  - [ ] Add `#kanban-view` container (initially hidden)
+  - [ ] Keep existing diagram container
 
-### Step 3: Basic Styling (Test-Required CSS)
+### Step 3: Basic Styling (Kanban Layout)
 - [ ] Update `src/statemachine_engine/ui/public/style.css`
-  - [ ] Minimal modal visibility styles
-  - [ ] Basic grid layout (1 column to start)
-  - [ ] Card container styles for test recognition
+  - [ ] Kanban view container styles (full width, hidden by default)
+  - [ ] Column layout using CSS Grid (6 columns for 6 states)
+  - [ ] Card styles (machine instance boxes)
+  - [ ] Toggle button styles
+  - [ ] Show/hide transitions
 
-### Step 4: Integration (Test-Required Connections)
+### Step 4: Integration (View Management)
 - [ ] Update `src/statemachine_engine/ui/public/app-modular.js`
-  - [ ] Import KanbanManager (even if methods are stubs)
-  - [ ] Initialize in `initializeModules()` 
-  - [ ] Add keyboard event listener (K key)
+  - [ ] Import KanbanView
+  - [ ] Get states list from config YAML or metadata
+  - [ ] Initialize KanbanView with current template and states
+  - [ ] Add toggle button click handler
+  - [ ] Switch between diagram and Kanban views
+  - [ ] Update Kanban on state_change events (if visible)
+  - [ ] Rebuild Kanban when switching templates
 
-### Step 5: Extensions (Test-Required Data)
-- [ ] Update `src/statemachine_engine/ui/public/modules/MachineStateManager.js`
-  - [ ] Add stub methods that return test-friendly data
-  - [ ] `groupInstancesByType()` returns grouped test data
+### Step 5: State List Access
+- [ ] Update `src/statemachine_engine/ui/public/modules/DiagramManager.js`
+  - [ ] Expose config states list to app-modular.js
+  - [ ] Or extract states from metadata if not available directly
 
-## 🔵 REFACTOR: Enhance Implementation
+## 🔵 REFACTOR: Enhance Implementation (Phase 1)
 
-### Full Feature Implementation
-- [ ] Enhance KanbanManager methods with real logic
-- [ ] Add proper CSS Grid layout with multiple columns
-- [ ] Implement smooth animations and transitions
-- [ ] Add proper error handling and edge cases
-- [ ] Add responsive design and mobile support
+### Visual Polish
+- [ ] Add smooth show/hide animations
+- [ ] Improve card styling (colors by state)
+- [ ] Add column headers with instance counts
+- [ ] Add empty state message ("No instances running")
 
-### Performance & UX Improvements  
+### Real-time Updates
 - [ ] Optimize card movement animations
-- [ ] Add loading states for async operations
-- [ ] Implement keyboard navigation within modal
-- [ ] Add visual feedback for user interactions
+- [ ] Add visual feedback for state transitions
+- [ ] Handle rapid state changes gracefully
 
-## 🧪 Continuous Testing
+### Error Handling
+- [ ] Handle missing metadata gracefully
+- [ ] Handle unknown states (put in default column)
+- [ ] Handle template switches mid-update
 
-### After Each TDD Cycle
-- [ ] Run `npm test` - all tests should pass after GREEN phase
-- [ ] Run patient records demo integration test
-- [ ] Verify no regression in existing functionality
-- [ ] Manual test keyboard shortcut (K) functionality
+## 🧪 Testing (Phase 1)
 
-### End-to-End Testing
-- [ ] Test with 10 concurrent patient record instances
-- [ ] Verify real-time WebSocket updates move cards
-- [ ] Test modal open/close with existing UI interactions
-- [ ] Cross-browser compatibility check
+### Unit Tests
+- [ ] Run `npm test` - all KanbanView tests pass
+- [ ] Verify toggle functionality
+- [ ] Verify card placement logic
+- [ ] Verify state update handling
 
-## ✅ Success Criteria
-- [ ] Keyboard shortcut (K) opens Kanban view for batch FSMs
-- [ ] Cards animate smoothly between state columns
-- [ ] Real-time updates from WebSocket events
-- [ ] Zero breakage of existing functionality
-- [ ] Demo runs with 10 concurrent patient record instances
+### Integration Tests
+- [ ] Test with patient records demo (3 instances)
+- [ ] Verify toggle button switches views
+- [ ] Verify all 3 machines appear in correct columns
+- [ ] Verify real-time updates move cards
+- [ ] Verify no regression in diagram functionality
 
-## 🎮 TDD Demo Workflow
-
-### Test-First Development Cycle
+### Manual Testing
 ```bash
-# 1. Write tests first
-npm test  # Should FAIL initially (RED)
+# Start demo with 3 instances
+./examples/patient_records/run-demo.sh cleanup
+MACHINE_COUNT=3 ./examples/patient_records/run-demo.sh start
 
-# 2. Write minimum code to pass tests  
-npm test  # Should PASS after implementation (GREEN)
+# Open UI
+open http://localhost:3001
 
-# 3. Refactor and improve
-npm test  # Should still PASS after refactoring (REFACTOR)
+# Test checklist:
+- [ ] Toggle button visible
+- [ ] Click toggle → see Kanban view
+- [ ] 3 cards visible in columns
+- [ ] Cards move as states change (10s, 5s timeouts)
+- [ ] Click toggle → back to diagram view
+- [ ] Switch templates → Kanban rebuilds
+```
 
-# 4. Integration testing with demo
-./examples/patient_records/run-demo.sh start
-./examples/patient_records/run-demo.sh events
-open http://localhost:3002  # Press K key to test
+## ✅ Phase 1 Success Criteria
+- [ ] Toggle button switches between diagram and Kanban view
+- [ ] Kanban shows all instances of active template
+- [ ] One column per state (6 columns for patient_records)
+- [ ] Cards update in real-time via WebSocket
+- [ ] No breakage of existing diagram functionality
+- [ ] Works with patient records demo (3+ instances)
+
+## Phase 2: State Group Aggregation (Future)
+
+### Planned Features
+- [ ] Group states into composite columns (IDLE, PROCESSING, COMPLETION)
+- [ ] Click column header to expand/collapse states
+- [ ] Drill-in to show subdiagram for state group
+- [ ] Click composite state in diagram → show Kanban for that group
+- [ ] Breadcrumb navigation between views
+- [ ] Keyboard shortcuts (K key, ESC key)
+- [ ] Multi-template aggregation view
+- [ ] Card drag-and-drop for manual state changes
+
+### Not Implemented Yet
+- State group aggregation (showing individual states instead)
+- Modal-based Kanban (using inline view instead)
+- Batch state detection (showing template explicitly)
+- Click handlers on cards (future enhancement)
+
+## 📝 Implementation Notes
+
+### Design Decisions
+- **Inline view vs modal**: Using inline toggle for simpler UX
+- **Template-scoped**: Show Kanban only for active template
+- **Individual states as columns**: One column per state, not grouped
+- **No keyboard shortcuts**: Visual button only in Phase 1
+- **Read-only cards**: No interaction in Phase 1
+
+### Architecture
+```
+app-modular.js
+  ├─ DiagramManager (existing, shows FSM diagram)
+  ├─ KanbanView (new, shows instance cards)
+  └─ Toggle button switches between them
+
+State Change Flow:
+WebSocket → app-modular.js → {
+  if diagram visible: DiagramManager.updateState()
+  if kanban visible: KanbanView.updateCard()
+}
+```
+
+### Data Flow
+```
+Template: "patient_records"
+  ├─ Instances: [patient_record_1, patient_record_2, patient_record_3]
+  ├─ States: [waiting_for_report, summarizing, fact_checking, ready, failed, shutdown]
+  └─ Current States: [summarizing, fact_checking, ready]
+
+Kanban Columns:
+  waiting_for_report: []
+  summarizing: [patient_record_1]
+  fact_checking: [patient_record_2]
+  ready: [patient_record_3]
+  failed: []
+  shutdown: []
+```
+
+## 🎮 Development Workflow
+
+### TDD Cycle
+```bash
+# 1. Write tests (RED)
+npm test  # Tests fail
+
+# 2. Implement minimum code (GREEN)
+npm test  # Tests pass
+
+# 3. Refactor and polish (REFACTOR)
+npm test  # Tests still pass
+
+# 4. Integration test
+MACHINE_COUNT=3 ./examples/patient_records/run-demo.sh start
+open http://localhost:3001
+# Click toggle, verify Kanban view
 
 # 5. Cleanup
 ./examples/patient_records/run-demo.sh cleanup
 ```
 
-### Test Development Order
-1. **RED:** Write KanbanManager.test.js (tests fail)
-2. **GREEN:** Create minimal KanbanManager.js (tests pass)
-3. **REFACTOR:** Enhance implementation (tests still pass)
-4. **REPEAT:** Next feature/method
-
-## 📝 TDD Implementation Notes
-- **Test-driven:** Every method has tests before implementation
-- **Minimal viable:** Start with simplest passing implementation
-- **Incremental:** Add one feature at a time with full test coverage
-- **Refactor safely:** Tests ensure no regression during improvements
-- **No backend changes** - use existing engine/database/WebSocket
-- **Modular design** - separate module keeps DiagramManager.js clean
+### Commit Strategy
+- Commit after each GREEN phase
+- Commit after refactoring
+- Tag release when Phase 1 complete

@@ -1,0 +1,17 @@
+stateDiagram-v2
+    %% Detailed view of COMPLETED
+
+    [*] --> failed
+    [*] --> ready
+    [*] --> shutdown
+
+    %% Internal transitions
+
+    %% External composites
+    state IDLE
+    state SUMMARIZING
+    state FACT_CHECKING
+
+    %% Transitions to other composites
+    failed --> IDLE : retry_report
+    ready --> IDLE : process_next

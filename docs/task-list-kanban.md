@@ -3,12 +3,30 @@
 ## 🎯 Objective
 Add Kanban view for concurrent FSM visualization - patient records demo with 10+ instances
 
-## ✅ Completed
+## Initial Checklist
 - [x] Patient records FSM created (`examples/patient_records/config/patient-records.yaml`)
 - [x] State groups added for new diagram format (3 composite subdiagrams)
 - [x] Demo script created (`examples/patient_records/run-demo.sh`)
-- [x] All tests passing (Python: 214, UI: 62, Engine: functional)
+- [x] Check Pytest and npm test suites pass before starting
 - [x] Plan finalized with modular KanbanManager.js approach
+- [x] Check that 10 concurrent instances run without errors: 10 machines processing simultaneously, ui starts with current fsm view
+- [x] Database enhancement: config_type field for diagram mapping
+- [x] Engine extracts config name from YAML and populates config_type
+- [x] UI uses config_type for diagram loading (resolves patient_record_1 → patient_records mapping)
+
+## Initialization Tasks
+- [x] Add configurable instance count to demo script (default: 1, test with 10)
+- [x] Add generic job initialization for all machines (job_1, job_2, etc.)
+- [x] Send start event to all machines after initialization
+- [x] Test single instance workflow end-to-end
+- [x] Generate FSM diagrams automatically on demo start
+- [x] Start UI server automatically (Node.js on port 3001)
+- [x] Start WebSocket server automatically (port 3002)
+- [x] Test 10 concurrent instances with job events
+- [x] Verify UI shows all instances with correct states
+
+**Initialization Complete!** All 10 machines running with generic job events (job_1..job_10).
+Demo now includes automatic diagram generation and UI server startup.
 
 ## 🔴 RED: Write Tests First
 

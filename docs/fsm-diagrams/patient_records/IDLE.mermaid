@@ -1,0 +1,13 @@
+stateDiagram-v2
+    %% Detailed view of IDLE
+
+    [*] --> waiting_for_report
+
+    %% Internal transitions
+
+    %% External composites
+    state PROCESSING
+    state COMPLETION
+
+    %% Transitions to other composites
+    waiting_for_report --> PROCESSING : new_report

@@ -52,10 +52,14 @@ cleanup() {
     # Clean up control sockets
     rm -f /tmp/statemachine-control-patient_record_*.sock 2>/dev/null || true
     
-    # Nuke the database for fresh start
+    # Nuke the database for fresh start (both locations)
+    if [[ -f "$SCRIPT_DIR/data/pipeline.db" ]]; then
+        rm -f "$SCRIPT_DIR/data/pipeline.db"
+        echo "✓ Database cleaned (local)"
+    fi
     if [[ -f "$SCRIPT_DIR/../../data/pipeline.db" ]]; then
         rm -f "$SCRIPT_DIR/../../data/pipeline.db"
-        echo "✓ Database cleaned"
+        echo "✓ Database cleaned (repo root)"
     fi
     
     sleep 2
@@ -123,18 +127,11 @@ generate_diagrams() {
 # Function to start UI server
 start_ui_server() {
     echo "🖥️  Starting Web UI..."
-    cd "$SCRIPT_DIR/../.."
     
-    # Check if UI server is already running
-    if lsof -ti:3001 >/dev/null 2>&1; then
-        echo "   └─ UI server already running on port 3001"
-        return 0
-    fi
-    
-    # Check if Node.js is available
-    if ! command -v node &> /dev/null; then
-        echo "⚠️  Node.js not found, skipping Web UI"
-        echo "   Install Node.js to enable the web interface"
+    # Check if statemachine-ui is available
+    if ! command -v statemachine-ui &> /dev/null; then
+        echo "⚠️  statemachine-ui not found, skipping Web UI"
+        echo "   Install statemachine-engine to enable the web interface"
         return 1
     fi
     
@@ -142,24 +139,26 @@ start_ui_server() {
     lsof -ti:3001 | xargs kill -9 2>/dev/null || true
     sleep 1
     
-    # Start UI server in background
-    cd src/statemachine_engine/ui
-    PROJECT_ROOT="$SCRIPT_DIR/../.." node server.cjs > "$LOG_DIR/ui-server.log" 2>&1 &
+    # Start UI server in background using statemachine-ui command
+    local project_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    statemachine-ui --port 3001 --project-root "$project_root" --no-websocket > "$LOG_DIR/ui-server.log" 2>&1 &
     local pid=$!
     echo "$pid" > "$LOG_DIR/ui_server.pid"
-    cd "$SCRIPT_DIR"
-    echo "   └─ PID: $pid, URL: http://localhost:3001"
     
-    # Wait for UI server to actually start
-    for i in {1..10}; do
+    # Wait for UI to be ready with health checks
+    local max_attempts=10
+    local attempt=0
+    while [ $attempt -lt $max_attempts ]; do
         sleep 1
-        if curl -s http://localhost:3001/api/config >/dev/null 2>&1; then
+        if curl -s http://localhost:3001/api/config > /dev/null 2>&1; then
+            echo "   └─ PID: $pid, URL: http://localhost:3001"
             echo "   └─ UI server ready"
             return 0
         fi
+        attempt=$((attempt + 1))
     done
     
-    echo "⚠️  UI server may not have started correctly"
+    echo "   └─ ⚠️ UI server may not be fully ready (check logs/ui-server.log)"
     return 1
 }
 

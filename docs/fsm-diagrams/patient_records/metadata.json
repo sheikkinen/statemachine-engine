@@ -6,9 +6,25 @@
       "title": "patient_records Overview",
       "description": "High-level state machine flow with composite states",
       "composites": [
+        "IDLE",
         "PROCESSING",
         "COMPLETION"
       ]
+    },
+    "IDLE": {
+      "file": "IDLE.mermaid",
+      "title": "IDLE",
+      "description": "Detailed view of idle",
+      "states": [
+        "waiting_for_report"
+      ],
+      "entry_states": [
+        "waiting_for_report"
+      ],
+      "exit_states": [
+        "waiting_for_report"
+      ],
+      "parent": "main"
     },
     "PROCESSING": {
       "file": "PROCESSING.mermaid",
@@ -33,11 +49,13 @@
       "description": "Detailed view of completion",
       "states": [
         "ready",
-        "failed"
+        "failed",
+        "shutdown"
       ],
       "entry_states": [
         "ready",
-        "failed"
+        "failed",
+        "shutdown"
       ],
       "exit_states": [
         "failed",

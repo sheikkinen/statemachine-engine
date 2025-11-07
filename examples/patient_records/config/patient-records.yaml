@@ -3,6 +3,7 @@ initial_state: waiting_for_report
 
 # Define states with composite groupings for diagram visualization
 states:
+  # === IDLE STATES ===
   - waiting_for_report
   # === PROCESSING STATES ===
   - summarizing
@@ -10,96 +11,67 @@ states:
   # === COMPLETION STATES ===
   - ready  
   - failed
+  - shutdown
 
 transitions:
   # Start processing a new report
   - from: waiting_for_report
     to: summarizing
     event: new_report
-    actions:
-      - type: log
-        params:
-          message: "📄 Starting to process report {report_id}: {report_title}"
-          level: info
 
-  # Convert report into paragraph summary
+  # Convert report into paragraph summary (auto-completes after 10s)
+  - from: summarizing
+    to: fact_checking
+    event: timeout(10)
+  
+  # Manual completion (if needed before timeout)
   - from: summarizing
     to: fact_checking
     event: summary_complete
-    actions:
-      - type: log
-        params:
-          message: "✍️ Generated summary for report {report_id}: {summary_text}"
-          level: info
 
   # Validation loop - summary not based on report, try again
   - from: summarizing
     to: summarizing
     event: summary_invalid
-    actions:
-      - type: log
-        params:
-          message: "⚠️ Summary invalid for report {report_id}, retrying..."
-          level: warning
 
-  # Check that summary is based on report
+  # Check that summary is based on report (auto-validates after 5s)
+  - from: fact_checking  
+    to: ready
+    event: timeout(5)
+  
+  # Manual validation (if needed before timeout)
   - from: fact_checking  
     to: ready
     event: validation_passed
-    actions:
-      - type: log
-        params:
-          message: "✅ Report {report_id} validation passed - ready for history generation"
-          level: success
 
   # Validation loop - facts don't match, go back to summarizing
   - from: fact_checking
     to: summarizing
     event: validation_failed
-    actions:
-      - type: log
-        params:
-          message: "❌ Fact check failed for report {report_id}, re-summarizing..."
-          level: warning
 
   # Handle processing failures
   - from: summarizing
     to: failed
     event: processing_error
-    actions:
-      - type: log
-        params:
-          message: "💥 Processing error for report {report_id}: {error_message}"
-          level: error
 
   - from: fact_checking
     to: failed
     event: processing_error
-    actions:
-      - type: log
-        params:
-          message: "💥 Fact checking error for report {report_id}: {error_message}"
-          level: error
 
   # Reset failed reports for retry
   - from: failed
     to: waiting_for_report
     event: retry_report
-    actions:
-      - type: log
-        params:
-          message: "🔄 Retrying failed report {report_id}"
-          level: info
 
   # Process another report from ready state
   - from: ready
     to: waiting_for_report
     event: process_next
-    actions:
-      - type: log
-        params:
-          message: "✨ Report {report_id} complete, ready for next report"
-          level: success
+
+  # Stop from anywhere for graceful shutdown
+  - from: "*"
+    to: shutdown
+    event: stop
 
 # Events that can be triggered externally
 events:
@@ -111,15 +83,46 @@ events:
   - processing_error
   - retry_report
   - process_next
+  - stop
 
-# Timeout configurations for realistic processing simulation
-timeouts:
-  # Summarizing takes 5-15 seconds typically
-  - state: summarizing
-    duration: 10
-    event: summary_complete
-    
-  # Fact checking takes 3-8 seconds typically  
-  - state: fact_checking
-    duration: 5
-    event: validation_passed
+# Actions organized by state (executed when entering that state)
+actions:
+  waiting_for_report:
+    - type: log
+      message: "⏳ Waiting for new patient report..."
+      level: info
+
+  summarizing:
+    - type: log
+      message: "� Starting to process report {report_id}: {report_title}"
+      level: info
+    - type: log
+      message: "✍️ Generating summary (auto-completes in 10s)..."
+      level: info
+
+  fact_checking:
+    - type: log
+      message: "� Fact-checking summary for report {report_id}"
+      level: info
+    - type: log
+      message: "✅ Validating facts (auto-completes in 5s)..."
+      level: info
+
+  ready:
+    - type: log
+      message: "✅ Report {report_id} validation passed - ready for history generation"
+      level: success
+    - type: bash
+      command: "echo 'Report {report_id} complete - triggering shutdown'"
+      timeout: 5
+      success: stop
+
+  failed:
+    - type: log
+      message: "💥 Processing error for report {report_id}: {error_message}"
+      level: error
+
+  shutdown:
+    - type: log
+      message: "👋 Patient record processor shutting down..."
+      level: info

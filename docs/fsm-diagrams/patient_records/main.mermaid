@@ -1,11 +1,16 @@
 stateDiagram-v2
-    [*] --> waiting_for_report
+    [*] --> IDLE
+
+    %% IDLE (1 states)
+    state IDLE
 
     %% PROCESSING (2 states)
     state PROCESSING
 
-    %% COMPLETION (2 states)
+    %% COMPLETION (3 states)
     state COMPLETION
 
     %% Transitions between composites
-    PROCESSING --> COMPLETION : validation_passed
+    IDLE --> PROCESSING : new_report
+    PROCESSING --> COMPLETION : timeout(5)
+    COMPLETION --> IDLE : retry_report

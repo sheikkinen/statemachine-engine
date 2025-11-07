@@ -248,7 +248,7 @@ class StateMachineEngine:
             await self._check_control_socket()
             
             # Check if we've reached a terminal state
-            if self.current_state == "stopped":
+            if self.current_state in ["stopped", "shutdown", "completed"]:
                 logger.info(f"[{self.machine_name}] State machine reached terminal state: {self.current_state}")
                 break
                 

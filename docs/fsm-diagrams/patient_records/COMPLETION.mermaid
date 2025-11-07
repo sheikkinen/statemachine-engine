@@ -3,12 +3,14 @@ stateDiagram-v2
 
     [*] --> failed
     [*] --> ready
+    [*] --> shutdown
 
     %% Internal transitions
 
     %% External composites
+    state IDLE
     state PROCESSING
 
     %% Transitions to other composites
-    failed --> waiting_for_report : retry_report
-    ready --> waiting_for_report : process_next
+    failed --> IDLE : retry_report
+    ready --> IDLE : process_next

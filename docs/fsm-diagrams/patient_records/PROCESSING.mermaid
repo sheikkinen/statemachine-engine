@@ -4,14 +4,17 @@ stateDiagram-v2
     [*] --> summarizing
 
     %% Internal transitions
+    summarizing --> fact_checking : timeout(10)
     summarizing --> fact_checking : summary_complete
     summarizing --> summarizing : summary_invalid
     fact_checking --> summarizing : validation_failed
 
     %% External composites
+    state IDLE
     state COMPLETION
 
     %% Transitions to other composites
+    fact_checking --> COMPLETION : timeout(5)
     fact_checking --> COMPLETION : validation_passed
     summarizing --> COMPLETION : processing_error
     fact_checking --> COMPLETION : processing_error

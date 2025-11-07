@@ -114,11 +114,9 @@ class StateMachineEngine:
             self.config = yaml.safe_load(f)
         
         # Extract config name from file path for diagram mapping
+        # This MUST match the diagram directory name (e.g., "controller.yaml" -> "controller")
+        # The YAML 'name' field is just a human-readable label, not the config identifier
         self.config_name = config_path.stem  # e.g., "patient-records.yaml" -> "patient-records"
-        
-        # If config has a 'name' field, use that instead
-        if 'name' in self.config:
-            self.config_name = self.config['name']
             
         # Set initial state
         self.current_state = self.config.get('initial_state', 'waiting')

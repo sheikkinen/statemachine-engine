@@ -39,6 +39,15 @@ cleanup() {
         rm -f "$LOG_DIR/ui_server.pid"
     fi
     
+    # Clean up control sockets
+    rm -f /tmp/statemachine-control-patient_record_*.sock 2>/dev/null || true
+    
+    # Nuke the database for fresh start
+    if [[ -f "$SCRIPT_DIR/../../data/pipeline.db" ]]; then
+        rm -f "$SCRIPT_DIR/../../data/pipeline.db"
+        echo "✓ Database cleaned"
+    fi
+    
     sleep 2
     echo "✅ Cleanup complete"
 }

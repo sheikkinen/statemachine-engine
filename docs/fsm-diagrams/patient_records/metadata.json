@@ -1,0 +1,49 @@
+{
+  "machine_name": "patient_records",
+  "diagrams": {
+    "main": {
+      "file": "main.mermaid",
+      "title": "patient_records Overview",
+      "description": "High-level state machine flow with composite states",
+      "composites": [
+        "PROCESSING",
+        "COMPLETION"
+      ]
+    },
+    "PROCESSING": {
+      "file": "PROCESSING.mermaid",
+      "title": "PROCESSING",
+      "description": "Detailed view of processing",
+      "states": [
+        "summarizing",
+        "fact_checking"
+      ],
+      "entry_states": [
+        "summarizing"
+      ],
+      "exit_states": [
+        "fact_checking",
+        "summarizing"
+      ],
+      "parent": "main"
+    },
+    "COMPLETION": {
+      "file": "COMPLETION.mermaid",
+      "title": "COMPLETION",
+      "description": "Detailed view of completion",
+      "states": [
+        "ready",
+        "failed"
+      ],
+      "entry_states": [
+        "ready",
+        "failed"
+      ],
+      "exit_states": [
+        "failed",
+        "ready"
+      ],
+      "parent": "main"
+    }
+  }
+}

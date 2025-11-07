@@ -1,0 +1,11 @@
+stateDiagram-v2
+    [*] --> waiting_for_report
+
+    %% PROCESSING (2 states)
+    state PROCESSING
+
+    %% COMPLETION (2 states)
+    state COMPLETION
+
+    %% Transitions between composites
+    PROCESSING --> COMPLETION : validation_passed

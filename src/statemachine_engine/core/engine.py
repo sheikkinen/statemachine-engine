@@ -95,6 +95,7 @@ class StateMachineEngine:
         self.context = {}
         self.actions = {}
         self.machine_name = machine_name
+        self.config_name = None  # Configuration type for diagram mapping
         self.actions_root = actions_root  # Custom actions directory
         self.control_socket_prefix = control_socket_prefix or '/tmp/statemachine-control'  # Control socket prefix
         self.event_socket = EventSocketManager(socket_path=event_socket_path)  # NEW: Unix socket for real-time events
@@ -111,6 +112,13 @@ class StateMachineEngine:
             
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
+        
+        # Extract config name from file path for diagram mapping
+        self.config_name = config_path.stem  # e.g., "patient-records.yaml" -> "patient-records"
+        
+        # If config has a 'name' field, use that instead
+        if 'name' in self.config:
+            self.config_name = self.config['name']
             
         # Set initial state
         self.current_state = self.config.get('initial_state', 'waiting')
@@ -386,13 +394,14 @@ class StateMachineEngine:
                 import os
                 with job_model.db._get_connection() as conn:
                     conn.execute("""
-                        INSERT INTO machine_state (machine_name, current_state, last_activity, pid, metadata)
-                        VALUES (?, ?, ?, ?, ?)
+                        INSERT INTO machine_state (machine_name, current_state, last_activity, pid, metadata, config_type)
+                        VALUES (?, ?, ?, ?, ?, ?)
                         ON CONFLICT(machine_name) DO UPDATE SET
                             current_state = excluded.current_state,
                             last_activity = excluded.last_activity,
-                            pid = excluded.pid
-                    """, (self.machine_name, current_state, time.time(), os.getpid(), None))
+                            pid = excluded.pid,
+                            config_type = excluded.config_type
+                    """, (self.machine_name, current_state, time.time(), os.getpid(), None, self.config_name))
                     conn.commit()
             except Exception as e:
                 logger.debug(f"[{self.machine_name}] Failed to update machine_state: {e}")

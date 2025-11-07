@@ -34,8 +34,10 @@ CREATE TABLE IF NOT EXISTS machine_state (
     current_state TEXT,
     last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     pid INTEGER,
-    metadata TEXT
+    metadata TEXT,
+    config_type TEXT  -- Configuration type for diagram mapping (e.g., 'patient_records', 'worker')
 );
 
 -- Indexes for machine monitoring
 CREATE INDEX IF NOT EXISTS idx_machine_state_activity ON machine_state (last_activity);
+CREATE INDEX IF NOT EXISTS idx_machine_state_config_type ON machine_state (config_type);

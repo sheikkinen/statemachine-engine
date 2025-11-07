@@ -339,7 +339,7 @@ async def get_initial_state() -> dict:
         # Get current machine states
         with db._get_connection() as conn:
             machines = conn.execute("""
-                SELECT machine_name, current_state, last_activity, metadata
+                SELECT machine_name, current_state, last_activity, metadata, config_type
                 FROM machine_state
                 ORDER BY machine_name
             """).fetchall()

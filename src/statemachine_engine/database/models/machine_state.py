@@ -23,7 +23,7 @@ class MachineStateModel:
         """Get all machines with their current state"""
         with self.db._get_connection() as conn:
             rows = conn.execute("""
-                SELECT machine_name, current_state, last_activity, metadata
+                SELECT machine_name, current_state, last_activity, metadata, config_type
                 FROM machine_state ORDER BY machine_name
             """).fetchall()
             return [dict(row) for row in rows]
@@ -32,7 +32,7 @@ class MachineStateModel:
         """Get state for a specific machine"""
         with self.db._get_connection() as conn:
             row = conn.execute("""
-                SELECT machine_name, current_state, last_activity, metadata
+                SELECT machine_name, current_state, last_activity, metadata, config_type
                 FROM machine_state
                 WHERE machine_name = ?
             """, (machine_name,)).fetchone()
@@ -40,17 +40,18 @@ class MachineStateModel:
             return dict(row) if row else None
     
     def update_machine_state(self, machine_name: str, current_state: str,
-                            metadata: Dict[str, Any] = None):
+                            metadata: Dict[str, Any] = None, config_type: str = None):
         """Update or insert machine state"""
         with self.db._get_connection() as conn:
             conn.execute("""
-                INSERT INTO machine_state (machine_name, current_state, metadata)
-                VALUES (?, ?, ?)
+                INSERT INTO machine_state (machine_name, current_state, metadata, config_type)
+                VALUES (?, ?, ?, ?)
                 ON CONFLICT(machine_name) DO UPDATE SET
                     current_state = excluded.current_state,
                     last_activity = CURRENT_TIMESTAMP,
-                    metadata = excluded.metadata
-            """, (machine_name, current_state, json.dumps(metadata) if metadata else None))
+                    metadata = excluded.metadata,
+                    config_type = excluded.config_type
+            """, (machine_name, current_state, json.dumps(metadata) if metadata else None, config_type))
             conn.commit()
     
     def get_recent_state_changes(self, hours: int = 1) -> List[Dict[str, Any]]:

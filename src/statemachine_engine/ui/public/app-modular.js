@@ -49,9 +49,10 @@ class StateMachineMonitor {
                 document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
                 button.classList.add('active');
 
-                // Load diagram for selected machine
-                this.diagramManager.loadDiagram(machine.machine_name).then(() => {
-                    console.log(`[App] Switched to ${machine.machine_name} diagram`);
+                // Load diagram for selected machine (use config_type if available)
+                const diagramType = machine.config_type || machine.machine_name;
+                this.diagramManager.loadDiagram(diagramType).then(() => {
+                    console.log(`[App] Switched to ${machine.machine_name} diagram (type: ${diagramType})`);
                 });
             });
 
@@ -107,9 +108,10 @@ class StateMachineMonitor {
                     
                     // Load diagram for first machine
                     if (data.machines.length > 0) {
-                        const firstMachine = data.machines[0].machine_name;
-                        this.logger.log('info', `Loading diagram for ${firstMachine}`);
-                        this.diagramManager.loadDiagram(firstMachine);
+                        const firstMachine = data.machines[0];
+                        const diagramType = firstMachine.config_type || firstMachine.machine_name;
+                        this.logger.log('info', `Loading diagram for ${firstMachine.machine_name} (type: ${diagramType})`);
+                        this.diagramManager.loadDiagram(diagramType);
                     }
                 }
             },

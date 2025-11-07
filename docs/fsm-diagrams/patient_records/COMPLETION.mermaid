@@ -1,0 +1,14 @@
+stateDiagram-v2
+    %% Detailed view of COMPLETION
+
+    [*] --> failed
+    [*] --> ready
+
+    %% Internal transitions
+
+    %% External composites
+    state PROCESSING
+
+    %% Transitions to other composites
+    failed --> waiting_for_report : retry_report
+    ready --> waiting_for_report : process_next

@@ -124,15 +124,17 @@ class StateMachineMonitor {
                 console.log(`[App] ${timestamp} - Extracted machine:`, machine);
                 console.log(`[App] ${timestamp} - Extracted transition:`, transition);
                 
-                // Update diagram if this is the selected machine
-                if (data.machine_name === this.diagramManager.selectedMachine) {
-                    console.log(`[App] ${timestamp} - Updating diagram for selected machine: ${data.machine_name}`);
+                // Update diagram if this machine's config_type matches the selected diagram
+                // Use config_type from the machine object (which has the template name)
+                const machineConfigType = machine.config_type || data.machine_name;
+                if (machineConfigType === this.diagramManager.selectedMachine) {
+                    console.log(`[App] ${timestamp} - Updating diagram for machine: ${data.machine_name} (type: ${machineConfigType})`);
                     this.diagramManager.updateState(
                         machine.current_state,
                         transition
                     );
                 } else {
-                    console.log(`[App] ${timestamp} - Skipping diagram update - not selected machine (${data.machine_name} vs ${this.diagramManager.selectedMachine})`);
+                    console.log(`[App] ${timestamp} - Skipping diagram update - wrong type (machine ${data.machine_name} type ${machineConfigType} vs selected ${this.diagramManager.selectedMachine})`);
                 }
             },
             activity_log: (data) => {

@@ -25,3 +25,4 @@ docs/forge.md
 *.db-journal
 data/
 *.log
+*.pid

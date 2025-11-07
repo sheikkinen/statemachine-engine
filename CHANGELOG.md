@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.67] - 2025-11-07
+
+### Fixed
+- **Patient records demo configuration**
+  - Fixed YAML syntax: moved actions from transitions to separate `actions:` section
+  - Fixed timeout syntax: replaced unsupported `timeouts:` section with inline `timeout(N)` events in transitions
+  - Removed incorrect `params:` wrapper from log actions
+  - Actions now properly execute when entering states
+
+### Enhanced
+- **Terminal state handling**
+  - Added support for `shutdown` and `completed` terminal states in engine (in addition to `stopped`)
+  - State machines now properly exit when reaching terminal states
+  - Added graceful shutdown workflow to patient records demo
+
+### Changed
+- **Demo improvements**
+  - Use `statemachine-ui` command instead of direct Node.js server startup
+  - Fixed PROJECT_ROOT path resolution using absolute paths
+  - Enhanced database cleanup to handle both local and repo root databases
+  - Patient records demo now exits after completing a report (shutdown state)
+
 ## [1.0.66] - 2025-10-30
 
 ### Fixed

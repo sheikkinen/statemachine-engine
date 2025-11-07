@@ -270,6 +270,9 @@ class StateMachineEngine:
         
         # Cleanup on exit
         self._cleanup_sockets()
+        
+        # Remove machine from database when terminating
+        self._delete_machine_state()
     
     async def process_event(self, event: str, context: Dict[str, Any] = None) -> bool:
         """Process an event and potentially transition to a new state"""
@@ -407,6 +410,22 @@ class StateMachineEngine:
                 logger.warning(f"[{self.machine_name}] Failed to update machine_state: {e}")
         else:
             logger.warning(f"[{self.machine_name}] Cannot update machine_state: job_model={job_model is not None}, machine_name={self.machine_name}")
+    
+    def _delete_machine_state(self):
+        """Delete machine from machine_state table when terminating"""
+        job_model = self.context.get('job_model')
+        if job_model and hasattr(job_model, 'db') and self.machine_name:
+            try:
+                with job_model.db._get_connection() as conn:
+                    conn.execute("""
+                        DELETE FROM machine_state WHERE machine_name = ?
+                    """, (self.machine_name,))
+                    conn.commit()
+                logger.info(f"[{self.machine_name}] Removed from machine_state table")
+            except Exception as e:
+                logger.warning(f"[{self.machine_name}] Failed to delete machine_state: {e}")
+        else:
+            logger.debug(f"[{self.machine_name}] No machine_state to delete")
     
     def _emit_realtime_event(self, event_type: str, payload: dict):
         """Emit event via Unix socket with database fallback"""

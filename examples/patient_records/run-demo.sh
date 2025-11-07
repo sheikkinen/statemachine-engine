@@ -128,6 +128,10 @@ start_ui_server() {
         return 1
     fi
     
+    # Kill any stale processes on port 3001
+    lsof -ti:3001 | xargs kill -9 2>/dev/null || true
+    sleep 1
+    
     # Start UI server in background
     cd src/statemachine_engine/ui
     PROJECT_ROOT="$SCRIPT_DIR/../.." node server.cjs > "$LOG_DIR/ui-server.log" 2>&1 &
@@ -136,8 +140,17 @@ start_ui_server() {
     cd "$SCRIPT_DIR"
     echo "   └─ PID: $pid, URL: http://localhost:3001"
     
-    # Wait for UI server to start
-    sleep 2
+    # Wait for UI server to actually start
+    for i in {1..10}; do
+        sleep 1
+        if curl -s http://localhost:3001/api/config >/dev/null 2>&1; then
+            echo "   └─ UI server ready"
+            return 0
+        fi
+    done
+    
+    echo "⚠️  UI server may not have started correctly"
+    return 1
 }
 
 # Function to send sample events to machines

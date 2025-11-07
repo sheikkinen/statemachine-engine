@@ -7,6 +7,7 @@ Event-driven state machine framework with real-time monitoring and database-back
 - **YAML-Based Configuration**: Define workflows declaratively
 - **Pluggable Actions**: Extensible action system with built-in actions
 - **Real-Time Monitoring**: WebSocket server for live state visualization
+- **Kanban View**: Visual board for monitoring multiple FSM instances with state groups
 - **Database-Backed Queue**: SQLite-based persistent job queue
 - **Unix Socket Communication**: Low-latency inter-machine events
 - **Multi-Machine Coordination**: Event-driven machine-to-machine communication
@@ -962,9 +963,33 @@ statemachine-ui --port 3001 --project-root /path/to/project
 **Features:**
 - Real-time state machine visualization with Mermaid diagrams
 - Live machine status updates and event streaming
+- **Kanban board view** for monitoring multiple FSM instances (Press 'K' to toggle)
 - Interactive state transition monitoring
 - Event history and activity logs
 - Multi-machine coordination display
+
+**Kanban View:**
+
+The UI includes a Kanban board view for visualizing multiple instances of the same FSM template:
+
+- **Toggle**: Press 'K' or click the "Show Kanban View" button
+- **State Groups**: States are organized into logical groups (e.g., IDLE, PROCESSING, COMPLETION)
+- **Horizontal Layout**: Groups flow left-to-right, states stack vertically within each group
+- **Real-time Updates**: Cards move automatically as machines transition between states
+- **Multi-Instance**: Shows all running instances of the current template (e.g., patient_record_1, patient_record_2, patient_record_3)
+
+Example with patient records demo:
+```
+IDLE            │ PROCESSING         │ COMPLETION
+─────────────── │ ─────────────────  │ ──────────────
+waiting_for_    │ summarizing        │ ready
+report          │   • patient_1      │   • patient_3
+                │                    │
+                │ fact_checking      │ failed
+                │   • patient_2      │
+                │                    │
+                │                    │ shutdown
+```
 
 **Access:** http://localhost:3001
 

@@ -67,18 +67,18 @@ actions:
 
   spawning_worker:
     - type: log
-      message: "🚀 Spawning worker for job: {job_id}"
+      message: "🚀 Spawning worker for job: {current_job.id}"
       level: info
     
     - type: start_fsm
       yaml_path: "examples/patient_records/config/patient-records.yaml"
-      machine_name: "patient_record_{job_id}"
+      machine_name: "patient_record_{current_job.id}"
       success: worker_started
       error: spawn_failed
       store_pid: true
     
     - type: log
-      message: "✅ Worker spawned: patient_record_{job_id}"
+      message: "✅ Worker spawned: patient_record_{current_job.id}"
       level: success
 
   idling:
@@ -88,7 +88,7 @@ actions:
 
   error_handling:
     - type: log
-      message: "❌ Failed to spawn worker for job: {job_id}"
+      message: "❌ Failed to spawn worker for job: {current_job.id}"
       level: error
     
     - type: bash

@@ -265,3 +265,33 @@ async def test_start_fsm_multiple_variable_interpolations():
         call_args = mock_popen.call_args[0][0]
         assert call_args[1] == 'config/patient_records_worker.yaml'
         assert call_args[3] == 'worker_patient_records_pr_456'
+
+
+@pytest.mark.asyncio
+async def test_start_fsm_nested_variable_interpolation():
+    """Test 11: Nested variable interpolation (current_job.id)"""
+    config = {
+        'yaml_path': 'config/worker.yaml',
+        'machine_name': 'worker_{current_job.id}'
+    }
+    
+    context = {
+        'machine_name': 'controller',
+        'current_job': {
+            'id': 'job_789',
+            'type': 'patient_records'
+        }
+    }
+    
+    with patch('subprocess.Popen') as mock_popen:
+        mock_process = MagicMock()
+        mock_process.pid = 12351
+        mock_popen.return_value = mock_process
+        
+        action = StartFsmAction(config)
+        result = await action.execute(context)
+        
+        # Should interpolate nested path current_job.id
+        call_args = mock_popen.call_args[0][0]
+        assert call_args[3] == 'worker_job_789'
+

@@ -125,8 +125,9 @@ class StartFsmAction(BaseAction):
         """
         Replace {variable} placeholders with values from context.
         
-        Supports simple variable substitution like:
+        Supports simple and nested variable substitution:
         - {job_id} -> context['job_id']
+        - {current_job.id} -> context['current_job']['id']
         - {job_type} -> context['job_type']
         - {machine_name} -> context['machine_name']
         
@@ -139,16 +140,28 @@ class StartFsmAction(BaseAction):
         """
         result = template
         
-        # Find all {variable} patterns
-        pattern = r'\{(\w+)\}'
+        # Find all {variable} and {nested.variable} patterns
+        pattern = r'\{([\w\.]+)\}'
         matches = re.findall(pattern, template)
         
         # Replace each variable
-        for var_name in matches:
-            if var_name in context:
-                value = context[var_name]
-                result = result.replace(f'{{{var_name}}}', str(value))
+        for var_path in matches:
+            # Handle nested paths like current_job.id
+            if '.' in var_path:
+                parts = var_path.split('.')
+                value = context
+                try:
+                    for part in parts:
+                        value = value[part]
+                    result = result.replace(f'{{{var_path}}}', str(value))
+                except (KeyError, TypeError):
+                    logger.warning(f"StartFsmAction: Nested variable '{var_path}' not found in context")
+            # Handle simple variables
             else:
-                logger.warning(f"StartFsmAction: Variable '{var_name}' not found in context")
+                if var_path in context:
+                    value = context[var_path]
+                    result = result.replace(f'{{{var_path}}}', str(value))
+                else:
+                    logger.warning(f"StartFsmAction: Variable '{var_path}' not found in context")
         
         return result

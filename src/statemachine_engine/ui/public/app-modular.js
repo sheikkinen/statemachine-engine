@@ -213,10 +213,16 @@ class StateMachineMonitor {
                     // Create tabs for all machines
                     this.createDiagramTabs(data.machines);
 
-                    // Diagrams will be loaded on-demand via machine_registered events
-                    // or when user clicks on a tab
+                    // Load first machine's diagram for visualization
+                    // (Kanban will show ALL machines regardless)
+                    if (data.machines.length > 0) {
+                        const firstMachine = data.machines[0];
+                        const diagramType = firstMachine.config_type || firstMachine.machine_name;
+                        this.logger.log('info', `Loading diagram for ${firstMachine.machine_name} (type: ${diagramType})`);
+                        this.diagramManager.loadDiagram(diagramType);
+                    }
 
-                    // Build Kanban view with all machines
+                    // Build Kanban view with all machines (independent of loaded diagram)
                     this.rebuildKanbanView();
                 }
             },

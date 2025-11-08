@@ -62,9 +62,9 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
     %% Error Handling Flow
-    fact_checking : fact_checking
-    failed : failed
     summarizing : summarizing
+    failed : failed
+    fact_checking : fact_checking
     summarizing --> failed : processing_error
     fact_checking --> failed : processing_error
 ```

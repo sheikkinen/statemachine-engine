@@ -91,7 +91,7 @@ stateDiagram-v2
 |-------|-------------|-------------|
 | `summarizing` | Summarizing | log, log, log |
 | `fact_checking` | Fact Checking | log, log |
-| `ready` | Ready | log, bash |
+| `ready` | Ready | log, complete_job, bash |
 | `failed` | Failed | log |
 | `shutdown` | Shutdown | log |
 
@@ -108,6 +108,8 @@ stateDiagram-v2
 | `processing_error` | Internal | Processing Error |
 | `retry_report` | Internal | Retry Report |
 | `process_next` | Internal | Process Next |
+| `job_completed` | Success | Job Completed |
+| `completion_failed` | Error | Completion Failed |
 | `stop` | Control | Stop |
 
 ---
@@ -115,7 +117,7 @@ stateDiagram-v2
 ## Configuration Summary
 
 - **States:** 5
-- **Events:** 8
+- **Events:** 10
 - **Transitions:** 11
 - **Initial State:** `summarizing`
 

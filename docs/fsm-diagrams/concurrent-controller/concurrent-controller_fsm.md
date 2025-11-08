@@ -19,7 +19,8 @@ stateDiagram-v2
     state PROCESSING {
         [*] --> checking_queue
         checking_queue --> spawning_worker : new_job
-        spawning_worker --> checking_queue : worker_started
+        spawning_worker --> waiting_for_completion : worker_started
+        waiting_for_completion --> checking_queue : timeout(5)
         checking_queue --> [*] : no_jobs
         spawning_worker --> [*] : spawn_failed
     }
@@ -52,6 +53,7 @@ stateDiagram-v2
 |-------|-------------|-------------|
 | `checking_queue` | Checking Queue | log, check_database_queue |
 | `spawning_worker` | Spawning Worker | log, start_fsm, log |
+| `waiting_for_completion` | Waiting For Completion | log |
 | `idling` | Idling | log |
 | `error_handling` | Error Handling | log, bash |
 
@@ -66,15 +68,16 @@ stateDiagram-v2
 | `worker_started` | Internal | Worker Started |
 | `spawn_failed` | Error | Spawn Failed |
 | `retry` | Internal | Retry |
+| `timeout(5)` | Internal | Timeout(5) |
 | `timeout(10)` | Internal | Timeout(10) |
 
 ---
 
 ## Configuration Summary
 
-- **States:** 4
-- **Events:** 6
-- **Transitions:** 6
+- **States:** 5
+- **Events:** 7
+- **Transitions:** 7
 - **Initial State:** `checking_queue`
 
 ---

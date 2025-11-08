@@ -17,7 +17,8 @@
       "description": "Detailed view of processing",
       "states": [
         "checking_queue",
-        "spawning_worker"
+        "spawning_worker",
+        "waiting_for_completion"
       ],
       "entry_states": [
         "checking_queue"

@@ -248,6 +248,44 @@ class StateMachineMonitor {
                     console.log(`[App] ${timestamp} - Skipping diagram update - wrong type (machine ${data.machine_name} type ${machineConfigType} vs selected ${this.diagramManager.selectedMachine})`);
                 }
             },
+            machine_registered: async (data) => {
+                // Handle new machine registration (Option 4: Event + Lazy Loading)
+                console.log(`[App] Machine registered:`, data);
+                const { machine_name, config_type, current_state } = data;
+                
+                // Check if we have metadata for this config type
+                if (!this.diagramManager.hasConfig(config_type)) {
+                    console.log(`[App] New config type detected: ${config_type}, fetching metadata...`);
+                    const metadata = await this.diagramManager.fetchConfigMetadata(config_type);
+                    
+                    if (metadata) {
+                        this.logger.log('success', `✓ Loaded metadata for ${config_type}`);
+                        
+                        // If Kanban view is visible, refresh it to include new machine
+                        if (this.kanbanVisible && this.kanbanView) {
+                            console.log(`[App] Adding machine to Kanban: ${machine_name}`);
+                            this.kanbanView.addCard(machine_name, current_state);
+                        }
+                    } else {
+                        this.logger.log('warning', `⚠️ Failed to load metadata for ${config_type}`);
+                    }
+                } else {
+                    console.log(`[App] Config type ${config_type} already loaded`);
+                }
+            },
+            machine_terminated: (data) => {
+                // Handle machine termination
+                console.log(`[App] Machine terminated:`, data);
+                const { machine_name } = data;
+                
+                // Remove from Kanban if visible
+                if (this.kanbanVisible && this.kanbanView) {
+                    console.log(`[App] Removing machine from Kanban: ${machine_name}`);
+                    this.kanbanView.removeCard(machine_name);
+                }
+                
+                this.logger.log('info', `👋 Machine terminated: ${machine_name}`);
+            },
             activity_log: (data) => {
                 // Handle activity log events from state machine
                 const payload = data.payload || {};

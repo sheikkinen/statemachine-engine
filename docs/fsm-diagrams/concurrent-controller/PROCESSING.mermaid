@@ -5,7 +5,8 @@ stateDiagram-v2
 
     %% Internal transitions
     checking_queue --> spawning_worker : new_job
-    spawning_worker --> checking_queue : worker_started
+    spawning_worker --> waiting_for_completion : worker_started
+    waiting_for_completion --> checking_queue : timeout(5)
 
     %% External composites
     state IDLE

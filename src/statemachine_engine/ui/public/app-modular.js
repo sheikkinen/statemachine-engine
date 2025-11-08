@@ -257,15 +257,21 @@ class StateMachineMonitor {
                 // Handle new machine registration (Option 4: Event + Lazy Loading)
                 console.log(`[App] Machine registered:`, data);
                 const { machine_name, config_type, current_state } = data;
-                
+
+                // Validate config_type exists
+                if (!config_type) {
+                    console.warn(`[App] machine_registered event missing config_type for ${machine_name}`);
+                    return;
+                }
+
                 // Check if we have metadata for this config type
                 if (!this.diagramManager.hasConfig(config_type)) {
                     console.log(`[App] New config type detected: ${config_type}, fetching metadata...`);
                     const metadata = await this.diagramManager.fetchConfigMetadata(config_type);
-                    
+
                     if (metadata) {
                         this.logger.log('success', `✓ Loaded metadata for ${config_type}`);
-                        
+
                         // If Kanban view is visible, refresh it to include new machine
                         if (this.kanbanVisible && this.kanbanView) {
                             console.log(`[App] Adding machine to Kanban: ${machine_name}`);

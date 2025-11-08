@@ -9,6 +9,7 @@ states:
   # === PROCESSING ===
   - checking_queue
   - spawning_worker
+  - waiting_for_completion
   # === IDLE ===
   - idling
   # === ERROR ===
@@ -26,12 +27,17 @@ transitions:
   
   # Spawn worker for job
   - from: spawning_worker
-    to: checking_queue
+    to: waiting_for_completion
     event: worker_started
   
   - from: spawning_worker
     to: error_handling
     event: spawn_failed
+  
+  # Wait for worker to complete job - check status after 5 seconds
+  - from: waiting_for_completion
+    to: checking_queue
+    event: timeout(5)
   
   # Idle when queue empty - check again after 10 seconds
   - from: idling
@@ -50,6 +56,7 @@ events:
   - worker_started
   - spawn_failed
   - retry
+  - timeout(5)
   - timeout(10)
 
 # Actions organized by state
@@ -85,6 +92,11 @@ actions:
     - type: log
       message: "✅ Worker spawned: patient_record_{current_job.id}"
       level: success
+
+  waiting_for_completion:
+    - type: log
+      message: "⏳ Waiting for worker to complete job: {current_job.id} (checking in 5s)"
+      level: info
 
   idling:
     - type: log

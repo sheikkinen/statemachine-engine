@@ -4,6 +4,7 @@ from .bash_action import BashAction
 from .check_database_queue_action import CheckDatabaseQueueAction
 from .check_machine_state_action import CheckMachineStateAction
 from .clear_events_action import ClearEventsAction
+from .complete_job_action import CompleteJobAction
 from .log_action import LogAction
 from .send_event_action import SendEventAction
 from .start_fsm_action import StartFsmAction
@@ -13,6 +14,7 @@ __all__ = [
     'CheckDatabaseQueueAction',
     'CheckMachineStateAction',
     'ClearEventsAction',
+    'CompleteJobAction',
     'LogAction',
     'SendEventAction',
     'StartFsmAction',

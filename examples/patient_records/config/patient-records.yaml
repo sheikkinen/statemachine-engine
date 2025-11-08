@@ -76,6 +76,8 @@ events:
   - processing_error
   - retry_report
   - process_next
+  - job_completed
+  - completion_failed
   - stop
 
 # Actions organized by state (executed when entering that state)
@@ -103,6 +105,12 @@ actions:
     - type: log
       message: "✅ Report {report_id} validation passed - ready for history generation"
       level: success
+    
+    - type: complete_job
+      job_id: "{job_id}"
+      success: job_completed
+      error: completion_failed
+    
     - type: bash
       command: "echo 'Report {report_id} complete - triggering shutdown'"
       timeout: 5

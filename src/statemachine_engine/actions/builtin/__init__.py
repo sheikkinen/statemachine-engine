@@ -6,6 +6,7 @@ from .check_machine_state_action import CheckMachineStateAction
 from .clear_events_action import ClearEventsAction
 from .log_action import LogAction
 from .send_event_action import SendEventAction
+from .start_fsm_action import StartFsmAction
 
 __all__ = [
     'BashAction',
@@ -14,4 +15,5 @@ __all__ = [
     'ClearEventsAction',
     'LogAction',
     'SendEventAction',
+    'StartFsmAction',
 ]

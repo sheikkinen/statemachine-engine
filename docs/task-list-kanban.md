@@ -285,21 +285,25 @@ pytest tests/actions/test_start_fsm_action.py -v
 
 **Phase 3.1 Complete!** Ready for Phase 3.2 (GREEN - implement StartFsmAction).
 
-### Phase 3.2: 🟢 GREEN - Implement start_fsm Action
+### Phase 3.2: 🟢 GREEN - Implement start_fsm Action ✅ COMPLETED
 
 **Objective:** Minimum viable implementation to pass tests
 
 #### Implementation Checklist
-- [ ] Create `src/statemachine_engine/actions/builtin/start_fsm_action.py`
-  - [ ] Inherit from `BaseAction`
-  - [ ] Validate required params: `yaml_path`, `machine_name`
-  - [ ] Build subprocess command: `['statemachine', yaml_path, '--machine-name', machine_name]`
-  - [ ] Use `subprocess.Popen()` to spawn non-blocking process
-  - [ ] Capture PID of spawned process
-  - [ ] Store PID in context for tracking (optional)
-  - [ ] Return success event with PID metadata
-  - [ ] Handle exceptions and return error event
-  - [ ] Add docstring with YAML usage example
+- [x] Create `src/statemachine_engine/actions/builtin/start_fsm_action.py`
+  - [x] Inherit from `BaseAction`
+  - [x] Validate required params: `yaml_path`, `machine_name`
+  - [x] Build subprocess command: `['statemachine', yaml_path, '--machine-name', machine_name]`
+  - [x] Use `subprocess.Popen()` to spawn non-blocking process
+  - [x] Capture PID of spawned process
+  - [x] Store PID in context for tracking (when `store_pid: true`)
+  - [x] Return success event (default: 'success', configurable)
+  - [x] Handle exceptions and return error event
+  - [x] Add comprehensive docstring with YAML usage examples
+  - [x] Implement variable interpolation for paths and names
+  - [x] Support additional_args parameter
+  - [x] Use start_new_session=True for process detachment
+- [x] Update `__init__.py` to export StartFsmAction
 
 #### Action Interface
 ```python
@@ -335,9 +339,22 @@ class StartFsmAction(BaseAction):
         return 'worker_started'
 ```
 
-#### Validation
+#### Test Results ✅
 ```bash
 pytest tests/actions/test_start_fsm_action.py -v
+# ✅ All 10 tests PASS (GREEN phase achieved)
+# ✅ Full test suite: 224 passed, 9 skipped
+
+Key features implemented:
+- Variable interpolation: {job_id}, {job_type} in paths and names
+- Error handling: Missing params, subprocess failures
+- PID tracking: Optional context storage
+- Process detachment: start_new_session=True for non-blocking
+- Additional args: Support for --debug, --log-level, etc.
+- Custom events: Configurable success/error event names
+```
+
+**Phase 3.2 Complete!** StartFsmAction fully implemented and tested.
 # All tests should PASS (GREEN phase)
 ```
 

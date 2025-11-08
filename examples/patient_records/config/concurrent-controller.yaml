@@ -1,0 +1,96 @@
+name: "concurrent_controller"
+initial_state: checking_queue
+
+# Controller FSM that spawns and manages worker FSMs
+# Reads jobs from database queue and spawns a worker for each job
+# Idles when queue is empty, checking again after 10 seconds
+
+states:
+  # === PROCESSING ===
+  - checking_queue
+  - spawning_worker
+  # === IDLE ===
+  - idling
+  # === ERROR ===
+  - error_handling
+
+transitions:
+  # Check database queue for pending jobs
+  - from: checking_queue
+    to: spawning_worker
+    event: new_job
+  
+  - from: checking_queue
+    to: idling
+    event: no_jobs
+  
+  # Spawn worker for job
+  - from: spawning_worker
+    to: checking_queue
+    event: worker_started
+  
+  - from: spawning_worker
+    to: error_handling
+    event: spawn_failed
+  
+  # Idle when queue empty - check again after 10 seconds
+  - from: idling
+    to: checking_queue
+    event: timeout(10)
+  
+  # Error recovery - retry immediately
+  - from: error_handling
+    to: checking_queue
+    event: retry
+
+# Events that can be triggered
+events:
+  - new_job
+  - no_jobs
+  - worker_started
+  - spawn_failed
+  - retry
+  - timeout(10)
+
+# Actions organized by state
+actions:
+  checking_queue:
+    - type: log
+      message: "🔍 Checking queue for pending patient_records jobs..."
+      level: info
+    
+    - type: check_database_queue
+      status: pending
+      limit: 1
+      machine_type: patient_records
+      job_type: patient_records
+
+  spawning_worker:
+    - type: log
+      message: "🚀 Spawning worker for job: {job_id}"
+      level: info
+    
+    - type: start_fsm
+      yaml_path: "examples/patient_records/config/patient-records.yaml"
+      machine_name: "patient_record_{job_id}"
+      success: worker_started
+      error: spawn_failed
+      store_pid: true
+    
+    - type: log
+      message: "✅ Worker spawned: patient_record_{job_id}"
+      level: success
+
+  idling:
+    - type: log
+      message: "😴 Queue empty - waiting 10 seconds before next check..."
+      level: info
+
+  error_handling:
+    - type: log
+      message: "❌ Failed to spawn worker for job: {job_id}"
+      level: error
+    
+    - type: bash
+      command: "echo 'Spawn error - retrying...'"
+      success: retry

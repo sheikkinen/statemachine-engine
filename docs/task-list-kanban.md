@@ -358,9 +358,35 @@ Key features implemented:
 # All tests should PASS (GREEN phase)
 ```
 
-### Phase 3.3: 🟢 GREEN - Implement concurrent-controller.yaml
+### Phase 3.3: 🟢 GREEN - Implement concurrent-controller.yaml ✅ COMPLETED
 
 **Objective:** Controller FSM that manages worker spawning
+
+#### Implementation Checklist
+- [x] Create `examples/patient_records/config/concurrent-controller.yaml`
+- [x] Define states: `checking_queue`, `spawning_worker`, `idling`, `error_handling`
+- [x] Configure transitions with events (new_job, no_jobs, worker_started, spawn_failed, retry)
+- [x] Add `check_database_queue` action with machine_type: patient_records
+- [x] Add `start_fsm` action with dynamic machine naming: `patient_record_{job_id}`
+- [x] Add timeout(10) transition for idle state
+- [x] Add error recovery path with retry logic
+- [x] Add logging actions for visibility
+- [x] Validate configuration passes all checks
+
+#### Configuration Validated ✅
+```bash
+python scripts/validate-state-machines.py examples/patient_records/config/concurrent-controller.yaml
+# ✅ All validations passed
+
+Controller state flow:
+1. checking_queue → check database for pending jobs
+2. spawning_worker → launch worker FSM for job
+3. Loop back to checking_queue for next job
+4. idling → wait 10s when queue empty
+5. error_handling → retry on spawn failures
+```
+
+**Phase 3.3 Complete!** Controller FSM ready for integration testing.
 
 #### Controller State Machine Design
 ```yaml

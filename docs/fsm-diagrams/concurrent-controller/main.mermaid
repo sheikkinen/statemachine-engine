@@ -1,0 +1,17 @@
+stateDiagram-v2
+    [*] --> PROCESSING
+
+    %% PROCESSING (2 states)
+    state PROCESSING
+
+    %% IDLE (1 states)
+    state IDLE
+
+    %% ERROR (1 states)
+    state ERROR
+
+    %% Transitions between composites
+    PROCESSING --> IDLE : no_jobs
+    PROCESSING --> ERROR : spawn_failed
+    IDLE --> PROCESSING : timeout(10)
+    ERROR --> PROCESSING : retry

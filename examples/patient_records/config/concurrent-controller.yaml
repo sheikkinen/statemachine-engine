@@ -1,4 +1,4 @@
-name: "concurrent_controller"
+name: "concurrent-controller"
 initial_state: checking_queue
 
 # Controller FSM that spawns and manages worker FSMs

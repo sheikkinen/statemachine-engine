@@ -158,10 +158,21 @@ generate_diagrams() {
         echo "  ⚠️  Failed to generate diagrams"
     }
     
+    echo "📄 Processing $CONTROLLER_CONFIG..."
+    python -m statemachine_engine.tools.cli "$CONTROLLER_CONFIG" 2>&1 | grep -E "(✅|⚠️|❌|📁)" || {
+        echo "  ⚠️  Failed to generate controller diagrams"
+    }
+    
     if ls docs/fsm-diagrams/patient_records/*.mermaid 1> /dev/null 2>&1; then
         echo "✓ Diagrams generated in docs/fsm-diagrams/patient_records/"
     else
         echo "⚠️  No diagrams generated (UI may not display properly)"
+    fi
+    
+    if ls docs/fsm-diagrams/concurrent_controller/*.mermaid 1> /dev/null 2>&1; then
+        echo "✓ Controller diagrams generated in docs/fsm-diagrams/concurrent_controller/"
+    else
+        echo "⚠️  No controller diagrams generated"
     fi
     echo ""
 }

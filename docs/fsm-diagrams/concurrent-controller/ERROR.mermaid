@@ -1,0 +1,13 @@
+stateDiagram-v2
+    %% Detailed view of ERROR
+
+    [*] --> error_handling
+
+    %% Internal transitions
+
+    %% External composites
+    state PROCESSING
+    state IDLE
+
+    %% Transitions to other composites
+    error_handling --> PROCESSING : retry

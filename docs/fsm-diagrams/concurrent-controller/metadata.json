@@ -1,0 +1,62 @@
+{
+  "machine_name": "concurrent-controller",
+  "diagrams": {
+    "main": {
+      "file": "main.mermaid",
+      "title": "concurrent-controller Overview",
+      "description": "High-level state machine flow with composite states",
+      "composites": [
+        "PROCESSING",
+        "IDLE",
+        "ERROR"
+      ]
+    },
+    "PROCESSING": {
+      "file": "PROCESSING.mermaid",
+      "title": "PROCESSING",
+      "description": "Detailed view of processing",
+      "states": [
+        "checking_queue",
+        "spawning_worker"
+      ],
+      "entry_states": [
+        "checking_queue"
+      ],
+      "exit_states": [
+        "checking_queue",
+        "spawning_worker"
+      ],
+      "parent": "main"
+    },
+    "IDLE": {
+      "file": "IDLE.mermaid",
+      "title": "IDLE",
+      "description": "Detailed view of idle",
+      "states": [
+        "idling"
+      ],
+      "entry_states": [
+        "idling"
+      ],
+      "exit_states": [
+        "idling"
+      ],
+      "parent": "main"
+    },
+    "ERROR": {
+      "file": "ERROR.mermaid",
+      "title": "ERROR",
+      "description": "Detailed view of error",
+      "states": [
+        "error_handling"
+      ],
+      "entry_states": [
+        "error_handling"
+      ],
+      "exit_states": [
+        "error_handling"
+      ],
+      "parent": "main"
+    }
+  }
+}

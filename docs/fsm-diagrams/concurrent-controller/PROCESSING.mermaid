@@ -1,0 +1,16 @@
+stateDiagram-v2
+    %% Detailed view of PROCESSING
+
+    [*] --> checking_queue
+
+    %% Internal transitions
+    checking_queue --> spawning_worker : new_job
+    spawning_worker --> checking_queue : worker_started
+
+    %% External composites
+    state IDLE
+    state ERROR
+
+    %% Transitions to other composites
+    checking_queue --> IDLE : no_jobs
+    spawning_worker --> ERROR : spawn_failed

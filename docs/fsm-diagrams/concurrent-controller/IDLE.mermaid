@@ -1,0 +1,13 @@
+stateDiagram-v2
+    %% Detailed view of IDLE
+
+    [*] --> idling
+
+    %% Internal transitions
+
+    %% External composites
+    state PROCESSING
+    state ERROR
+
+    %% Transitions to other composites
+    idling --> PROCESSING : timeout(10)

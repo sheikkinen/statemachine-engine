@@ -101,21 +101,36 @@ class StateMachineMonitor {
     }
     
     rebuildKanbanView() {
-        // Get states from current diagram
-        const states = this.diagramManager.getStates();
-        if (!states || states.length === 0) {
-            console.log('[Kanban] No states available for Kanban view');
+        // If no machines, nothing to show
+        if (!this.machineManager || !this.machineManager.machines || this.machineManager.machines.size === 0) {
+            console.log('[Kanban] No machines available for Kanban view');
             return;
         }
-        
-        // Get state groups (if available)
-        const stateGroups = this.diagramManager.getStateGroups();
-        
-        const templateName = this.diagramManager.selectedMachine;
+
+        // Collect all unique states from all machines
+        const allStates = new Set();
+        this.machineManager.machines.forEach(machine => {
+            if (machine.current_state) {
+                allStates.add(machine.current_state);
+            }
+        });
+
+        const states = Array.from(allStates);
+        if (states.length === 0) {
+            console.log('[Kanban] No states found in machines');
+            return;
+        }
+
+        // Get state groups from diagram if available
+        const stateGroups = this.diagramManager.selectedMachine
+            ? this.diagramManager.getStateGroups()
+            : null;
+
+        const templateName = this.diagramManager.selectedMachine || 'all-machines';
         console.log(`[Kanban] Rebuilding view for template: ${templateName}`);
-        console.log(`[Kanban] States:`, states);
+        console.log(`[Kanban] States from machines:`, states);
         console.log(`[Kanban] State groups:`, stateGroups);
-        
+
         // Create or recreate Kanban view
         this.kanbanView = new KanbanView(
             this.kanbanContainer,
@@ -125,24 +140,19 @@ class StateMachineMonitor {
             stateGroups  // Pass state groups (null for flat view)
         );
         this.kanbanView.render();
-        
+
         // Add CSS class for grouped display
         if (stateGroups) {
             this.kanbanContainer.classList.add('grouped');
         } else {
             this.kanbanContainer.classList.remove('grouped');
         }
-        
-        // Add all current machines matching this template
-        if (this.machineManager && this.machineManager.machines) {
-            this.machineManager.machines.forEach(machine => {
-                const machineType = machine.config_type || machine.machine_name;
-                if (machineType === templateName) {
-                    console.log(`[Kanban] Adding card for ${machine.machine_name} in state ${machine.current_state}`);
-                    this.kanbanView.addCard(machine.machine_name, machine.current_state);
-                }
-            });
-        }
+
+        // Add ALL machines to Kanban view
+        this.machineManager.machines.forEach(machine => {
+            console.log(`[Kanban] Adding card for ${machine.machine_name} in state ${machine.current_state}`);
+            this.kanbanView.addCard(machine.machine_name, machine.current_state);
+        });
         
         // Keep visibility state
         if (this.kanbanVisible) {
@@ -199,20 +209,15 @@ class StateMachineMonitor {
                 this.logger.log('info', 'Received initial state snapshot');
                 if (data.machines) {
                     this.machineManager.updateMachines(data.machines);
-                    
+
                     // Create tabs for all machines
                     this.createDiagramTabs(data.machines);
-                    
-                    // Load diagram for first machine
-                    if (data.machines.length > 0) {
-                        const firstMachine = data.machines[0];
-                        const diagramType = firstMachine.config_type || firstMachine.machine_name;
-                        this.logger.log('info', `Loading diagram for ${firstMachine.machine_name} (type: ${diagramType})`);
-                        this.diagramManager.loadDiagram(diagramType).then(() => {
-                            // Build Kanban view after diagram loads
-                            this.rebuildKanbanView();
-                        });
-                    }
+
+                    // Diagrams will be loaded on-demand via machine_registered events
+                    // or when user clicks on a tab
+
+                    // Build Kanban view with all machines
+                    this.rebuildKanbanView();
                 }
             },
             state_change: (data) => {

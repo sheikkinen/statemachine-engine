@@ -20,6 +20,9 @@ package-lock.json
 audio/
 docs/forge.md
 
+# Generated diagrams
+docs/fsm-diagrams/
+
 # Database files
 *.db
 *.db-journal

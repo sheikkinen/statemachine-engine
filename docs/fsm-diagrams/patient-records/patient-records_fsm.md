@@ -19,7 +19,7 @@ stateDiagram-v2
     state SUMMARIZING {
         [*] --> summarizing
         summarizing --> summarizing : summary_invalid
-        summarizing --> [*] : timeout(10)
+        summarizing --> [*] : timeout(30)
         summarizing --> [*] : summary_complete
         summarizing --> [*] : processing_error
     }
@@ -27,7 +27,7 @@ stateDiagram-v2
     %% FACT_CHECKING
     state FACT_CHECKING {
         [*] --> fact_checking
-        fact_checking --> [*] : timeout(5)
+        fact_checking --> [*] : timeout(30)
         fact_checking --> [*] : validation_passed
         fact_checking --> [*] : validation_failed
         fact_checking --> [*] : processing_error
@@ -43,9 +43,9 @@ stateDiagram-v2
     }
 
     %% Transitions
-    SUMMARIZING --> FACT_CHECKING : timeout(10)
+    SUMMARIZING --> FACT_CHECKING : timeout(30)
     SUMMARIZING --> FACT_CHECKING : summary_complete
-    FACT_CHECKING --> COMPLETED : timeout(5)
+    FACT_CHECKING --> COMPLETED : timeout(30)
     FACT_CHECKING --> COMPLETED : validation_passed
     FACT_CHECKING --> SUMMARIZING : validation_failed
     SUMMARIZING --> COMPLETED : processing_error
@@ -63,8 +63,8 @@ stateDiagram-v2
 stateDiagram-v2
     %% Error Handling Flow
     summarizing : summarizing
-    failed : failed
     fact_checking : fact_checking
+    failed : failed
     summarizing --> failed : processing_error
     fact_checking --> failed : processing_error
 ```

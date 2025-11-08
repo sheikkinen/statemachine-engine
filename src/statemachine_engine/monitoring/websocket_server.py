@@ -530,16 +530,21 @@ async def unix_socket_listener():
                 try:
                     # Keep as JSON string - avoid unnecessary parse/serialize cycle
                     event_json = data.decode('utf-8')
-                    
+
                     # Update heartbeat immediately after decode
                     perf_monitor.heartbeat()
-                    
-                    # Log without parsing - logging is non-blocking (QueueHandler)
-                    logger.info(f"📥 Unix socket: Event #{event_count} ({len(event_json)} bytes)")
-                    
+
+                    # Parse event to log type (for debugging)
+                    try:
+                        event_data = json.loads(event_json)
+                        event_type = event_data.get('type', 'unknown')
+                        logger.info(f"📥 Unix socket: Event #{event_count} type={event_type} ({len(event_json)} bytes)")
+                    except:
+                        logger.info(f"📥 Unix socket: Event #{event_count} ({len(event_json)} bytes)")
+
                     # Broadcast JSON string directly - no re-serialization needed!
                     await broadcaster.broadcast(event_json)  # Pass JSON string directly
-                    
+
                     perf_monitor.heartbeat()  # Update after successful broadcast
                     
                 except json.JSONDecodeError as e:

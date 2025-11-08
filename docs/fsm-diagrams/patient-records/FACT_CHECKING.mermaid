@@ -10,7 +10,7 @@ stateDiagram-v2
     state COMPLETED
 
     %% Transitions to other composites
-    fact_checking --> COMPLETED : timeout(5)
+    fact_checking --> COMPLETED : timeout(30)
     fact_checking --> COMPLETED : validation_passed
     fact_checking --> SUMMARIZING : validation_failed
     fact_checking --> COMPLETED : processing_error

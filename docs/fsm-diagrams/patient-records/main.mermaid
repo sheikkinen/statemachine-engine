@@ -11,8 +11,8 @@ stateDiagram-v2
     state COMPLETED
 
     %% Transitions between composites
-    SUMMARIZING --> FACT_CHECKING : timeout(10)
-    FACT_CHECKING --> COMPLETED : timeout(5)
+    SUMMARIZING --> FACT_CHECKING : timeout(30)
+    FACT_CHECKING --> COMPLETED : timeout(30)
     FACT_CHECKING --> SUMMARIZING : validation_failed
     SUMMARIZING --> COMPLETED : processing_error
     COMPLETED --> SUMMARIZING : retry_report

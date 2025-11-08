@@ -107,28 +107,37 @@ class StateMachineMonitor {
             return;
         }
 
-        // Collect all unique states from all machines
-        const allStates = new Set();
-        this.machineManager.machines.forEach(machine => {
-            if (machine.current_state) {
-                allStates.add(machine.current_state);
-            }
-        });
+        // Get ALL states from the diagram configuration, not just from current machines
+        const templateName = this.diagramManager.selectedMachine || 'all-machines';
+        let states = null;
+        let stateGroups = null;
+        
+        if (this.diagramManager.selectedMachine && this.diagramManager.stateGroupManager) {
+            // Get all states from FSM configuration
+            states = this.diagramManager.stateGroupManager.getStates('main');
+            // Get state groups from diagram if available
+            stateGroups = this.diagramManager.getStateGroups();
+        }
+        
+        // Fallback: collect states from current machines if config not available
+        if (!states || states.length === 0) {
+            console.log('[Kanban] No states from config, collecting from machines');
+            const allStates = new Set();
+            this.machineManager.machines.forEach(machine => {
+                if (machine.current_state) {
+                    allStates.add(machine.current_state);
+                }
+            });
+            states = Array.from(allStates);
+        }
 
-        const states = Array.from(allStates);
         if (states.length === 0) {
-            console.log('[Kanban] No states found in machines');
+            console.log('[Kanban] No states found');
             return;
         }
 
-        // Get state groups from diagram if available
-        const stateGroups = this.diagramManager.selectedMachine
-            ? this.diagramManager.getStateGroups()
-            : null;
-
-        const templateName = this.diagramManager.selectedMachine || 'all-machines';
         console.log(`[Kanban] Rebuilding view for template: ${templateName}`);
-        console.log(`[Kanban] States from machines:`, states);
+        console.log(`[Kanban] States from config:`, states);
         console.log(`[Kanban] State groups:`, stateGroups);
 
         // Create or recreate Kanban view
@@ -235,6 +244,17 @@ class StateMachineMonitor {
                 console.log(`[App] ${timestamp} - Extracted machine:`, machine);
                 console.log(`[App] ${timestamp} - Extracted transition:`, transition);
                 
+                // Update Kanban view if visible (always, regardless of diagram type)
+                if (this.kanbanView && this.kanbanVisible) {
+                    console.log(`[App] ${timestamp} - Updating Kanban card for ${data.machine_name}`);
+                    // Check if card exists, if not add it
+                    if (!this.kanbanView.cards[data.machine_name]) {
+                        this.kanbanView.addCard(data.machine_name, machine.current_state);
+                    } else {
+                        this.kanbanView.updateCard(data.machine_name, machine.current_state);
+                    }
+                }
+                
                 // Update diagram if this machine's config_type matches the selected diagram
                 // Use config_type from the machine object (which has the template name)
                 const machineConfigType = machine.config_type || data.machine_name;
@@ -244,17 +264,6 @@ class StateMachineMonitor {
                         machine.current_state,
                         transition
                     );
-                    
-                    // Update Kanban view if visible
-                    if (this.kanbanView && this.kanbanVisible) {
-                        console.log(`[App] ${timestamp} - Updating Kanban card for ${data.machine_name}`);
-                        // Check if card exists, if not add it
-                        if (!this.kanbanView.cards[data.machine_name]) {
-                            this.kanbanView.addCard(data.machine_name, machine.current_state);
-                        } else {
-                            this.kanbanView.updateCard(data.machine_name, machine.current_state);
-                        }
-                    }
                 } else {
                     console.log(`[App] ${timestamp} - Skipping diagram update - wrong type (machine ${data.machine_name} type ${machineConfigType} vs selected ${this.diagramManager.selectedMachine})`);
                 }
@@ -262,13 +271,24 @@ class StateMachineMonitor {
             machine_registered: async (data) => {
                 // Handle new machine registration (Option 4: Event + Lazy Loading)
                 console.log(`[App] Machine registered:`, data);
-                const { machine_name, config_type, current_state } = data;
+
+                // Extract from payload (event structure: {type, machine_name, payload: {config_type, current_state, ...}})
+                const machine_name = data.machine_name || data.payload?.machine_name;
+                const config_type = data.payload?.config_type;
+                const current_state = data.payload?.current_state;
+
+                // Log to activity log immediately
+                this.logger.log('success', `📥 Machine registered: ${machine_name} (${config_type}) - state: ${current_state}`);
 
                 // Validate config_type exists
                 if (!config_type) {
                     console.warn(`[App] machine_registered event missing config_type for ${machine_name}`);
+                    this.logger.log('warning', `⚠️ machine_registered event missing config_type for ${machine_name}`);
                     return;
                 }
+
+                // Check if this is the first machine
+                const isFirstMachine = this.machineManager.machines.size === 0;
 
                 // Add to machine manager
                 this.machineManager.machines.set(machine_name, {
@@ -295,6 +315,13 @@ class StateMachineMonitor {
                     console.log(`[App] Config type ${config_type} already loaded`);
                 }
 
+                // If this is the first machine, load its diagram for visualization
+                if (isFirstMachine) {
+                    console.log(`[App] First machine registered, loading diagram: ${config_type}`);
+                    this.logger.log('info', `Loading diagram for ${machine_name} (type: ${config_type})`);
+                    this.diagramManager.loadDiagram(config_type);
+                }
+
                 // Add to Kanban view if visible
                 if (this.kanbanVisible && this.kanbanView) {
                     console.log(`[App] Adding machine to Kanban: ${machine_name}`);
@@ -304,7 +331,12 @@ class StateMachineMonitor {
             machine_terminated: (data) => {
                 // Handle machine termination
                 console.log(`[App] Machine terminated:`, data);
-                const { machine_name } = data;
+
+                // Extract machine_name (may be at top level or in payload)
+                const machine_name = data.machine_name || data.payload?.machine_name;
+
+                // Log to activity log immediately
+                this.logger.log('info', `📤 Machine terminated: ${machine_name}`);
 
                 // Remove from machine manager
                 this.machineManager.machines.delete(machine_name);

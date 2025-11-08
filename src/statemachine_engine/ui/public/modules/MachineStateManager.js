@@ -117,9 +117,11 @@ export class MachineStateManager {
             this.renderMachines();
             this.logger.log('info', `New machine detected: ${machineName}`);
         } else {
+            console.log(`[MachineStateManager] Updating existing machine: ${machineName}`);
             machine.current_state = payload.to_state;
             machine.last_activity = payload.timestamp || Date.now() / 1000;
             this.machines.set(machineName, machine);
+            console.log(`[MachineStateManager] Calling updateMachineCard for ${machineName}`);
             this.updateMachineCard(machine);
         }
         
@@ -146,19 +148,36 @@ export class MachineStateManager {
     }
 
     updateMachineCard(machine) {
-        const cardEl = document.querySelector(`[data-machine="${machine.machine_name}"]`);
-        if (cardEl) {
-            const stateEl = cardEl.querySelector('.info-value');
-            if (stateEl) {
-                stateEl.textContent = machine.current_state || 'Unknown';
+        console.log(`[MachineStateManager] updateMachineCard called for ${machine.machine_name}, state: ${machine.current_state}`);
+        
+        // Find all card instances (kanban cards and machine panel cards)
+        const cardElements = document.querySelectorAll(`[data-machine="${machine.machine_name}"]`);
+        
+        cardElements.forEach(cardEl => {
+            // Check if it's a kanban card (simpler structure)
+            if (cardEl.classList.contains('kanban-card')) {
+                console.log(`[MachineStateManager] Updating kanban card for ${machine.machine_name}`);
+                // Kanban cards just show the machine name, no state update needed here
+                // State is managed by KanbanView.updateCard which moves cards between columns
+            } 
+            // Check if it's a machine panel card (detailed structure)
+            else if (cardEl.classList.contains('machine-card')) {
+                console.log(`[MachineStateManager] Updating machine panel card for ${machine.machine_name}`);
+                const stateEl = cardEl.querySelector('.info-value');
+                if (stateEl) {
+                    console.log(`[MachineStateManager] Updating state text to: ${machine.current_state}`);
+                    stateEl.textContent = machine.current_state || 'Unknown';
+                } else {
+                    console.warn(`[MachineStateManager] State element not found in machine card for ${machine.machine_name}`);
+                }
+                const activityEl = cardEl.querySelectorAll('.info-value')[1];
+                if (activityEl) {
+                    const lastActivity = machine.last_activity ?
+                        new Date(machine.last_activity * 1000).toLocaleString() : 'Never';
+                    activityEl.textContent = lastActivity;
+                }
             }
-            const activityEl = cardEl.querySelectorAll('.info-value')[1];
-            if (activityEl) {
-                const lastActivity = machine.last_activity ? 
-                    new Date(machine.last_activity * 1000).toLocaleString() : 'Never';
-                activityEl.textContent = lastActivity;
-            }
-        }
+        });
     }
 
     renderMachines() {

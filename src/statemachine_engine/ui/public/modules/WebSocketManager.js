@@ -46,7 +46,10 @@ export class WebSocketManager {
             this.websocket.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    console.debug('WebSocket message received:', data);
+                    // Log all events except ping for visibility
+                    if (data.type !== 'ping') {
+                        console.log(`[WebSocket] Received: ${data.type}`, data);
+                    }
                     this.handleEvent(data);
                 } catch (e) {
                     console.error('Failed to parse WebSocket message:', e, 'Raw data:', event.data);

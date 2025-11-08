@@ -415,12 +415,14 @@ class StateMachineEngine:
                     
                 # Emit machine_registered event for new machines
                 if is_new:
-                    self._emit_realtime_event('machine_registered', {
+                    event_payload = {
                         'machine_name': self.machine_name,
                         'config_type': self.config_name,
                         'current_state': current_state,
                         'timestamp': time.time()
-                    })
+                    }
+                    logger.info(f"[{self.machine_name}] 📤 Emitting machine_registered: config_type={self.config_name}")
+                    self._emit_realtime_event('machine_registered', event_payload)
                     logger.info(f"[{self.machine_name}] ✨ Machine registered: {self.config_name}")
             except Exception as e:
                 logger.warning(f"[{self.machine_name}] Failed to update machine_state: {e}")

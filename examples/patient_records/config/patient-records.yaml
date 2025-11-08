@@ -16,7 +16,7 @@ transitions:
   # Convert report into paragraph summary (auto-completes after 10s)
   - from: summarizing
     to: fact_checking
-    event: timeout(10)
+    event: timeout(30)
   
   # Manual completion (if needed before timeout)
   - from: summarizing
@@ -31,7 +31,7 @@ transitions:
   # Check that summary is based on report (auto-validates after 5s)
   - from: fact_checking  
     to: ready
-    event: timeout(5)
+    event: timeout(30)
   
   # Manual validation (if needed before timeout)
   - from: fact_checking  
@@ -90,7 +90,7 @@ actions:
       message: "📄 Starting to process report {report_id}: {report_title}"
       level: info
     - type: log
-      message: "✍️ Generating summary (auto-completes in 10s)..."
+      message: "✍️ Generating summary (auto-completes in 30s)..."
       level: info
 
   fact_checking:
@@ -98,7 +98,7 @@ actions:
       message: "🔍 Fact-checking summary for report {report_id}"
       level: info
     - type: log
-      message: "✅ Validating facts (auto-completes in 5s)..."
+      message: "✅ Validating facts (auto-completes in 30s)..."
       level: info
 
   ready:

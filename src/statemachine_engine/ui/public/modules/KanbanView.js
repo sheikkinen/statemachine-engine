@@ -127,7 +127,17 @@ export default class KanbanView {
     addCard(machineName, state) {
         // Validate state exists
         if (!this.states.includes(state)) {
-            this.logger.error(`Invalid state: ${state}`);
+            console.warn(`[KanbanView] State '${state}' not in configured states list for ${machineName}`);
+            console.warn(`[KanbanView] Available states:`, this.states);
+            return;
+        }
+        
+        // Validate column exists
+        const column = this.columns[state];
+        if (!column) {
+            console.error(`[KanbanView] Column not found for state '${state}' for machine ${machineName}`);
+            console.error(`[KanbanView] Available columns:`, Object.keys(this.columns));
+            console.error(`[KanbanView] Template:`, this.templateName);
             return;
         }
         
@@ -138,8 +148,11 @@ export default class KanbanView {
         card.textContent = machineName;
         
         // Add to column
-        const column = this.columns[state];
         const cardsContainer = column.querySelector('.kanban-cards, .kanban-state-cards');
+        if (!cardsContainer) {
+            console.error(`[KanbanView] Cards container not found in column for state '${state}'`);
+            return;
+        }
         cardsContainer.appendChild(card);
         
         // Track card
@@ -155,7 +168,10 @@ export default class KanbanView {
     updateCard(machineName, newState) {
         // Check if card exists
         if (!this.cards[machineName]) {
-            this.logger.warn(`Card not found: ${machineName}`);
+            console.warn(`[KanbanView] Card not found: ${machineName}`);
+            if (this.logger && this.logger.log) {
+                this.logger.log('warning', `Kanban card not found: ${machineName}`);
+            }
             return;
         }
         
@@ -168,7 +184,19 @@ export default class KanbanView {
         
         // Validate new state
         if (!this.states.includes(newState)) {
-            this.logger.error(`Invalid state: ${newState}`);
+            console.error(`[KanbanView] Invalid state: ${newState} for ${machineName}`);
+            console.error(`[KanbanView] Available states:`, this.states);
+            if (this.logger && this.logger.log) {
+                this.logger.log('error', `Invalid kanban state: ${newState} for ${machineName}`);
+            }
+            return;
+        }
+        
+        // Validate new column exists
+        const newColumn = this.columns[newState];
+        if (!newColumn) {
+            console.error(`[KanbanView] Column not found for state '${newState}' when updating ${machineName}`);
+            console.error(`[KanbanView] Available columns:`, Object.keys(this.columns));
             return;
         }
         
@@ -176,8 +204,11 @@ export default class KanbanView {
         cardInfo.element.remove();
         
         // Add to new column
-        const newColumn = this.columns[newState];
         const cardsContainer = newColumn.querySelector('.kanban-cards, .kanban-state-cards');
+        if (!cardsContainer) {
+            console.error(`[KanbanView] Cards container not found in column for state '${newState}'`);
+            return;
+        }
         cardsContainer.appendChild(cardInfo.element);
         
         // Update tracking

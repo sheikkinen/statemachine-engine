@@ -210,23 +210,392 @@ open http://localhost:3001
 
 **Implementation Complete!** Phase 1 delivered with state group aggregation bonus feature.
 
-## Phase 2: Enhanced Kanban Features (Future)
+## Phase 3: Concurrent Controller Pattern ⏭️ NEXT
 
-### Planned Features
-- [ ] Group states into composite columns (IDLE, PROCESSING, COMPLETION)
-- [ ] Click column header to expand/collapse states
-- [ ] Drill-in to show subdiagram for state group
-- [ ] Click composite state in diagram → show Kanban for that group
-- [ ] Breadcrumb navigation between views
-- [ ] Keyboard shortcuts (K key, ESC key)
-- [ ] Multi-template aggregation view
-- [ ] Card drag-and-drop for manual state changes
+**Goal:** Implement a controller FSM that spawns and manages multiple worker FSMs concurrently
 
-### Not Implemented Yet
-- State group aggregation (showing individual states instead)
-- Modal-based Kanban (using inline view instead)
-- Batch state detection (showing template explicitly)
-- Click handlers on cards (future enhancement)
+### Architecture Pattern
+
+```
+concurrent-controller.yaml
+  ├─ Reads jobs from database queue
+  ├─ Spawns new FSM instance for each job (via start_fsm action)
+  ├─ Monitors worker progress
+  ├─ Loops back to queue checking
+  └─ Idles 10s if queue empty
+
+Workers (patient-records.yaml instances)
+  ├─ Spawned dynamically by controller
+  ├─ Process individual jobs
+  ├─ Report completion to controller
+  └─ Self-terminate when done
+```
+
+### Phase 3.1: 🔴 RED - TDD for start_fsm Action
+
+**Objective:** Create tests for a new `start_fsm` action that spawns FSM instances
+
+#### Test Checklist
+- [ ] Create `tests/actions/test_start_fsm_action.py`
+  - [ ] Test: Constructor initializes with config parameters
+  - [ ] Test: `execute()` validates required params (yaml_path, machine_name)
+  - [ ] Test: `execute()` spawns subprocess with correct command
+  - [ ] Test: `execute()` passes environment variables correctly
+  - [ ] Test: `execute()` returns success event on spawn
+  - [ ] Test: `execute()` returns error event on spawn failure
+  - [ ] Test: `execute()` handles missing YAML file
+  - [ ] Test: `execute()` handles invalid machine name
+  - [ ] Test: PID tracking for spawned process
+  - [ ] Test: Optional job context passing to spawned FSM
+
+#### Test Data Fixtures
+```python
+# Mock YAML config for spawning
+test_worker_config = {
+    'yaml_path': '/path/to/worker.yaml',
+    'machine_name': 'worker_001',
+    'job_id': 'job_123',  # Optional: pass job context
+    'success': 'worker_started',
+    'error': 'spawn_failed'
+}
+
+# Expected subprocess call
+expected_command = [
+    'statemachine',
+    '/path/to/worker.yaml',
+    '--machine-name', 'worker_001'
+]
+```
+
+#### Expected Test Output
+```bash
+pytest tests/actions/test_start_fsm_action.py -v
+# All tests should FAIL (RED phase)
+```
+
+### Phase 3.2: 🟢 GREEN - Implement start_fsm Action
+
+**Objective:** Minimum viable implementation to pass tests
+
+#### Implementation Checklist
+- [ ] Create `src/statemachine_engine/actions/builtin/start_fsm_action.py`
+  - [ ] Inherit from `BaseAction`
+  - [ ] Validate required params: `yaml_path`, `machine_name`
+  - [ ] Build subprocess command: `['statemachine', yaml_path, '--machine-name', machine_name]`
+  - [ ] Use `subprocess.Popen()` to spawn non-blocking process
+  - [ ] Capture PID of spawned process
+  - [ ] Store PID in context for tracking (optional)
+  - [ ] Return success event with PID metadata
+  - [ ] Handle exceptions and return error event
+  - [ ] Add docstring with YAML usage example
+
+#### Action Interface
+```python
+class StartFsmAction(BaseAction):
+    """
+    Spawns a new FSM instance as a separate process.
+    
+    YAML Usage:
+        actions:
+          - type: start_fsm
+            params:
+              yaml_path: "config/worker.yaml"
+              machine_name: "worker_{job_id}"
+              job_id: "{job_id}"  # Optional: pass job context
+              success: worker_started
+              error: spawn_failed
+    """
+    
+    async def execute(self, context):
+        yaml_path = self.config.get('params', {}).get('yaml_path')
+        machine_name = self.config.get('params', {}).get('machine_name')
+        
+        # Variable interpolation for machine_name
+        # e.g., "worker_{job_id}" -> "worker_job123"
+        
+        # Build command
+        cmd = ['statemachine', yaml_path, '--machine-name', machine_name]
+        
+        # Spawn process
+        process = subprocess.Popen(cmd, ...)
+        
+        # Return success with PID
+        return 'worker_started'
+```
+
+#### Validation
+```bash
+pytest tests/actions/test_start_fsm_action.py -v
+# All tests should PASS (GREEN phase)
+```
+
+### Phase 3.3: 🟢 GREEN - Implement concurrent-controller.yaml
+
+**Objective:** Controller FSM that manages worker spawning
+
+#### Controller State Machine Design
+```yaml
+# examples/patient_records/config/concurrent-controller.yaml
+metadata:
+  name: "Concurrent Patient Records Controller"
+  machine_name: concurrent_controller
+
+initial_state: checking_queue
+
+transitions:
+  # Check database queue for pending jobs
+  - from: checking_queue
+    to: spawning_worker
+    event: job_found
+  
+  - from: checking_queue
+    to: idling
+    event: queue_empty
+  
+  # Spawn worker for job
+  - from: spawning_worker
+    to: checking_queue
+    event: worker_started
+  
+  - from: spawning_worker
+    to: error_handling
+    event: spawn_failed
+  
+  # Idle when queue empty
+  - from: idling
+    to: checking_queue
+    event: timeout(10)  # Wait 10 seconds
+  
+  # Error recovery
+  - from: error_handling
+    to: checking_queue
+    event: retry
+
+actions:
+  checking_queue:
+    - type: check_database_queue
+      params:
+        status: pending
+        limit: 1
+        machine_type: patient_records
+        success: job_found
+        no_jobs: queue_empty
+  
+  spawning_worker:
+    - type: start_fsm
+      params:
+        yaml_path: "config/patient-records.yaml"
+        machine_name: "patient_record_{job_id}"
+        job_id: "{job_id}"
+        success: worker_started
+        error: spawn_failed
+    
+    - type: log
+      message: "🚀 Spawned worker: patient_record_{job_id}"
+      level: info
+  
+  idling:
+    - type: log
+      message: "😴 Queue empty, waiting 10 seconds..."
+      level: info
+  
+  error_handling:
+    - type: log
+      message: "❌ Failed to spawn worker for job {job_id}"
+      level: error
+```
+
+#### Implementation Steps
+- [ ] Create `examples/patient_records/config/concurrent-controller.yaml`
+- [ ] Define states: `checking_queue`, `spawning_worker`, `idling`, `error_handling`
+- [ ] Configure transitions with events
+- [ ] Add `check_database_queue` action
+- [ ] Add `start_fsm` action with dynamic machine naming
+- [ ] Add timeout transition for idle state
+- [ ] Add error recovery path
+
+#### Manual Testing
+```bash
+# Terminal 1: Start controller
+cd examples/patient_records
+statemachine config/concurrent-controller.yaml --machine-name concurrent_controller
+
+# Terminal 2: Add jobs to queue
+statemachine-db add-job job001 --type patient_records
+statemachine-db add-job job002 --type patient_records
+statemachine-db add-job job003 --type patient_records
+
+# Terminal 3: Monitor UI
+open http://localhost:3001
+
+# Expected behavior:
+# - Controller checks queue
+# - Spawns patient_record_job001, patient_record_job002, patient_record_job003
+# - Kanban shows 3 workers processing
+# - Controller idles when queue empty
+# - Controller resumes when new jobs added
+```
+
+### Phase 3.4: 🔵 REFACTOR - Update run-demo.sh
+
+**Objective:** Refactor demo script to use controller pattern
+
+#### Refactoring Checklist
+- [ ] Modify `examples/patient_records/run-demo.sh`
+  - [ ] Remove direct FSM spawning loop
+  - [ ] Add job queue population function
+  - [ ] Start single concurrent-controller instance instead
+  - [ ] Update cleanup to stop controller
+  - [ ] Update status to show controller + workers
+
+#### New Demo Flow
+```bash
+# Old flow (Phase 1):
+# for i in 1..N; do
+#   statemachine patient-records.yaml --machine-name patient_record_$i &
+# done
+
+# New flow (Phase 3):
+# 1. Populate queue with N jobs
+populate_queue() {
+    for i in $(seq 1 $MACHINE_COUNT); do
+        statemachine-db add-job "job_$(printf '%03d' $i)" \
+            --type patient_records \
+            --payload "{\"report_id\": \"report_$i\"}"
+    done
+}
+
+# 2. Start single controller (spawns workers as needed)
+start_controller() {
+    statemachine config/concurrent-controller.yaml \
+        --machine-name concurrent_controller > "$LOG_DIR/controller.log" 2>&1 &
+}
+
+# 3. Controller reads queue and spawns workers dynamically
+```
+
+#### Updated run-demo.sh Structure
+```bash
+start_demo() {
+    cleanup
+    generate_diagrams
+    start_monitoring
+    start_ui_server
+    
+    # NEW: Populate job queue
+    echo "📥 Populating job queue with $MACHINE_COUNT jobs..."
+    populate_queue
+    
+    # NEW: Start controller (replaces worker loop)
+    echo "🎮 Starting concurrent controller..."
+    start_controller
+    
+    echo "📊 Demo running! Open http://localhost:3001"
+}
+```
+
+### Phase 3.5: 🧪 Integration Testing
+
+#### Test Scenarios
+- [ ] **Scenario 1: Empty Queue Handling**
+  - Start controller with empty queue
+  - Verify controller enters idle state
+  - Add job while idle
+  - Verify controller resumes and spawns worker
+
+- [ ] **Scenario 2: Batch Processing**
+  - Add 10 jobs to queue
+  - Start controller
+  - Verify 10 workers spawned sequentially
+  - Verify all jobs processed
+  - Verify controller returns to idle
+
+- [ ] **Scenario 3: Real-time Job Addition**
+  - Start controller with 3 jobs
+  - Add 2 more jobs while processing
+  - Verify controller picks up new jobs
+  - Verify all 5 workers complete
+
+- [ ] **Scenario 4: Worker Failure Recovery**
+  - Start controller
+  - Kill a worker mid-processing
+  - Verify controller continues with other workers
+  - Verify failed job remains in queue (manual retry)
+
+- [ ] **Scenario 5: Kanban Visualization**
+  - Start controller with 10 jobs
+  - Open Kanban view
+  - Verify cards appear as workers spawn
+  - Verify cards move through states
+  - Verify cards disappear as workers complete
+
+### Phase 3.6: 📝 Documentation
+
+#### Documentation Updates
+- [ ] Update `examples/patient_records/README.md`
+  - [ ] Document concurrent-controller pattern
+  - [ ] Document start_fsm action
+  - [ ] Show queue-based workflow
+  - [ ] Add architecture diagram
+
+- [ ] Update main `README.md`
+  - [ ] Add concurrent controller example
+  - [ ] Document start_fsm built-in action
+  - [ ] Add to "Advanced Patterns" section
+
+- [ ] Create `docs/concurrent-controller-pattern.md`
+  - [ ] Pattern description
+  - [ ] Use cases
+  - [ ] Configuration guide
+  - [ ] Scaling considerations
+
+#### Example Documentation
+```markdown
+### Concurrent Controller Pattern
+
+The concurrent controller pattern enables dynamic worker spawning based on
+job queue depth. A single controller FSM monitors the database queue and
+spawns worker FSM instances as needed.
+
+**Benefits:**
+- Dynamic scaling based on queue depth
+- Centralized worker management
+- Automatic idle when queue empty
+- Easy to monitor and debug
+
+**Usage:**
+```bash
+# Populate queue
+for i in {1..10}; do
+    statemachine-db add-job job_$i --type worker_type
+done
+
+# Start controller
+statemachine concurrent-controller.yaml --machine-name controller
+
+# Workers spawn automatically
+# View in Kanban: http://localhost:3001 (press K)
+```
+
+## ✅ Phase 3 Success Criteria
+- [ ] `start_fsm` action implemented with full test coverage
+- [ ] `concurrent-controller.yaml` manages worker lifecycle
+- [ ] Demo script uses queue + controller pattern
+- [ ] Kanban view shows dynamic worker spawning
+- [ ] All integration tests pass
+- [ ] Documentation updated
+- [ ] No regression in Phase 1 Kanban functionality
+
+## 🎯 Phase 3 Deliverables
+- `src/statemachine_engine/actions/builtin/start_fsm_action.py` (new)
+- `tests/actions/test_start_fsm_action.py` (new)
+- `examples/patient_records/config/concurrent-controller.yaml` (new)
+- `examples/patient_records/run-demo.sh` (refactored)
+- `docs/concurrent-controller-pattern.md` (new)
+- README updates
+- All tests passing (unit + integration)
+
+---
 
 ## 📝 Implementation Notes
 

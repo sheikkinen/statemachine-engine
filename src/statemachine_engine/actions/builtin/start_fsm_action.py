@@ -8,7 +8,8 @@ controller FSM.
 import logging
 import subprocess
 import re
-from typing import Dict, Any
+import json
+from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 from ..base import BaseAction
@@ -18,17 +19,21 @@ logger = logging.getLogger(__name__)
 
 class StartFsmAction(BaseAction):
     """
-    Action to spawn a new FSM instance as a separate process.
+    Action to spawn a new FSM instance with optional context passing.
     
-    This enables a controller FSM to dynamically spawn worker FSMs,
-    implementing patterns like queue-based task processing with
-    concurrent workers.
+    This enables a controller FSM to dynamically spawn worker FSMs with
+    job-specific context, implementing patterns like queue-based task
+    processing with concurrent workers.
     
     YAML Usage:
         actions:
           - type: start_fsm
             yaml_path: "config/worker.yaml"
             machine_name: "worker_{job_id}"
+            context_vars:
+              - current_job.id as job_id    # Extract nested, rename
+              - report_id                    # Pass flat variable
+              - report_title                 # Pass flat variable
             success: worker_started
             error: spawn_failed
             store_pid: true
@@ -36,16 +41,30 @@ class StartFsmAction(BaseAction):
               - "--debug"
               - "--log-level=INFO"
     
+    Context Variables:
+        Supports three syntaxes:
+        1. Flat: "variable_name" - Copy as-is from context
+        2. Nested: "parent.child.field" - Extract using dot notation
+        3. Renamed: "source as target" - Extract and rename
+        
+        Missing variables are logged as warnings but don't fail the spawn.
+        Context is passed to spawned FSM via --initial-context JSON argument.
+    
     Example with variable interpolation:
         # Controller reads job from queue
         actions:
           - type: start_fsm
             yaml_path: "config/{job_type}_worker.yaml"
             machine_name: "worker_{job_type}_{job_id}"
+            context_vars:
+              - current_job.id as job_id
+              - current_job.type as job_type  
+              - input_path
+              - output_path
             success: worker_spawned
             
-        # Context variables like {job_id} and {job_type} are replaced
-        # with actual values from the execution context
+        # Context variables like {job_id} are replaced in strings
+        # Context vars are extracted and passed to spawned worker
     """
 
     def __init__(self, config: Dict[str, Any]):
@@ -54,6 +73,7 @@ class StartFsmAction(BaseAction):
         self.machine_name = config.get('machine_name')
         self.store_pid = config.get('store_pid', False)
         self.additional_args = config.get('additional_args', [])
+        self.context_vars = config.get('context_vars', [])
 
     async def execute(self, context: Dict[str, Any]) -> str:
         """
@@ -86,6 +106,26 @@ class StartFsmAction(BaseAction):
                 '--machine-name',
                 machine_name
             ]
+            
+            # Extract and pass context variables if specified
+            if self.context_vars:
+                context_data = self._extract_context_vars(context)
+                
+                if context_data:
+                    try:
+                        # Serialize to JSON
+                        context_json = json.dumps(context_data, separators=(',', ':'))
+                        
+                        # Warn if context is large
+                        if len(context_json) > 4096:
+                            logger.warning(f"StartFsmAction: Context JSON is large ({len(context_json)} bytes)")
+                        
+                        # Add to command
+                        command.extend(['--initial-context', context_json])
+                        
+                    except (TypeError, ValueError) as e:
+                        logger.error(f"StartFsmAction: Failed to serialize context: {e}")
+                        return self.get_config_value('error', 'error')
             
             # Add additional arguments if specified
             if self.additional_args:
@@ -120,6 +160,66 @@ class StartFsmAction(BaseAction):
         except Exception as e:
             logger.error(f"StartFsmAction: Failed to spawn FSM - {e}")
             return self.get_config_value('error', 'error')
+    
+    def _extract_context_vars(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract specified variables from context.
+        
+        Supports three syntaxes:
+        1. Simple: "variable_name" - Copy as-is
+        2. Nested: "parent.child.field" - Extract using dot notation
+        3. Renamed: "source as target" - Extract and rename
+        
+        Args:
+            context: Source context dictionary
+            
+        Returns:
+            Dictionary with extracted variables
+        """
+        extracted = {}
+        
+        for var_spec in self.context_vars:
+            # Parse "source as target" or just "source"
+            if ' as ' in var_spec:
+                source, target = var_spec.split(' as ', 1)
+                source = source.strip()
+                target = target.strip()
+            else:
+                source = target = var_spec.strip()
+            
+            # Extract value (supports dot notation)
+            value = self._get_nested_value(context, source)
+            
+            if value is not None:
+                extracted[target] = value
+            else:
+                logger.warning(f"StartFsmAction: Context variable '{source}' not found, skipping")
+        
+        return extracted
+    
+    def _get_nested_value(self, data: Dict[str, Any], path: str) -> Optional[Any]:
+        """
+        Get value from nested dict using dot notation.
+        
+        Args:
+            data: Source dictionary
+            path: Dot-separated path (e.g., "current_job.id")
+            
+        Returns:
+            Value at path, or None if not found
+        """
+        keys = path.split('.')
+        value = data
+        
+        try:
+            for key in keys:
+                if isinstance(value, dict) and key in value:
+                    value = value[key]
+                else:
+                    return None
+            return value
+        except (KeyError, TypeError):
+            return None
     
     def _interpolate_variables(self, template: str, context: Dict[str, Any]) -> str:
         """

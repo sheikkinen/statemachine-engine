@@ -73,6 +73,11 @@ actions:
     - type: start_fsm
       yaml_path: "examples/patient_records/config/patient-records.yaml"
       machine_name: "patient_record_{current_job.id}"
+      context_vars:
+        - current_job.id as job_id      # Extract job ID from nested structure
+        - report_id                      # Pass flattened job data
+        - report_title                   # Pass flattened job data
+        - summary_text                   # Pass flattened job data
       success: worker_started
       error: spawn_failed
       store_pid: true

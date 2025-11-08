@@ -295,3 +295,255 @@ async def test_start_fsm_nested_variable_interpolation():
         call_args = mock_popen.call_args[0][0]
         assert call_args[3] == 'worker_job_789'
 
+
+# ==============================================================================
+# NEW TESTS: Context Passing Feature (Phase 3 - Context Passing)
+# ==============================================================================
+
+@pytest.mark.asyncio
+async def test_start_fsm_with_context_vars():
+    """Test 12: Basic context variable extraction and passing"""
+    config = {
+        'yaml_path': 'config/worker.yaml',
+        'machine_name': 'worker_001',
+        'context_vars': ['job_id', 'report_id', 'report_title']
+    }
+    
+    context = {
+        'machine_name': 'controller',
+        'job_id': 'job_001',
+        'report_id': 'report_1',
+        'report_title': 'Test Report'
+    }
+    
+    with patch('subprocess.Popen') as mock_popen:
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_popen.return_value = mock_process
+        
+        action = StartFsmAction(config)
+        result = await action.execute(context)
+        
+        # Should return success
+        assert result == 'success'
+        
+        # Verify command includes --initial-context
+        call_args = mock_popen.call_args[0][0]
+        assert '--initial-context' in call_args
+        
+        # Parse and verify JSON context
+        import json
+        ctx_idx = call_args.index('--initial-context') + 1
+        context_json = json.loads(call_args[ctx_idx])
+        
+        assert context_json == {
+            'job_id': 'job_001',
+            'report_id': 'report_1',
+            'report_title': 'Test Report'
+        }
+
+
+@pytest.mark.asyncio
+async def test_start_fsm_with_nested_context_vars():
+    """Test 13: Nested variable extraction with dot notation"""
+    config = {
+        'yaml_path': 'config/worker.yaml',
+        'machine_name': 'worker_002',
+        'context_vars': ['current_job.id', 'current_job.type', 'report_id']
+    }
+    
+    context = {
+        'machine_name': 'controller',
+        'current_job': {
+            'id': 'job_001',
+            'type': 'patient_records'
+        },
+        'report_id': 'report_1'
+    }
+    
+    with patch('subprocess.Popen') as mock_popen:
+        mock_process = MagicMock()
+        mock_process.pid = 12346
+        mock_popen.return_value = mock_process
+        
+        action = StartFsmAction(config)
+        result = await action.execute(context)
+        
+        # Verify command includes --initial-context
+        call_args = mock_popen.call_args[0][0]
+        assert '--initial-context' in call_args
+        
+        # Parse and verify nested extraction
+        import json
+        ctx_idx = call_args.index('--initial-context') + 1
+        context_json = json.loads(call_args[ctx_idx])
+        
+        # Nested keys should be preserved (will be renamed with 'as' syntax)
+        assert context_json['current_job.id'] == 'job_001'
+        assert context_json['current_job.type'] == 'patient_records'
+        assert context_json['report_id'] == 'report_1'
+
+
+@pytest.mark.asyncio
+async def test_start_fsm_with_renamed_context_vars():
+    """Test 14: Variable renaming with 'as' syntax"""
+    config = {
+        'yaml_path': 'config/worker.yaml',
+        'machine_name': 'worker_003',
+        'context_vars': [
+            'current_job.id as job_id',
+            'long_variable_name as short'
+        ]
+    }
+    
+    context = {
+        'machine_name': 'controller',
+        'current_job': {'id': 'job_001'},
+        'long_variable_name': 'value123'
+    }
+    
+    with patch('subprocess.Popen') as mock_popen:
+        mock_process = MagicMock()
+        mock_process.pid = 12347
+        mock_popen.return_value = mock_process
+        
+        action = StartFsmAction(config)
+        result = await action.execute(context)
+        
+        # Verify renamed keys in JSON context
+        call_args = mock_popen.call_args[0][0]
+        
+        import json
+        ctx_idx = call_args.index('--initial-context') + 1
+        context_json = json.loads(call_args[ctx_idx])
+        
+        # Keys should be renamed
+        assert context_json == {
+            'job_id': 'job_001',
+            'short': 'value123'
+        }
+        # Original keys should NOT exist
+        assert 'current_job.id' not in context_json
+        assert 'long_variable_name' not in context_json
+
+
+@pytest.mark.asyncio
+async def test_start_fsm_missing_context_vars():
+    """Test 15: Graceful handling of missing context variables"""
+    config = {
+        'yaml_path': 'config/worker.yaml',
+        'machine_name': 'worker_004',
+        'context_vars': ['existing_var', 'missing_var', 'also.missing']
+    }
+    
+    context = {
+        'machine_name': 'controller',
+        'existing_var': 'value'
+    }
+    
+    with patch('subprocess.Popen') as mock_popen:
+        mock_process = MagicMock()
+        mock_process.pid = 12348
+        mock_popen.return_value = mock_process
+        
+        action = StartFsmAction(config)
+        result = await action.execute(context)
+        
+        # Should succeed with partial context
+        assert result == 'success'
+        
+        # Only existing var should be included
+        call_args = mock_popen.call_args[0][0]
+        
+        import json
+        ctx_idx = call_args.index('--initial-context') + 1
+        context_json = json.loads(call_args[ctx_idx])
+        
+        assert context_json == {'existing_var': 'value'}
+        assert 'missing_var' not in context_json
+        assert 'also.missing' not in context_json
+
+
+@pytest.mark.asyncio
+async def test_start_fsm_empty_context_vars():
+    """Test 16: No --initial-context arg when context_vars not specified"""
+    config = {
+        'yaml_path': 'config/worker.yaml',
+        'machine_name': 'worker_005'
+        # No context_vars specified
+    }
+    
+    context = {
+        'machine_name': 'controller',
+        'some': 'data'
+    }
+    
+    with patch('subprocess.Popen') as mock_popen:
+        mock_process = MagicMock()
+        mock_process.pid = 12349
+        mock_popen.return_value = mock_process
+        
+        action = StartFsmAction(config)
+        await action.execute(context)
+        
+        # Verify no --initial-context arg added
+        call_args = mock_popen.call_args[0][0]
+        assert '--initial-context' not in call_args
+
+
+@pytest.mark.asyncio
+async def test_start_fsm_empty_context_vars_list():
+    """Test 17: No --initial-context arg when context_vars is empty list"""
+    config = {
+        'yaml_path': 'config/worker.yaml',
+        'machine_name': 'worker_006',
+        'context_vars': []  # Empty list
+    }
+    
+    context = {
+        'machine_name': 'controller',
+        'some': 'data'
+    }
+    
+    with patch('subprocess.Popen') as mock_popen:
+        mock_process = MagicMock()
+        mock_process.pid = 12350
+        mock_popen.return_value = mock_process
+        
+        action = StartFsmAction(config)
+        await action.execute(context)
+        
+        # Verify no --initial-context arg added
+        call_args = mock_popen.call_args[0][0]
+        assert '--initial-context' not in call_args
+
+
+@pytest.mark.asyncio
+async def test_start_fsm_large_context_warning():
+    """Test 18: Warning logged for large context (>4KB)"""
+    config = {
+        'yaml_path': 'config/worker.yaml',
+        'machine_name': 'worker_007',
+        'context_vars': ['large_data']
+    }
+    
+    context = {
+        'machine_name': 'controller',
+        'large_data': 'x' * 5000  # >4KB
+    }
+    
+    with patch('subprocess.Popen') as mock_popen:
+        mock_process = MagicMock()
+        mock_process.pid = 12351
+        mock_popen.return_value = mock_process
+        
+        # Capture log warnings
+        with patch('statemachine_engine.actions.builtin.start_fsm_action.logger') as mock_logger:
+            action = StartFsmAction(config)
+            await action.execute(context)
+            
+            # Verify warning was logged
+            mock_logger.warning.assert_called()
+            warning_msg = str(mock_logger.warning.call_args[0][0])
+            assert 'large' in warning_msg.lower() or 'bytes' in warning_msg.lower()
+

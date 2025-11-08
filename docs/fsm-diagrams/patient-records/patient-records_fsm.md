@@ -13,13 +13,7 @@
 
 ```mermaid
 stateDiagram-v2
-    [*] --> waiting_for_report
-
-    %% IDLE
-    state IDLE {
-        [*] --> waiting_for_report
-        waiting_for_report --> [*] : new_report
-    }
+    [*] --> summarizing
 
     %% SUMMARIZING
     state SUMMARIZING {
@@ -49,7 +43,6 @@ stateDiagram-v2
     }
 
     %% Transitions
-    IDLE --> SUMMARIZING : new_report
     SUMMARIZING --> FACT_CHECKING : timeout(10)
     SUMMARIZING --> FACT_CHECKING : summary_complete
     FACT_CHECKING --> COMPLETED : timeout(5)
@@ -57,8 +50,8 @@ stateDiagram-v2
     FACT_CHECKING --> SUMMARIZING : validation_failed
     SUMMARIZING --> COMPLETED : processing_error
     FACT_CHECKING --> COMPLETED : processing_error
-    COMPLETED --> IDLE : retry_report
-    COMPLETED --> IDLE : process_next
+    COMPLETED --> SUMMARIZING : retry_report
+    COMPLETED --> SUMMARIZING : process_next
 
 ```
 
@@ -69,9 +62,9 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
     %% Error Handling Flow
-    fact_checking : fact_checking
     failed : failed
     summarizing : summarizing
+    fact_checking : fact_checking
     summarizing --> failed : processing_error
     fact_checking --> failed : processing_error
 ```
@@ -85,9 +78,9 @@ stateDiagram-v2
     %% Stop/Shutdown Flow
     shutdown : shutdown
     stopped --> [*]
-    waiting_for_report --> shutdown : stop
     summarizing --> shutdown : stop
     fact_checking --> shutdown : stop
+    ready --> shutdown : stop
 ```
 
 ---
@@ -96,8 +89,7 @@ stateDiagram-v2
 
 | State | Description | Key Actions |
 |-------|-------------|-------------|
-| `waiting_for_report` | Waiting For Report | log |
-| `summarizing` | Summarizing | log, log |
+| `summarizing` | Summarizing | log, log, log |
 | `fact_checking` | Fact Checking | log, log |
 | `ready` | Ready | log, bash |
 | `failed` | Failed | log |
@@ -109,7 +101,6 @@ stateDiagram-v2
 
 | Event | Type | Description |
 |-------|------|-------------|
-| `new_report` | Internal | New Report |
 | `summary_complete` | Internal | Summary Complete |
 | `summary_invalid` | Internal | Summary Invalid |
 | `validation_passed` | Internal | Validation Passed |
@@ -123,10 +114,10 @@ stateDiagram-v2
 
 ## Configuration Summary
 
-- **States:** 6
-- **Events:** 9
-- **Transitions:** 12
-- **Initial State:** `waiting_for_report`
+- **States:** 5
+- **Events:** 8
+- **Transitions:** 11
+- **Initial State:** `summarizing`
 
 ---
 

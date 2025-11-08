@@ -6,26 +6,10 @@
       "title": "patient-records Overview",
       "description": "High-level state machine flow with composite states",
       "composites": [
-        "IDLE",
         "SUMMARIZING",
         "FACT_CHECKING",
         "COMPLETED"
       ]
-    },
-    "IDLE": {
-      "file": "IDLE.mermaid",
-      "title": "IDLE",
-      "description": "Detailed view of idle",
-      "states": [
-        "waiting_for_report"
-      ],
-      "entry_states": [
-        "waiting_for_report"
-      ],
-      "exit_states": [
-        "waiting_for_report"
-      ],
-      "parent": "main"
     },
     "SUMMARIZING": {
       "file": "SUMMARIZING.mermaid",

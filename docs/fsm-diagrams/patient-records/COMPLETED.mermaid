@@ -8,10 +8,9 @@ stateDiagram-v2
     %% Internal transitions
 
     %% External composites
-    state IDLE
     state SUMMARIZING
     state FACT_CHECKING
 
     %% Transitions to other composites
-    failed --> IDLE : retry_report
-    ready --> IDLE : process_next
+    failed --> SUMMARIZING : retry_report
+    ready --> SUMMARIZING : process_next

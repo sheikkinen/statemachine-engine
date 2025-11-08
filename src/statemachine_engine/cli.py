@@ -6,13 +6,14 @@ State Machine CLI - Main entry point for running the state machine
 import asyncio
 import argparse
 import logging
+import json
 import sys
 from pathlib import Path
 
 from statemachine_engine.core.engine import StateMachineEngine
 from statemachine_engine.database.models import get_job_model
 
-async def run_state_machine(config_path: str, debug: bool = False, machine_name: str = None, actions_dir: str = None, event_socket_path: str = None, control_socket_prefix: str = None):
+async def run_state_machine(config_path: str, debug: bool = False, machine_name: str = None, actions_dir: str = None, event_socket_path: str = None, control_socket_prefix: str = None, initial_context_json: str = '{}'):
     """Run the state machine with given configuration"""
     # Set up logging
     level = logging.DEBUG if debug else logging.INFO
@@ -23,6 +24,15 @@ async def run_state_machine(config_path: str, debug: bool = False, machine_name:
     
     logger = logging.getLogger(__name__)
     logger.info(f"Starting state machine with config: {config_path}")
+    
+    # Parse initial context from JSON
+    try:
+        user_context = json.loads(initial_context_json)
+        if user_context:
+            logger.info(f"Initial context provided: {list(user_context.keys())}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in --initial-context: {e}")
+        return 1
     
     # Validate and resolve actions directory if provided
     if actions_dir:
@@ -42,9 +52,10 @@ async def run_state_machine(config_path: str, debug: bool = False, machine_name:
     try:
         await engine.load_config(config_path)
         
-        # Initialize context with job model for state logging
+        # Initialize context with job model and user-provided context
         initial_context = {
-            'job_model': get_job_model()
+            'job_model': get_job_model(),
+            **user_context  # Merge user context
         }
         
         await engine.execute_state_machine(initial_context)
@@ -65,10 +76,21 @@ async def async_main():
     parser.add_argument('--actions-dir', help='Custom actions directory (absolute or relative path)')
     parser.add_argument('--event-socket-path', help='Custom event socket path (default: /tmp/statemachine-events.sock)')
     parser.add_argument('--control-socket-prefix', help='Custom control socket prefix (default: /tmp/statemachine-control)')
+    parser.add_argument('--initial-context', 
+                        default='{}',
+                        help='JSON string with initial context variables (default: {})')
 
     args = parser.parse_args()
 
-    return await run_state_machine(args.config, args.debug, args.machine_name, args.actions_dir, args.event_socket_path, args.control_socket_prefix)
+    return await run_state_machine(
+        args.config, 
+        args.debug, 
+        args.machine_name, 
+        args.actions_dir, 
+        args.event_socket_path, 
+        args.control_socket_prefix,
+        args.initial_context
+    )
 
 def main():
     """Synchronous entry point for setuptools"""

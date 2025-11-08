@@ -215,6 +215,47 @@ start_ui_server() {
     return 1
 }
 
+# Function to verify API endpoints are accessible
+verify_api_endpoints() {
+    echo "🔍 Verifying API endpoints..."
+    
+    local base_url="http://localhost:3001"
+    local all_passed=true
+    
+    # Expected diagram endpoints (based on generated diagrams)
+    local endpoints=(
+        "/api/diagram/patient-records/main"
+        "/api/diagram/patient-records/IDLE"
+        "/api/diagram/patient-records/SUMMARIZING"
+        "/api/diagram/patient-records/FACT_CHECKING"
+        "/api/diagram/patient-records/COMPLETED"
+        "/api/diagram/concurrent-controller/main"
+        "/api/diagram/concurrent-controller/PROCESSING"
+        "/api/diagram/concurrent-controller/IDLE"
+        "/api/diagram/concurrent-controller/ERROR"
+    )
+    
+    for endpoint in "${endpoints[@]}"; do
+        local response=$(curl -s -w "\n%{http_code}" "${base_url}${endpoint}")
+        local http_code=$(echo "$response" | tail -n1)
+        
+        if [[ "$http_code" == "200" ]]; then
+            echo "   ✅ $endpoint"
+        else
+            echo "   ❌ $endpoint (HTTP $http_code)"
+            all_passed=false
+        fi
+    done
+    
+    if [[ "$all_passed" == true ]]; then
+        echo "✅ All API endpoints verified"
+        return 0
+    else
+        echo "⚠️  Some API endpoints failed verification"
+        return 1
+    fi
+}
+
 # Function to send sample events to machines (legacy)
 send_sample_events() {
     echo "📨 Sample events sent via job queue..."
@@ -338,6 +379,11 @@ case "${1:-help}" in
         generate_diagrams
         start_monitoring
         start_ui_server
+        
+        # Verify API endpoints are accessible
+        echo ""
+        verify_api_endpoints
+        echo ""
         
         # Populate job queue
         populate_queue

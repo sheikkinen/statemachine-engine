@@ -491,17 +491,42 @@ open http://localhost:3001
 # - Controller resumes when new jobs added
 ```
 
-### Phase 3.4: 🔵 REFACTOR - Update run-demo.sh
+### Phase 3.4: 🔵 REFACTOR - Update run-demo.sh ✅ COMPLETED
 
 **Objective:** Refactor demo script to use controller pattern
 
 #### Refactoring Checklist
-- [ ] Modify `examples/patient_records/run-demo.sh`
-  - [ ] Remove direct FSM spawning loop
-  - [ ] Add job queue population function
-  - [ ] Start single concurrent-controller instance instead
-  - [ ] Update cleanup to stop controller
-  - [ ] Update status to show controller + workers
+- [x] Modify `examples/patient_records/run-demo.sh`
+  - [x] Add `CONTROLLER_CONFIG` path variable
+  - [x] Remove direct FSM spawning loop
+  - [x] Add `populate_queue()` function - creates N jobs in database
+  - [x] Add `start_controller()` function - launches single controller
+  - [x] Update `cleanup()` to stop controller first, then workers
+  - [x] Update `status()` to show controller + dynamically spawned workers
+  - [x] Update `continuous_events()` to add jobs to queue
+  - [x] Update help text to explain controller pattern
+  - [x] Update main `start` command to use controller flow
+
+#### Refactored Demo Flow ✅
+```bash
+# Old flow: Direct worker spawning
+# for i in 1..N; do statemachine worker.yaml &; done
+
+# New flow: Controller-based spawning
+1. populate_queue() → Add N jobs to database
+2. start_controller() → Launch concurrent-controller.yaml
+3. Controller reads queue → spawns patient_record_{job_id} workers
+4. Workers process jobs → controller returns to idle when done
+```
+
+#### Key Changes
+- **populate_queue()**: Creates jobs in database with patient_records type
+- **start_controller()**: Spawns single controller FSM instead of N workers
+- **Status command**: Shows controller PID + active workers + queue status
+- **Continuous mode**: Adds jobs to queue (controller spawns workers)
+- **Help text**: Explains controller pattern architecture
+
+**Phase 3.4 Complete!** Demo script refactored to controller pattern.
 
 #### New Demo Flow
 ```bash

@@ -5,6 +5,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="$SCRIPT_DIR/config/patient-records.yaml"
+CONTROLLER_CONFIG="$SCRIPT_DIR/config/concurrent-controller.yaml"
 LOG_DIR="$SCRIPT_DIR/logs"
 
 # Configurable instance count (default: 1, override with env var)
@@ -27,6 +28,11 @@ mkdir -p "$LOG_DIR"
 # Function to clean up background processes
 cleanup() {
     echo "🧹 Cleaning up patient records demo..."
+    
+    # Stop controller first
+    pkill -f "statemachine.*concurrent.*controller" 2>/dev/null || true
+    
+    # Stop any worker machines
     pkill -f "statemachine.*patient.*record" 2>/dev/null || true
     
     # Stop WebSocket server if running
@@ -49,7 +55,8 @@ cleanup() {
         rm -f "$LOG_DIR/ui_server.pid"
     fi
     
-    # Clean up control sockets
+    # Clean up control sockets (controller + workers)
+    rm -f /tmp/statemachine-control-concurrent_controller.sock 2>/dev/null || true
     rm -f /tmp/statemachine-control-patient_record_*.sock 2>/dev/null || true
     
     # Nuke the database for fresh start (both locations)
@@ -66,7 +73,42 @@ cleanup() {
     echo "✅ Cleanup complete"
 }
 
-# Function to start a single machine instance
+# Function to populate job queue with pending jobs
+populate_queue() {
+    echo "📥 Populating job queue with $MACHINE_COUNT jobs..."
+    
+    for i in $(seq 1 $MACHINE_COUNT); do
+        local job_id="job_$(printf '%03d' $i)"
+        local report_id="report_${i}"
+        
+        statemachine-db add-job "$job_id" \
+            --type patient_records \
+            --payload "{\"report_id\":\"${report_id}\",\"report_title\":\"Patient Report ${i}\",\"summary_text\":\"Processing report ${i}\"}" \
+            >/dev/null 2>&1
+        
+        echo "   └─ Added job: $job_id (report: $report_id)"
+    done
+    
+    echo "✅ Queue populated with $MACHINE_COUNT jobs"
+}
+
+# Function to start the controller (spawns workers as needed)
+start_controller() {
+    echo "🎮 Starting concurrent controller..."
+    local controller_name="concurrent_controller"
+    local log_file="$LOG_DIR/${controller_name}.log"
+    
+    # Start controller in background
+    statemachine "$CONTROLLER_CONFIG" \
+        --machine-name "$controller_name" > "$log_file" 2>&1 &
+    
+    local pid=$!
+    echo "$pid" > "$LOG_DIR/${controller_name}.pid"
+    echo "   └─ PID: $pid, Log: $log_file"
+    echo "   └─ Controller will spawn workers for queued jobs"
+}
+
+# Function to start a single machine instance (legacy, kept for compatibility)
 start_machine() {
     local instance_id=$1
     local machine_name="patient_record_${instance_id}"
@@ -162,63 +204,45 @@ start_ui_server() {
     return 1
 }
 
-# Function to send sample events to machines
+# Function to send sample events to machines (legacy)
 send_sample_events() {
-    echo "📨 Sending generic job events to all machines..."
-    
-    # Send generic job_N events to each machine
-    for i in $(seq 1 $MACHINE_COUNT); do
-        local machine_name="patient_record_${i}"
-        local job_id="job_${i}"
-        
-        echo "   └─ Sending new_report (${job_id}) to $machine_name"
-        
-        statemachine-db send-event \
-            --target "$machine_name" \
-            --type "new_report" \
-            --payload "{\"report_id\":\"${job_id}\",\"report_title\":\"Job ${i}\",\"summary_text\":\"Processing job ${i}\"}" \
-            >/dev/null 2>&1
-        
-        # Brief delay between events
-        sleep 0.2
-    done
-    
-    echo "📊 Demo running! Open http://localhost:3002 and press 'K' for Kanban view"
-    echo "💡 Events will process automatically via timeouts (10s summarizing, 5s fact-checking)"
+    echo "📨 Sample events sent via job queue..."
+    echo "   └─ Controller is managing worker lifecycle"
+    echo ""
+    echo "📊 Demo running! Open http://localhost:3001 and press 'K' for Kanban view"
+    echo "💡 Workers will spawn automatically as controller processes queue"
 }
 
 # Function to send continuous events for dynamic demo
 continuous_events() {
-    echo "🔄 Starting continuous event simulation..."
+    echo "🔄 Adding jobs continuously to the queue..."
+    echo "   Controller will spawn workers as needed"
+    echo ""
     
-    local event_types=("summary_complete" "validation_passed" "validation_failed" "summary_invalid" "process_next")
-    local counter=1
+    local counter=$((MACHINE_COUNT + 1))
     
     while true; do
-        # Pick random machine and event
-        local machine_num=$(( (RANDOM % MACHINE_COUNT) + 1 ))
-        local machine_name="patient_record_${machine_num}"
-        local event_type="${event_types[$((RANDOM % ${#event_types[@]}))]}"
+        local job_id="job_$(printf '%03d' $counter)"
+        local report_id="report_${counter}"
         
-        echo "   └─ [$counter] Sending $event_type to $machine_name"
+        echo "   └─ [$counter] Adding job: $job_id"
         
-        statemachine-db send-event \
-            --target "$machine_name" \
-            --type "$event_type" \
-            --payload "{\"timestamp\":\"$(date -Iseconds)\"}" \
+        statemachine-db add-job "$job_id" \
+            --type patient_records \
+            --payload "{\"report_id\":\"${report_id}\",\"report_title\":\"Report ${counter}\",\"timestamp\":\"$(date -Iseconds)\"}" \
             >/dev/null 2>&1
         
         counter=$((counter + 1))
         
-        # Random delay between 2-8 seconds
-        sleep $(( (RANDOM % 7) + 2 ))
+        # Random delay between 3-10 seconds
+        sleep $(( (RANDOM % 8) + 3 ))
     done
 }
 
 # Function to show status of all machines
 status() {
-    echo "📊 Patient Records Demo Status:"
-    echo "================================"
+    echo "📊 Patient Records Demo Status (Controller Pattern):"
+    echo "===================================================="
     
     # Check monitoring server
     if lsof -ti:3002 >/dev/null 2>&1; then
@@ -227,36 +251,64 @@ status() {
         echo "❌ Monitoring server: Not running"
     fi
     
-    # Check each machine
-    local running_count=0
-    for i in $(seq 1 $MACHINE_COUNT); do
-        local machine_name="patient_record_${i}"
-        local pid_file="$LOG_DIR/${machine_name}.pid"
-        
+    # Check UI server
+    if lsof -ti:3001 >/dev/null 2>&1; then
+        echo "✅ UI server: Running (http://localhost:3001)"
+    else
+        echo "❌ UI server: Not running"
+    fi
+    
+    # Check controller
+    local controller_pid_file="$LOG_DIR/concurrent_controller.pid"
+    if [[ -f "$controller_pid_file" ]]; then
+        local pid=$(cat "$controller_pid_file")
+        if ps -p "$pid" >/dev/null 2>&1; then
+            echo "✅ Controller: Running (PID: $pid)"
+        else
+            echo "❌ Controller: Stopped"
+            rm -f "$controller_pid_file"
+        fi
+    else
+        echo "❌ Controller: Not started"
+    fi
+    
+    # Check worker machines (dynamically spawned)
+    echo ""
+    echo "🔍 Active Workers (spawned by controller):"
+    local worker_count=0
+    for pid_file in "$LOG_DIR"/patient_record_*.pid; do
         if [[ -f "$pid_file" ]]; then
             local pid=$(cat "$pid_file")
+            local machine_name=$(basename "$pid_file" .pid)
             if ps -p "$pid" >/dev/null 2>&1; then
-                echo "✅ $machine_name: Running (PID: $pid)"
-                running_count=$((running_count + 1))
+                echo "   └─ $machine_name (PID: $pid)"
+                worker_count=$((worker_count + 1))
             else
-                echo "❌ $machine_name: Stopped"
                 rm -f "$pid_file"
             fi
-        else
-            echo "❌ $machine_name: Not started"
         fi
     done
     
+    if [[ $worker_count -eq 0 ]]; then
+        echo "   └─ No active workers (controller spawns workers as needed)"
+    fi
+    
+    echo ""
+    echo "📋 Job Queue Status:"
+    # Show pending jobs count
+    local pending_count=$(statemachine-db list-jobs --status pending 2>/dev/null | grep -c "patient_records" || echo "0")
+    echo "   └─ Pending jobs: $pending_count"
+    
     echo "--------------------------------"
-    echo "Total: $running_count/$MACHINE_COUNT machines running"
+    echo "Total: $worker_count active workers"
     
     # Show recent activity
     echo ""
-    echo "📋 Recent Activity (last 10 entries):"
-    if [[ -n "$(ls -A "$LOG_DIR"/*.log 2>/dev/null)" ]]; then
-        tail -n 2 "$LOG_DIR"/*.log 2>/dev/null | grep -E "(📄|✍️|✅|❌|🔄)" | tail -10
+    echo "📋 Recent Controller Activity (last 5 entries):"
+    if [[ -f "$LOG_DIR/concurrent_controller.log" ]]; then
+        tail -n 5 "$LOG_DIR/concurrent_controller.log" 2>/dev/null | grep -E "(�|🚀|✅|😴|❌)" || echo "   └─ No recent activity"
     else
-        echo "   └─ No activity logs found"
+        echo "   └─ Controller log not found"
     fi
 }
 
@@ -270,20 +322,24 @@ events() {
 # Main command dispatch
 case "${1:-help}" in
     "start")
-        echo "🏥 Starting Patient Records Demo with $MACHINE_COUNT instances..."
+        echo "🏥 Starting Patient Records Demo (Controller Pattern) with $MACHINE_COUNT jobs..."
         cleanup
         generate_diagrams
         start_monitoring
         start_ui_server
         
-        for i in $(seq 1 $MACHINE_COUNT); do
-            start_machine $i
-            sleep 0.2  # Brief delay between starts
-        done
+        # Populate job queue
+        populate_queue
         
         echo ""
-        echo "⏳ Waiting for machines to initialize..."
-        sleep 5
+        echo "⏳ Waiting for services to initialize..."
+        sleep 3
+        
+        # Start controller (spawns workers dynamically)
+        start_controller
+        
+        echo ""
+        sleep 2
         
         send_sample_events
         echo ""
@@ -291,12 +347,15 @@ case "${1:-help}" in
         echo "   • Web UI: http://localhost:3001"
         echo "   • Monitoring: http://localhost:3002"
         echo "   • Press 'K' in UI for Kanban view"
+        echo "   • Controller spawns workers as needed"
         echo "   • Run '$0 events' to watch real-time events"
-        echo "   • Run '$0 continuous' for dynamic simulation"
+        echo "   • Run '$0 continuous' to add jobs dynamically"
+        echo "   • Run '$0 status' to see controller + workers"
         ;;
         
     "continuous")
-        echo "🎬 Starting continuous event simulation..."
+        echo "🎬 Adding jobs continuously to queue..."
+        echo "   Controller will spawn workers dynamically"
         echo "Press Ctrl+C to stop"
         continuous_events
         ;;
@@ -314,31 +373,37 @@ case "${1:-help}" in
         ;;
         
     "help"|*)
-        echo "🏥 Patient Records Demo - Kanban Visualization"
-        echo "=============================================="
+        echo "🏥 Patient Records Demo - Controller Pattern + Kanban"
+        echo "====================================================="
         echo ""
         echo "Usage: $0 <command>"
-        echo "       MACHINE_COUNT=<n> $0 <command>  (set instance count, default: 1)"
+        echo "       MACHINE_COUNT=<n> $0 <command>  (set job count, default: 1)"
         echo ""
         echo "Commands:"
-        echo "  start      Start patient record machines + monitoring"
-        echo "  continuous Start continuous event simulation for dynamic demo"
+        echo "  start      Start controller + monitoring (spawns workers dynamically)"
+        echo "  continuous Add jobs continuously to queue"
         echo "  events     Show real-time event stream"
-        echo "  status     Show current status of all machines"
-        echo "  cleanup    Stop all machines and clean up"
+        echo "  status     Show controller + active workers"
+        echo "  cleanup    Stop controller, workers, and clean up"
         echo "  help       Show this help message"
         echo ""
         echo "Examples:"
-        echo "  $0 start                    # Start 1 machine (default)"
-        echo "  MACHINE_COUNT=10 $0 start   # Start 10 machines"
+        echo "  $0 start                    # Start with 1 job"
+        echo "  MACHINE_COUNT=10 $0 start   # Start with 10 jobs in queue"
         echo ""
         echo "Demo Workflow:"
-        echo "1. Run 'MACHINE_COUNT=1 $0 start' to test with 1 machine"
-        echo "2. Open http://localhost:3002 in browser"
-        echo "3. Watch job flow: waiting → summarizing → fact_checking → ready"
-        echo "4. Run 'MACHINE_COUNT=10 $0 start' to test Kanban with 10 machines"
-        echo "5. Press 'K' key to open Kanban view"
-        echo "6. Run '$0 continuous' in another terminal for dynamic simulation"
+        echo "1. Run 'MACHINE_COUNT=3 $0 start' to populate queue with 3 jobs"
+        echo "2. Controller spawns workers dynamically (patient_record_job_001, etc.)"
+        echo "3. Open http://localhost:3001 in browser"
+        echo "4. Press 'K' key to open Kanban view"
+        echo "5. Watch workers process jobs and complete"
+        echo "6. Run '$0 continuous' in another terminal to add more jobs"
+        echo "7. Controller spawns new workers as jobs arrive"
+        echo ""
+        echo "Architecture:"
+        echo "  concurrent-controller.yaml  → Reads queue, spawns workers"
+        echo "  patient-records.yaml        → Worker FSM (spawned per job)"
+        echo "  Database queue              → Job storage (pending → processing → completed)"
         echo ""
         ;;
 esac

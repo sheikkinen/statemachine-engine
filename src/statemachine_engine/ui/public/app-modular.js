@@ -294,8 +294,13 @@ class StateMachineMonitor {
                 this.machineManager.machines.set(machine_name, {
                     machine_name,
                     config_type,
-                    current_state
+                    current_state,
+                    last_activity: data.payload?.timestamp || Date.now() / 1000
                 });
+
+                // Render the machine card in the UI
+                this.machineManager.renderMachines();
+                console.log(`[App] Created machine card for: ${machine_name}`);
 
                 // Rebuild diagram tabs to include new machine
                 const allMachines = Array.from(this.machineManager.machines.values());
@@ -340,6 +345,10 @@ class StateMachineMonitor {
 
                 // Remove from machine manager
                 this.machineManager.machines.delete(machine_name);
+
+                // Render machines to remove the card from UI
+                this.machineManager.renderMachines();
+                console.log(`[App] Removed machine card for: ${machine_name}`);
 
                 // Rebuild diagram tabs to remove terminated machine
                 const allMachines = Array.from(this.machineManager.machines.values());

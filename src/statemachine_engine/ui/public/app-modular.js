@@ -270,6 +270,17 @@ class StateMachineMonitor {
                     return;
                 }
 
+                // Add to machine manager
+                this.machineManager.machines.set(machine_name, {
+                    machine_name,
+                    config_type,
+                    current_state
+                });
+
+                // Rebuild diagram tabs to include new machine
+                const allMachines = Array.from(this.machineManager.machines.values());
+                this.createDiagramTabs(allMachines);
+
                 // Check if we have metadata for this config type
                 if (!this.diagramManager.hasConfig(config_type)) {
                     console.log(`[App] New config type detected: ${config_type}, fetching metadata...`);
@@ -277,30 +288,37 @@ class StateMachineMonitor {
 
                     if (metadata) {
                         this.logger.log('success', `✓ Loaded metadata for ${config_type}`);
-
-                        // If Kanban view is visible, refresh it to include new machine
-                        if (this.kanbanVisible && this.kanbanView) {
-                            console.log(`[App] Adding machine to Kanban: ${machine_name}`);
-                            this.kanbanView.addCard(machine_name, current_state);
-                        }
                     } else {
                         this.logger.log('warning', `⚠️ Failed to load metadata for ${config_type}`);
                     }
                 } else {
                     console.log(`[App] Config type ${config_type} already loaded`);
                 }
+
+                // Add to Kanban view if visible
+                if (this.kanbanVisible && this.kanbanView) {
+                    console.log(`[App] Adding machine to Kanban: ${machine_name}`);
+                    this.kanbanView.addCard(machine_name, current_state);
+                }
             },
             machine_terminated: (data) => {
                 // Handle machine termination
                 console.log(`[App] Machine terminated:`, data);
                 const { machine_name } = data;
-                
+
+                // Remove from machine manager
+                this.machineManager.machines.delete(machine_name);
+
+                // Rebuild diagram tabs to remove terminated machine
+                const allMachines = Array.from(this.machineManager.machines.values());
+                this.createDiagramTabs(allMachines);
+
                 // Remove from Kanban if visible
                 if (this.kanbanVisible && this.kanbanView) {
                     console.log(`[App] Removing machine from Kanban: ${machine_name}`);
                     this.kanbanView.removeCard(machine_name);
                 }
-                
+
                 this.logger.log('info', `👋 Machine terminated: ${machine_name}`);
             },
             activity_log: (data) => {

@@ -231,22 +231,22 @@ Workers (patient-records.yaml instances)
   └─ Self-terminate when done
 ```
 
-### Phase 3.1: 🔴 RED - TDD for start_fsm Action
+### Phase 3.1: 🔴 RED - TDD for start_fsm Action ✅ COMPLETED
 
 **Objective:** Create tests for a new `start_fsm` action that spawns FSM instances
 
 #### Test Checklist
-- [ ] Create `tests/actions/test_start_fsm_action.py`
-  - [ ] Test: Constructor initializes with config parameters
-  - [ ] Test: `execute()` validates required params (yaml_path, machine_name)
-  - [ ] Test: `execute()` spawns subprocess with correct command
-  - [ ] Test: `execute()` passes environment variables correctly
-  - [ ] Test: `execute()` returns success event on spawn
-  - [ ] Test: `execute()` returns error event on spawn failure
-  - [ ] Test: `execute()` handles missing YAML file
-  - [ ] Test: `execute()` handles invalid machine name
-  - [ ] Test: PID tracking for spawned process
-  - [ ] Test: Optional job context passing to spawned FSM
+- [x] Create `tests/actions/test_start_fsm_action.py`
+  - [x] Test 1: Basic FSM spawning with minimal config
+  - [x] Test 2: Custom success event name
+  - [x] Test 3: Variable interpolation in machine_name
+  - [x] Test 4: PID captured and stored in context
+  - [x] Test 5: Error handling when yaml_path is missing
+  - [x] Test 6: Error handling when machine_name is missing
+  - [x] Test 7: Error handling when subprocess fails to start
+  - [x] Test 8: Additional command-line arguments passed to spawned FSM
+  - [x] Test 9: Spawned process runs in background (non-blocking)
+  - [x] Test 10: Multiple context variables in machine_name and yaml_path
 
 #### Test Data Fixtures
 ```python
@@ -267,11 +267,23 @@ expected_command = [
 ]
 ```
 
-#### Expected Test Output
+#### Test Results ✅
 ```bash
 pytest tests/actions/test_start_fsm_action.py -v
-# All tests should FAIL (RED phase)
+# ModuleNotFoundError: No module named 'statemachine_engine.actions.builtin.start_fsm_action'
+# ✅ Tests are in RED phase - module doesn't exist yet (expected)
+# ✅ 10 comprehensive tests created covering:
+#    - Basic spawning
+#    - Custom event names
+#    - Variable interpolation
+#    - PID tracking
+#    - Error handling (missing params, subprocess failures)
+#    - Additional arguments
+#    - Non-blocking execution
+#    - Multiple variable substitutions
 ```
+
+**Phase 3.1 Complete!** Ready for Phase 3.2 (GREEN - implement StartFsmAction).
 
 ### Phase 3.2: 🟢 GREEN - Implement start_fsm Action
 

@@ -70,6 +70,7 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             // Setup subdiagram context
             diagramManager.diagramMetadata = sdxlGenerationMetadata;
             diagramManager.currentDiagramName = 'SDXLGENERATIONPHASE';
+        if (diagramManager.diagramMetadata) diagramManager.diagramMetadata.currentDiagramName = 'SDXLGENERATIONPHASE';
             
             // Create realistic SVG
             const svg = createStatediagramSvg([
@@ -79,11 +80,11 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             ]);
             container.appendChild(svg);
             
-            // Build map
-            diagramManager.stateHighlightMap = diagramManager.buildStateHighlightMap();
-            
-            // Execute enrichment
-            const enriched = diagramManager.enrichSvgWithDataAttributes();
+            // Build map (now on renderer)
+            diagramManager.renderer.stateHighlightMap = diagramManager.renderer.buildStateHighlightMap(diagramManager.diagramMetadata);
+
+            // Execute enrichment (now on renderer)
+            const enriched = diagramManager.renderer.enrichSvgWithDataAttributes();
             
             // Verify enrichment succeeded
             expect(enriched).toBe(true);
@@ -106,6 +107,7 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             // Setup subdiagram context (user drilled into SDXLGENERATIONPHASE)
             diagramManager.diagramMetadata = sdxlGenerationMetadata;
             diagramManager.currentDiagramName = 'SDXLGENERATIONPHASE';
+        if (diagramManager.diagramMetadata) diagramManager.diagramMetadata.currentDiagramName = 'SDXLGENERATIONPHASE';
             
             // Create SVG
             const svg = createStatediagramSvg([
@@ -117,8 +119,8 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             container.appendChild(svg);
             
             // Build map and enrich (simulates first render after drill-in)
-            diagramManager.stateHighlightMap = diagramManager.buildStateHighlightMap();
-            diagramManager.enrichSvgWithDataAttributes();
+            diagramManager.renderer.stateHighlightMap = diagramManager.renderer.buildStateHighlightMap(diagramManager.diagramMetadata);
+            diagramManager.renderer.enrichSvgWithDataAttributes();
             container.dataset.enriched = 'true';
         });
 
@@ -128,8 +130,8 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             
             // Track if updateStateHighlight was called
             let fastPathAttempted = false;
-            const originalUpdate = diagramManager.updateStateHighlight.bind(diagramManager);
-            diagramManager.updateStateHighlight = function(...args) {
+            const originalUpdate = diagramManager.highlighter.updateStateHighlight.bind(diagramManager.highlighter);
+            diagramManager.highlighter.updateStateHighlight = function(...args) {
                 fastPathAttempted = true;
                 return originalUpdate(...args);
             };
@@ -147,7 +149,7 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             // The fast path condition checks: highlightState && enriched === 'true'
             // Since enriched is 'false', fast path should be skipped
             // We'll verify by checking the fast path would fail
-            const result = diagramManager.updateStateHighlight('early_face_detection');
+            const result = diagramManager.highlighter.updateStateHighlight('early_face_detection', diagramManager.renderer.stateHighlightMap, diagramManager.diagramMetadata, diagramManager.currentDiagramName);
             
             // This should still work because SVG is already enriched from beforeEach
             // But renderDiagram() wouldn't call it due to dataset.enriched check
@@ -159,14 +161,14 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             expect(container.dataset.enriched).toBe('true');
             
             // First state change
-            const success1 = diagramManager.updateStateHighlight('early_face_detection');
+            const success1 = diagramManager.highlighter.updateStateHighlight('early_face_detection', diagramManager.renderer.stateHighlightMap, diagramManager.diagramMetadata, diagramManager.currentDiagramName);
             expect(success1).toBe(true);
             
             const node1 = container.querySelector('[data-state-id="early_face_detection"]');
             expect(node1.classList.contains('active')).toBe(true);
             
             // Second state change (simulates WebSocket event)
-            const success2 = diagramManager.updateStateHighlight('generating_enhanced_image');
+            const success2 = diagramManager.highlighter.updateStateHighlight('generating_enhanced_image', diagramManager.renderer.stateHighlightMap, diagramManager.diagramMetadata, diagramManager.currentDiagramName);
             expect(success2).toBe(true);
             
             // Old highlight removed
@@ -187,7 +189,7 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             
             // Simulate rapid state changes
             stateSequence.forEach((stateName, index) => {
-                const success = diagramManager.updateStateHighlight(stateName);
+                const success = diagramManager.highlighter.updateStateHighlight(stateName, diagramManager.renderer.stateHighlightMap, diagramManager.diagramMetadata, diagramManager.currentDiagramName);
                 expect(success).toBe(true);
                 
                 // Verify only current state is highlighted
@@ -203,19 +205,21 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             // Start on main diagram
             diagramManager.diagramMetadata = sdxlGenerationMetadata;
             diagramManager.currentDiagramName = 'main';
-            
-            let map = diagramManager.buildStateHighlightMap();
-            
+        if (diagramManager.diagramMetadata) diagramManager.diagramMetadata.currentDiagramName = 'main';
+
+            let map = diagramManager.renderer.buildStateHighlightMap(diagramManager.diagramMetadata);
+
             // On main, composite states map to composites
             expect(map['early_face_detection']).toEqual({
                 type: 'composite',
                 target: 'SDXLGENERATIONPHASE',
                 class: 'activeComposite'
             });
-            
+
             // User drills into composite
             diagramManager.currentDiagramName = 'SDXLGENERATIONPHASE';
-            map = diagramManager.buildStateHighlightMap();
+        if (diagramManager.diagramMetadata) diagramManager.diagramMetadata.currentDiagramName = 'SDXLGENERATIONPHASE';
+            map = diagramManager.renderer.buildStateHighlightMap(diagramManager.diagramMetadata);
             
             // In subdiagram, states map to themselves
             expect(map['early_face_detection']).toEqual({
@@ -237,6 +241,7 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             // Setup
             diagramManager.diagramMetadata = sdxlGenerationMetadata;
             diagramManager.currentDiagramName = 'SDXLGENERATIONPHASE';
+        if (diagramManager.diagramMetadata) diagramManager.diagramMetadata.currentDiagramName = 'SDXLGENERATIONPHASE';
             
             const allStates = [
                 'early_face_detection',
@@ -252,8 +257,8 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             container.appendChild(svg);
             
             // Build map and enrich
-            diagramManager.stateHighlightMap = diagramManager.buildStateHighlightMap();
-            const enriched = diagramManager.enrichSvgWithDataAttributes();
+            diagramManager.renderer.stateHighlightMap = diagramManager.renderer.buildStateHighlightMap(diagramManager.diagramMetadata);
+            const enriched = diagramManager.renderer.enrichSvgWithDataAttributes();
             expect(enriched).toBe(true);
             
             // Verify all states enriched
@@ -275,7 +280,7 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             ];
             
             transitions.forEach(({ to }) => {
-                const success = diagramManager.updateStateHighlight(to);
+                const success = diagramManager.highlighter.updateStateHighlight(to, diagramManager.renderer.stateHighlightMap, diagramManager.diagramMetadata, diagramManager.currentDiagramName);
                 expect(success).toBe(true);
                 
                 const activeNode = svg.querySelector('.active');
@@ -289,6 +294,7 @@ describe('DiagramManager - Statediagram Format Integration', () => {
         it('should enrich both node and statediagram-state classes', () => {
             diagramManager.diagramMetadata = sdxlGenerationMetadata;
             diagramManager.currentDiagramName = 'SDXLGENERATIONPHASE';
+        if (diagramManager.diagramMetadata) diagramManager.diagramMetadata.currentDiagramName = 'SDXLGENERATIONPHASE';
             
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             
@@ -313,9 +319,9 @@ describe('DiagramManager - Statediagram Format Integration', () => {
             container.appendChild(svg);
             
             // Build map and enrich
-            diagramManager.stateHighlightMap = diagramManager.buildStateHighlightMap();
-            const enriched = diagramManager.enrichSvgWithDataAttributes();
-            
+            diagramManager.renderer.stateHighlightMap = diagramManager.renderer.buildStateHighlightMap(diagramManager.diagramMetadata);
+            const enriched = diagramManager.renderer.enrichSvgWithDataAttributes();
+
             expect(enriched).toBe(true);
             
             // Both should be enriched

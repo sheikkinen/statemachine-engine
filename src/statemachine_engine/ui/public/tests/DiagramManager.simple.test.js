@@ -25,9 +25,10 @@ describe('buildStateHighlightMap', () => {
             }
         };
         diagramManager.currentDiagramName = 'main';
+        if (diagramManager.diagramMetadata) diagramManager.diagramMetadata.currentDiagramName = 'main';
 
         // Execute
-        const map = diagramManager.buildStateHighlightMap();
+        const map = diagramManager.renderer.buildStateHighlightMap(diagramManager.diagramMetadata);
 
         // Verify
         expect(map).not.toBeNull();
@@ -57,9 +58,10 @@ describe('buildStateHighlightMap', () => {
             }
         };
         diagramManager.currentDiagramName = 'SDXLLIFECYCLE';
+        if (diagramManager.diagramMetadata) diagramManager.diagramMetadata.currentDiagramName = 'SDXLLIFECYCLE';
 
         // Execute
-        const map = diagramManager.buildStateHighlightMap();
+        const map = diagramManager.renderer.buildStateHighlightMap(diagramManager.diagramMetadata);
 
         // Verify
         expect(map).not.toBeNull();
@@ -72,8 +74,9 @@ describe('buildStateHighlightMap', () => {
     test('should return null when metadata missing', () => {
         diagramManager.diagramMetadata = null;
         diagramManager.currentDiagramName = 'main';
+        if (diagramManager.diagramMetadata) diagramManager.diagramMetadata.currentDiagramName = 'main';
 
-        const map = diagramManager.buildStateHighlightMap();
+        const map = diagramManager.renderer.buildStateHighlightMap(diagramManager.diagramMetadata);
 
         expect(map).toBeNull();
     });
@@ -111,13 +114,13 @@ describe('enrichSvgWithDataAttributes', () => {
 
     test('should enrich state nodes with data-state-id', () => {
         // Setup map
-        diagramManager.stateHighlightMap = {
+        diagramManager.renderer.stateHighlightMap = {
             'monitoring_sdxl': { type: 'composite', target: 'SDXLLIFECYCLE', class: 'activeComposite' },
             'checking_queue': { type: 'composite', target: 'QUEUEMANAGEMENT', class: 'activeComposite' }
         };
 
         // Execute
-        const result = diagramManager.enrichSvgWithDataAttributes();
+        const result = diagramManager.renderer.enrichSvgWithDataAttributes();
 
         // Verify
         expect(result).toBe(true);
@@ -134,17 +137,17 @@ describe('enrichSvgWithDataAttributes', () => {
 
     test('should return false when no SVG', () => {
         diagramManager.container.innerHTML = '';
-        diagramManager.stateHighlightMap = {};
+        diagramManager.renderer.stateHighlightMap = {};
 
-        const result = diagramManager.enrichSvgWithDataAttributes();
+        const result = diagramManager.renderer.enrichSvgWithDataAttributes();
 
         expect(result).toBe(false);
     });
 
     test('should return false when no stateHighlightMap', () => {
-        diagramManager.stateHighlightMap = null;
+        diagramManager.renderer.stateHighlightMap = null;
 
-        const result = diagramManager.enrichSvgWithDataAttributes();
+        const result = diagramManager.renderer.enrichSvgWithDataAttributes();
 
         expect(result).toBe(false);
     });
@@ -175,7 +178,7 @@ describe('updateStateHighlight', () => {
         `;
 
         // Setup map
-        diagramManager.stateHighlightMap = {
+        diagramManager.renderer.stateHighlightMap = {
             'monitoring_sdxl': {
                 type: 'composite',
                 target: 'SDXLLIFECYCLE',
@@ -190,7 +193,7 @@ describe('updateStateHighlight', () => {
     });
 
     test('should highlight composite node for state in map', () => {
-        const result = diagramManager.updateStateHighlight('monitoring_sdxl');
+        const result = diagramManager.highlighter.updateStateHighlight('monitoring_sdxl', diagramManager.renderer.stateHighlightMap, diagramManager.diagramMetadata, diagramManager.currentDiagramName);
 
         expect(result).toBe(true);
 
@@ -202,14 +205,14 @@ describe('updateStateHighlight', () => {
 
     test('should remove old highlights before adding new', () => {
         // First highlight
-        diagramManager.updateStateHighlight('monitoring_sdxl');
+        diagramManager.highlighter.updateStateHighlight('monitoring_sdxl', diagramManager.renderer.stateHighlightMap, diagramManager.diagramMetadata, diagramManager.currentDiagramName);
 
         const svg = diagramManager.container.querySelector('svg');
         const sdxlNode = svg.querySelector('[data-state-id="SDXLLIFECYCLE"]');
         expect(sdxlNode.classList.contains('activeComposite')).toBe(true);
 
         // Second highlight
-        diagramManager.updateStateHighlight('checking_queue');
+        diagramManager.highlighter.updateStateHighlight('checking_queue', diagramManager.renderer.stateHighlightMap, diagramManager.diagramMetadata, diagramManager.currentDiagramName);
 
         // Old highlight removed
         expect(sdxlNode.classList.contains('activeComposite')).toBe(false);
@@ -220,7 +223,7 @@ describe('updateStateHighlight', () => {
     });
 
     test('should return false when state not in map', () => {
-        const result = diagramManager.updateStateHighlight('unknown_state');
+        const result = diagramManager.highlighter.updateStateHighlight('unknown_state', diagramManager.renderer.stateHighlightMap, diagramManager.diagramMetadata, diagramManager.currentDiagramName);
 
         expect(result).toBe(false);
     });
@@ -228,15 +231,15 @@ describe('updateStateHighlight', () => {
     test('should return false when no SVG', () => {
         diagramManager.container.innerHTML = '';
 
-        const result = diagramManager.updateStateHighlight('monitoring_sdxl');
+        const result = diagramManager.highlighter.updateStateHighlight('monitoring_sdxl', diagramManager.renderer.stateHighlightMap, diagramManager.diagramMetadata, diagramManager.currentDiagramName);
 
         expect(result).toBe(false);
     });
 
     test('should return false when no stateHighlightMap', () => {
-        diagramManager.stateHighlightMap = null;
+        diagramManager.renderer.stateHighlightMap = null;
 
-        const result = diagramManager.updateStateHighlight('monitoring_sdxl');
+        const result = diagramManager.highlighter.updateStateHighlight('monitoring_sdxl', diagramManager.renderer.stateHighlightMap, diagramManager.diagramMetadata, diagramManager.currentDiagramName);
 
         expect(result).toBe(false);
     });

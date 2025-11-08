@@ -45,6 +45,7 @@ describe('Real SDXL SVG from Production', () => {
             }
         };
         manager.currentDiagramName = 'SDXLGENERATIONPHASE';
+            if (manager.diagramMetadata) manager.diagramMetadata.currentDiagramName = 'SDXLGENERATIONPHASE';
     });
     
     describe('SVG Structure Analysis', () => {
@@ -117,7 +118,7 @@ describe('Real SDXL SVG from Production', () => {
     
     describe('State Map Building', () => {
         it('should build state map for SDXLGENERATIONPHASE', () => {
-            const map = manager.buildStateHighlightMap();
+            const map = manager.renderer.buildStateHighlightMap(manager.diagramMetadata);
             
             console.log(`\n[State Map]`);
             console.log('Expected states:', manager.diagramMetadata.diagrams.SDXLGENERATIONPHASE.states);
@@ -136,8 +137,8 @@ describe('Real SDXL SVG from Production', () => {
     describe('Enrichment with Real SVG', () => {
         it('should attempt to enrich real SVG nodes', () => {
             // Build map
-            manager.stateHighlightMap = manager.buildStateHighlightMap();
-            const targets = new Set(Object.values(manager.stateHighlightMap).map(e => e.target));
+            manager.renderer.stateHighlightMap = manager.renderer.buildStateHighlightMap(manager.diagramMetadata);
+            const targets = new Set(Object.values(manager.renderer.stateHighlightMap).map(e => e.target));
             
             console.log(`\n[Enrichment Test]`);
             console.log('Targets to enrich:', Array.from(targets));
@@ -185,7 +186,7 @@ describe('Real SDXL SVG from Production', () => {
             }
             
             // Now actually enrich
-            const enriched = manager.enrichSvgWithDataAttributes();
+            const enriched = manager.renderer.enrichSvgWithDataAttributes();
             
             console.log(`\nEnrichment result: ${enriched}`);
             
@@ -195,8 +196,8 @@ describe('Real SDXL SVG from Production', () => {
         
         it('should find enriched nodes by data-state-id', () => {
             // Setup
-            manager.stateHighlightMap = manager.buildStateHighlightMap();
-            manager.enrichSvgWithDataAttributes();
+            manager.renderer.stateHighlightMap = manager.renderer.buildStateHighlightMap(manager.diagramMetadata);
+            manager.renderer.enrichSvgWithDataAttributes();
             
             // Check each expected state
             const testStates = [
@@ -234,8 +235,8 @@ describe('Real SDXL SVG from Production', () => {
     
     describe('Fast Path with Real SVG', () => {
         beforeEach(() => {
-            manager.stateHighlightMap = manager.buildStateHighlightMap();
-            manager.enrichSvgWithDataAttributes();
+            manager.renderer.stateHighlightMap = manager.renderer.buildStateHighlightMap(manager.diagramMetadata);
+            manager.renderer.enrichSvgWithDataAttributes();
             container.dataset.enriched = 'true';
         });
         
@@ -243,7 +244,7 @@ describe('Real SDXL SVG from Production', () => {
             console.log(`\n[Fast Path Test] Testing scaling_image`);
             
             // This is the state that was failing in production
-            const success = manager.updateStateHighlight('scaling_image');
+            const success = manager.highlighter.updateStateHighlight('scaling_image', manager.renderer.stateHighlightMap, manager.diagramMetadata, manager.currentDiagramName);
             
             if (!success) {
                 console.error('❌ Fast path FAILED for scaling_image');
@@ -265,7 +266,7 @@ describe('Real SDXL SVG from Production', () => {
         });
         
         it('should use fast path for early_face_detection', () => {
-            const success = manager.updateStateHighlight('early_face_detection');
+            const success = manager.highlighter.updateStateHighlight('early_face_detection', manager.renderer.stateHighlightMap, manager.diagramMetadata, manager.currentDiagramName);
             
             if (!success) {
                 console.error('❌ Fast path FAILED for early_face_detection');
@@ -283,7 +284,7 @@ describe('Real SDXL SVG from Production', () => {
             console.log(`\n[Fast Path All States]`);
             
             states.forEach(stateName => {
-                const success = manager.updateStateHighlight(stateName);
+                const success = manager.highlighter.updateStateHighlight(stateName, manager.renderer.stateHighlightMap, manager.diagramMetadata, manager.currentDiagramName);
                 results.push({ state: stateName, success });
                 
                 if (!success) {
@@ -304,7 +305,7 @@ describe('Real SDXL SVG from Production', () => {
             console.log(`\n[Arrow Test] Testing image_scaled event (scaling_image → COMPLETIONPHASE)`);
             
             // This is the "exit" transition from scaling_image to COMPLETIONPHASE
-            const success = manager.updateStateHighlight('scaling_image', 'image_scaled');
+            const success = manager.highlighter.updateStateHighlight('scaling_image', manager.renderer.stateHighlightMap, manager.diagramMetadata, manager.currentDiagramName, 'image_scaled');
             
             const svg = container.querySelector('svg');
             const edge = svg.querySelector('[data-edge-event="image_scaled"]');

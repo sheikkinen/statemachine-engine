@@ -394,6 +394,14 @@ class StateMachineEngine:
             try:
                 import os
                 with job_model.db._get_connection() as conn:
+                    # Check if this is a new machine (for machine_registered event)
+                    existing = conn.execute(
+                        "SELECT COUNT(*) FROM machine_state WHERE machine_name = ?",
+                        (self.machine_name,)
+                    ).fetchone()[0]
+                    
+                    is_new = (existing == 0)
+                    
                     conn.execute("""
                         INSERT INTO machine_state (machine_name, current_state, last_activity, pid, metadata, config_type)
                         VALUES (?, ?, ?, ?, ?, ?)
@@ -404,6 +412,16 @@ class StateMachineEngine:
                             config_type = excluded.config_type
                     """, (self.machine_name, current_state, time.time(), os.getpid(), None, self.config_name))
                     conn.commit()
+                    
+                # Emit machine_registered event for new machines
+                if is_new:
+                    self._emit_realtime_event('machine_registered', {
+                        'machine_name': self.machine_name,
+                        'config_type': self.config_name,
+                        'current_state': current_state,
+                        'timestamp': time.time()
+                    })
+                    logger.info(f"[{self.machine_name}] ✨ Machine registered: {self.config_name}")
             except Exception as e:
                 logger.warning(f"[{self.machine_name}] Failed to update machine_state: {e}")
         else:
@@ -420,6 +438,14 @@ class StateMachineEngine:
                     """, (self.machine_name,))
                     conn.commit()
                 logger.info(f"[{self.machine_name}] Removed from machine_state table")
+                
+                # Emit machine_terminated event
+                self._emit_realtime_event('machine_terminated', {
+                    'machine_name': self.machine_name,
+                    'config_type': self.config_name,
+                    'timestamp': time.time()
+                })
+                logger.info(f"[{self.machine_name}] 👋 Machine terminated: {self.config_name}")
             except Exception as e:
                 logger.warning(f"[{self.machine_name}] Failed to delete machine_state: {e}")
         else:

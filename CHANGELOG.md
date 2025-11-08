@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.70] - 2025-11-08
+
+### Fixed
+- **Real-time UI updates for machine cards**
+  - Fixed automatic machine-card creation when `machine_registered` event arrives
+  - Fixed automatic machine-card removal when `machine_terminated` event arrives
+  - Added `renderMachines()` calls in event handlers to update UI immediately
+  - Cards now appear/disappear in real-time without manual refresh
+  - Added `last_activity` timestamp to machine data on registration
+
+### Fixed
+- **Kanban card updates for spawned FSMs**
+  - Fixed kanban cards not updating for spawned worker machines (patient_record_job_001/002/003)
+  - Moved kanban update logic outside diagram type check so ALL machines update regardless of selected diagram
+  - Changed state collection to use FSM configuration instead of active machines for complete state list
+  - Fixed logger API mismatch in KanbanView (ActivityLogger only has `log(level, message)` method)
+  - Added defensive null checks in KanbanView with detailed error logging
+  - Updated MachineStateManager to handle both kanban-card and machine-card CSS classes
+
 ## [1.0.67] - 2025-11-07
 
 ### Fixed

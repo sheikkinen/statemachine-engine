@@ -1,9 +1,9 @@
 {
-  "machine_name": "patient_records",
+  "machine_name": "patient-records",
   "diagrams": {
     "main": {
       "file": "main.mermaid",
-      "title": "patient_records Overview",
+      "title": "patient-records Overview",
       "description": "High-level state machine flow with composite states",
       "composites": [
         "IDLE",

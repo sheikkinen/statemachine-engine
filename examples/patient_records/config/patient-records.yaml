@@ -1,4 +1,4 @@
-name: "patient_records"
+name: "patient-records"
 initial_state: waiting_for_report
 
 # Define states with composite groupings for diagram visualization

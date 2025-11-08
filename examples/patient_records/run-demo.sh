@@ -169,8 +169,8 @@ generate_diagrams() {
         echo "⚠️  No diagrams generated (UI may not display properly)"
     fi
     
-    if ls docs/fsm-diagrams/concurrent_controller/*.mermaid 1> /dev/null 2>&1; then
-        echo "✓ Controller diagrams generated in docs/fsm-diagrams/concurrent_controller/"
+    if ls docs/fsm-diagrams/concurrent-controller/*.mermaid 1> /dev/null 2>&1; then
+        echo "✓ Controller diagrams generated in docs/fsm-diagrams/concurrent-controller/"
     else
         echo "⚠️  No controller diagrams generated"
     fi

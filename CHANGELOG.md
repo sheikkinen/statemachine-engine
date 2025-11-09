@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.71] - 2025-11-09
+
+### Added
+- **Consolidated tabs for templated machines**
+  - Templated machines (e.g., patient_record_job_001, _002, _003) now show as single tab with count badge
+  - Tab displays as "Patient Record Job (3)" instead of three separate tabs
+  - Improves scalability - 100 instances still show as one tab
+  - Individual (non-templated) machines remain as separate tabs
+  - Added CSS styling for count badges with semi-transparent backgrounds
+
+### Fixed
+- **Kanban view visibility management**
+  - Removed inline `display: none` from KanbanView.render() method
+  - Let CSS classes control visibility instead of conflicting inline styles
+  - Fixed Kanban view not displaying when clicking templated machine tabs
+  - Used `removeProperty('display')` to properly clear inline styles
+  - Separated visibility concerns: render() builds structure, app-modular.js controls display
+
 ## [1.0.70] - 2025-11-08
 
 ### Fixed

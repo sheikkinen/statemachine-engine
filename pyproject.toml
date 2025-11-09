@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "statemachine-engine"
-version = "1.0.70"
-description = "A generic finite state machine (FSM) framework for Python"
+version = "1.0.71"
+description = "A lightweight, event-driven state machine framework with WebSocket support and plugin architecture"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}

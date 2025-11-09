@@ -33,6 +33,9 @@ export class DiagramManager {
         this.diagramMetadata = null;
         this.selectedMachine = null;
         this.currentState = null;
+        
+        // Store all config metadata for view routing
+        this.configMetadata = new Map();
 
         // Modular components
         this.renderer = new MermaidRenderer(container, logger);
@@ -57,6 +60,9 @@ export class DiagramManager {
                 this.currentDiagram = data.mermaid_code;
                 this.currentDiagramName = diagramName;
                 this.diagramMetadata = data.metadata;
+                
+                // Store metadata in map for view routing
+                this.configMetadata.set(machineName, data.metadata);
                 
                 // Update state group manager with new metadata
                 this.stateGroupManager.setMetadata(data.metadata);
@@ -270,6 +276,9 @@ export class DiagramManager {
             }
             
             const metadata = await response.json();
+            
+            // Store in map for view routing
+            this.configMetadata.set(configType, metadata);
             
             try {
                 localStorage.setItem(`diagram_metadata_${configType}`, JSON.stringify(metadata));

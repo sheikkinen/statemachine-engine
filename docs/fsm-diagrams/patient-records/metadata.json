@@ -1,5 +1,6 @@
 {
   "machine_name": "patient-records",
+  "template": true,
   "diagrams": {
     "main": {
       "file": "main.mermaid",

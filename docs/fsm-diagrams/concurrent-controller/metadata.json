@@ -1,5 +1,6 @@
 {
   "machine_name": "concurrent-controller",
+  "template": false,
   "diagrams": {
     "main": {
       "file": "main.mermaid",

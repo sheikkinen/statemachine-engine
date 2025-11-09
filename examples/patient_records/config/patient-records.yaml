@@ -1,5 +1,6 @@
 name: "patient-records"
 initial_state: summarizing  # Auto-start processing when spawned
+template: true  # This is a templated worker FSM - use Kanban view
 
 # Define states with composite groupings for diagram visualization
 states:

@@ -1,5 +1,6 @@
 name: "concurrent-controller"
 initial_state: checking_queue
+template: false  # This is a unique controller FSM - use Diagram view
 
 # Controller FSM that spawns and manages worker FSMs
 # Reads jobs from database queue and spawns a worker for each job

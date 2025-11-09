@@ -785,6 +785,7 @@ def generate_metadata(
     
     metadata = {
         "machine_name": machine_name,
+        "template": config.get('template', False),  # Add template flag from config
         "diagrams": {
             "main": {
                 "file": "main.mermaid",

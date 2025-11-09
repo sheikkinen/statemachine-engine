@@ -549,6 +549,8 @@ Execute shell commands with timeout and error handling.
 - **check_machine_state**: Monitor machine states
 - **clear_events**: Clean up processed events
 - **send_event**: Send events to other machines
+- **start_fsm**: Spawn new state machine instances with context passing
+- **complete_job**: Mark jobs as completed in the database queue
 
 See `examples/` directory for complete working examples.
 
@@ -992,6 +994,19 @@ report          │   • patient_1      │   • patient_3
 ```
 
 **Access:** http://localhost:3001
+
+**Tab Consolidation (v1.0.71+):**
+- Templated machines automatically consolidate into single tabs with count badges
+- Example: `patient_record_job_001`, `_002`, `_003` → `Patient Record Job (3)`
+- Detects `_NNN` suffix pattern automatically
+- Individual (non-templated) machines remain as separate tabs
+- Scales efficiently: 100 instances = 1 tab with "(100)" badge
+
+**Auto-View Switching (v1.0.70+):**
+- UI automatically switches to Kanban view for templated machines
+- Automatically switches to Diagram view for unique machines
+- No manual 'K' key press needed
+- View selection based on machine template metadata
 
 **Requirements:**
 - Node.js (for Web UI functionality)

@@ -10,11 +10,12 @@ TDD. DRY. KISS. YAGNI.
 
 **Key Capabilities:**
 - YAML-based workflow configuration with variable interpolation (`{var}`, `{nested.path}`)
-- 6 built-in actions + pluggable custom action system
+- 8 built-in actions + pluggable custom action system
 - Real-time WebSocket monitoring (port 3002)
 - SQLite job queue with machine-agnostic polling
 - Unix socket IPC for sub-millisecond event delivery
 - FSM diagram generation and validation tools
+- Auto-consolidating UI tabs for templated machines
 
 ## Architecture
 
@@ -29,7 +30,7 @@ TDD. DRY. KISS. YAGNI.
 
 2. **Actions** (`actions/`)
    - `BaseAction` interface: `async execute(context) -> str`
-   - 6 built-in: bash, log, send_event, check_database_queue, check_machine_state, clear_events
+   - 8 built-in: bash, log, send_event, check_database_queue, check_machine_state, clear_events, start_fsm, complete_job
    - ActionLoader: dynamic discovery of custom actions
    - All actions benefit from engine-level interpolation
 
@@ -49,6 +50,12 @@ TDD. DRY. KISS. YAGNI.
    - `statemachine-diagrams`: Graphviz FSM visualization
    - `statemachine-validate`: YAML syntax/semantic validation
    - `statemachine-events`: Real-time event monitor CLI
+
+6. **UI** (`ui/public/`)
+   - Modular architecture with DiagramManager, KanbanView components
+   - Auto-consolidating tabs for templated machines (detects `_NNN` suffix)
+   - Auto-view switching (Kanban for templates, Diagram for unique machines)
+   - Real-time WebSocket updates and machine lifecycle events
 
 ## Development Guidelines
 

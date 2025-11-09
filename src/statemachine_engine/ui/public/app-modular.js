@@ -84,6 +84,10 @@ class StateMachineMonitor {
                 
                 if (this.isKanbanMachine(diagramType)) {
                     console.log(`[App] ${machine.machine_name} is a template - showing Kanban view`);
+                    // Set selectedMachine so rebuildKanbanView knows which config to use
+                    this.diagramManager.selectedMachine = diagramType;
+                    // Also need to load the metadata for state groups
+                    await this.diagramManager.loadDiagram(diagramType);
                     this.showKanban();
                     this.rebuildKanbanView();
                 } else {

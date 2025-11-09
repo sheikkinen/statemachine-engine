@@ -61,14 +61,51 @@ class StateMachineMonitor {
             return;
         }
 
-        machines.forEach((machine, index) => {
+        // Group machines by base name (remove _NNN suffix)
+        const grouped = new Map();
+        machines.forEach(machine => {
+            const match = machine.machine_name.match(/^(.+?)_\d{3}$/);
+            if (match) {
+                // Templated machine with _NNN suffix
+                const baseName = match[1];
+                if (!grouped.has(baseName)) {
+                    grouped.set(baseName, {
+                        baseName,
+                        instances: [],
+                        configType: machine.config_type || machine.machine_name
+                    });
+                }
+                grouped.get(baseName).instances.push(machine);
+            } else {
+                // Individual machine - use machine_name as unique key
+                grouped.set(machine.machine_name, {
+                    baseName: machine.machine_name,
+                    instances: [machine],
+                    configType: machine.config_type || machine.machine_name
+                });
+            }
+        });
+
+        // Render tabs for grouped machines
+        let tabIndex = 0;
+        for (const [baseName, group] of grouped) {
             const button = document.createElement('button');
             button.className = 'tab-button';
-            if (index === 0) {
+            if (tabIndex === 0) {
                 button.classList.add('active');
             }
-            button.setAttribute('data-machine', machine.machine_name);
-            button.textContent = machine.machine_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            
+            // Store base name and whether it's a group
+            button.setAttribute('data-machine', baseName);
+            button.setAttribute('data-is-group', group.instances.length > 1);
+            
+            // Create tab label with count badge
+            const label = baseName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            if (group.instances.length > 1) {
+                button.innerHTML = `${label} <span class="tab-count">(${group.instances.length})</span>`;
+            } else {
+                button.textContent = label;
+            }
 
             button.addEventListener('click', async () => {
                 // Update active state
@@ -76,7 +113,7 @@ class StateMachineMonitor {
                 button.classList.add('active');
 
                 // Load diagram or show kanban based on machine type
-                const diagramType = machine.config_type || machine.machine_name;
+                const diagramType = group.configType;
                 
                 // Ensure metadata is loaded before checking template flag
                 if (!this.diagramManager.configMetadata.has(diagramType)) {
@@ -85,7 +122,7 @@ class StateMachineMonitor {
                 }
                 
                 if (this.isKanbanMachine(diagramType)) {
-                    console.log(`[App] ${machine.machine_name} is a template - showing Kanban view`);
+                    console.log(`[App] ${baseName} is a template - showing Kanban view`);
                     // Set selectedMachine so rebuildKanbanView knows which config to use
                     this.diagramManager.selectedMachine = diagramType;
                     // Also need to load the metadata for state groups
@@ -93,18 +130,19 @@ class StateMachineMonitor {
                     this.showKanban();
                     this.rebuildKanbanView();
                 } else {
-                    console.log(`[App] ${machine.machine_name} is unique - showing Diagram view`);
+                    console.log(`[App] ${baseName} is unique - showing Diagram view`);
                     this.showDiagram();
                     this.diagramManager.loadDiagram(diagramType).then(() => {
-                        console.log(`[App] Loaded diagram for ${machine.machine_name} (type: ${diagramType})`);
+                        console.log(`[App] Loaded diagram for ${baseName} (type: ${diagramType})`);
                     });
                 }
             });
 
             tabsContainer.appendChild(button);
-        });
+            tabIndex++;
+        }
 
-        this.logger.log('success', `Created ${machines.length} diagram tab(s)`);
+        this.logger.log('success', `Created ${grouped.size} tab(s) from ${machines.length} machine(s)`);
     }
     
     rebuildKanbanView() {

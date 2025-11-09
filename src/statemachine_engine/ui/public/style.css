@@ -313,6 +313,19 @@ header p {
     border-color: #4299e1;
 }
 
+.tab-count {
+    display: inline-block;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.85em;
+    margin-left: 4px;
+}
+
+.tab-button.active .tab-count {
+    background: rgba(255, 255, 255, 0.25);
+}
+
 /* Breadcrumb navigation */
 .breadcrumb-nav {
     display: flex;

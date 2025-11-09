@@ -31,7 +31,8 @@ class StateMachineMonitor {
 
     // Show Kanban view, hide diagram
     showKanban() {
-        this.kanbanContainer.style.display = 'block';
+        this.kanbanContainer.classList.add('kanban-visible');
+        this.kanbanContainer.style.removeProperty('display'); // Remove inline style to let CSS class work
         this.diagramContainer.style.display = 'none';
         this.breadcrumbNav.style.display = 'none';
         console.log('[App] Switched to Kanban view');
@@ -41,6 +42,7 @@ class StateMachineMonitor {
     showDiagram() {
         this.diagramContainer.style.display = 'block';
         this.breadcrumbNav.style.display = 'block';
+        this.kanbanContainer.classList.remove('kanban-visible');
         this.kanbanContainer.style.display = 'none';
         console.log('[App] Switched to Diagram view');
     }

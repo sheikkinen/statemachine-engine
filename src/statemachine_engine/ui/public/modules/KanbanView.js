@@ -36,8 +36,7 @@ export default class KanbanView {
             this._renderFlat();
         }
         
-        // Hide by default
-        this.container.style.display = 'none';
+        // Don't hide here - visibility is managed by app-modular.js
     }
     
     /**

@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.72] - 2025-11-10
+
+### Changed
+- **Refactored variable interpolation logic (TDD)**
+  - Extracted duplicate interpolation code into shared `utils/interpolation.py` module
+  - Eliminated ~111 lines of duplicate code across engine and action classes
+  - Created `interpolate_value()` and `interpolate_config()` utility functions
+  - Added type preservation for single-placeholder templates (e.g., `{count}` returns int, not string)
+  - Comprehensive test suite: 28 new tests with 93% coverage on new module
+  - Migrated engine.py, CompleteJobAction, StartFSMAction, SendEventAction to use shared utility
+  - All 263 tests passing, maintained 39% overall coverage
+  - Zero functional regressions, fully backward compatible
+
+### Removed
+- **Dead code cleanup**
+  - Removed unused `health_monitor.py` (236 lines, 0% test coverage)
+  - Module was never used in production code
+
 ## [1.0.71] - 2025-11-09
 
 ### Added

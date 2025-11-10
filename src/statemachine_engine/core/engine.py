@@ -29,6 +29,7 @@ import asyncio
 import logging
 import yaml
 import socket
+from ..utils.interpolation import interpolate_value, interpolate_config
 import json
 import time
 import re
@@ -633,73 +634,24 @@ class StateMachineEngine:
     def _substitute_variables(self, template: str, context: Dict[str, Any]) -> str:
         """Substitute {variable} placeholders with context values.
         
+        Delegates to shared interpolation utility.
         Supports:
         - Simple variables: {job_id}, {id}, {status}
         - Nested keys with dot notation: {event_data.payload.job_id}
         - Leaves unknown placeholders unchanged
         """
-        import re
-        
-        if not isinstance(template, str):
-            return template
-            
-        pattern = r'\{([a-zA-Z_][a-zA-Z0-9_.]*)\}'
-        
-        def replace_match(match):
-            key = match.group(1)
-            
-            # Handle nested keys (e.g., event_data.payload.job_id)
-            if '.' in key:
-                parts = key.split('.')
-                obj = context
-                for part in parts:
-                    if isinstance(obj, dict):
-                        obj = obj.get(part)
-                        if obj is None:
-                            return match.group(0)  # Keep placeholder if path not found
-                    else:
-                        return match.group(0)  # Keep placeholder if not dict
-                return str(obj) if obj is not None else match.group(0)
-            
-            # Handle simple keys
-            value = context.get(key)
-            if value is not None:
-                return str(value)
-            
-            return match.group(0)  # Keep placeholder if not found
-        
-        return re.sub(pattern, replace_match, template)
+        return interpolate_value(template, context)
     
     def _interpolate_config(self, config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Recursively interpolate variables in action config.
         
+        Delegates to shared interpolation utility.
         Processes all string values in the config dict, replacing {variable}
         placeholders with values from context. This happens at engine level
         before actions receive their config, ensuring consistent variable
         substitution across all actions.
         """
-        interpolated = {}
-        
-        for key, value in config.items():
-            if isinstance(value, str):
-                # Substitute variables in string values
-                interpolated[key] = self._substitute_variables(value, context)
-            elif isinstance(value, dict):
-                # Recursively process nested dicts
-                interpolated[key] = self._interpolate_config(value, context)
-            elif isinstance(value, list):
-                # Process each list item
-                interpolated[key] = [
-                    self._substitute_variables(item, context) if isinstance(item, str)
-                    else self._interpolate_config(item, context) if isinstance(item, dict)
-                    else item
-                    for item in value
-                ]
-            else:
-                # Pass through other types unchanged
-                interpolated[key] = value
-        
-        return interpolated
+        return interpolate_config(config, context)
     
     async def _execute_action(self, action_config: Dict[str, Any]) -> None:
         """Execute a single action"""

@@ -14,6 +14,7 @@ from typing import Dict, Any
 
 from ..base import BaseAction
 from statemachine_engine.database.models import get_machine_event_model
+from ...utils.interpolation import interpolate_config
 
 logger = logging.getLogger(__name__)
 
@@ -171,62 +172,31 @@ class SendEventAction(BaseAction):
         # Get job_id from event payload if available (for relaying)
         event_job_id = event_payload.get('job_id')
 
+        # First pass: Use shared interpolation utility for standard variables
+        processed = interpolate_config(template, context)
+        
+        # Second pass: Handle legacy special cases, complex patterns, and failed lookups
         for key, value in template.items():
             if isinstance(value, str):
-                # Handle event_data.payload.* substitution (with nested field support)
-                if value.startswith('{event_data.payload.') and value.endswith('}'):
-                    payload_path = value[20:-1]  # Remove '{event_data.payload.' and '}'
-                    
-                    # Support nested access via dot notation (e.g., user.id, result.image_path)
-                    extracted_value = event_payload
-                    path_parts = payload_path.split('.')
-                    
-                    for part in path_parts:
-                        if isinstance(extracted_value, dict) and part in extracted_value:
-                            extracted_value = extracted_value[part]
-                        else:
-                            machine_name = context.get('machine_name', 'unknown')
-                            logger.warning(
-                                f"[{machine_name}] Nested payload path '{payload_path}' not found "
-                                f"(failed at '{part}'), using None"
-                            )
-                            extracted_value = None
-                            break
-                    
-                    # Recursively substitute placeholders in extracted value
-                    if isinstance(extracted_value, str) and '{id}' in extracted_value:
-                        # Use event job_id if available, otherwise current job_id
-                        substitute_id = event_job_id or job_id
-                        extracted_value = extracted_value.replace('{id}', substitute_id if substitute_id else '{id}')
-                    
-                    processed[key] = extracted_value
-                # Simple string substitution
-                elif value == '{id}':
-                    processed[key] = job_id
-                elif value == '{job_id}':
-                    processed[key] = job_id
+                # Check if interpolation failed (placeholder still present) and convert to None
+                if processed[key] == value and value.startswith('{') and value.endswith('}'):
+                    # Interpolation failed - log warning and set to None
+                    machine_name = context.get('machine_name', 'unknown')
+                    logger.warning(f"[{machine_name}] Variable '{value}' not found in context, using None")
+                    processed[key] = None
+                # Legacy face_job_id pattern
                 elif value == '{face_job_id}':
                     processed[key] = f"face_{job_id}" if job_id else value
+                # Legacy source_job_id with fallback
                 elif value == '{source_job_id}':
-                    # Try multiple sources for source_job_id
                     processed[key] = source_job_id or job_data.get('source_job_id')
+                # Legacy final_image pattern
                 elif value == '{final_image}':
                     processed[key] = f"6-final/{job_id}-final.png" if job_id else value
-                # Generic context variable substitution (e.g., {last_error}, {current_state})
-                elif value.startswith('{') and value.endswith('}'):
-                    var_name = value[1:-1]  # Remove { and }
-                    if var_name in context:
-                        processed[key] = context[var_name]
-                    else:
-                        machine_name = context.get('machine_name', 'unknown')
-                        logger.warning(f"[{machine_name}] Context variable '{var_name}' not found, using placeholder")
-                        processed[key] = value
-                else:
-                    # Handle any string that contains {id} placeholder
-                    if '{id}' in value:
-                        processed[key] = value.replace('{id}', job_id if job_id else '{id}')
-                    else:
-                        processed[key] = value
+                # Check for recursive {id} in extracted values
+                elif isinstance(processed[key], str) and '{id}' in processed[key]:
+                    substitute_id = event_job_id or job_id
+                    processed[key] = processed[key].replace('{id}', substitute_id if substitute_id else '{id}')
             else:
                 processed[key] = value
 

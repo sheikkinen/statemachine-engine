@@ -14,6 +14,7 @@ from typing import Dict, Any
 
 from ..base import BaseAction
 from ...database.models import get_job_model
+from ...utils.interpolation import interpolate_value
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,8 @@ class CompleteJobAction(BaseAction):
     async def execute(self, context: Dict[str, Any]) -> str:
         """Mark job as completed in database"""
         try:
-            # Interpolate job_id from context
-            job_id = self._interpolate_variables(self.job_id_template, context)
+            # Interpolate job_id from context using shared utility
+            job_id = interpolate_value(self.job_id_template, context)
             
             # Check if interpolation failed (template still contains {})
             if not job_id or '{' in job_id:
@@ -64,14 +65,4 @@ class CompleteJobAction(BaseAction):
             machine_name = context.get('machine_name', 'unknown')
             logger.error(f"[{machine_name}] Error completing job: {e}")
             return self.get_config_value('error', 'error')
-    
-    def _interpolate_variables(self, template: str, context: Dict[str, Any]) -> str:
-        """Replace {var} placeholders with context values"""
-        import re
-        
-        def replace_var(match):
-            var_name = match.group(1)
-            value = context.get(var_name)
-            return str(value) if value is not None else match.group(0)
-        
-        return re.sub(r'\{(\w+)\}', replace_var, template)
+

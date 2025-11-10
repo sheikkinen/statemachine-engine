@@ -13,6 +13,7 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 from ..base import BaseAction
+from ...utils.interpolation import interpolate_value
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +226,7 @@ class StartFsmAction(BaseAction):
         """
         Replace {variable} placeholders with values from context.
         
+        Delegates to shared interpolation utility.
         Supports simple and nested variable substitution:
         - {job_id} -> context['job_id']
         - {current_job.id} -> context['current_job']['id']
@@ -238,30 +240,5 @@ class StartFsmAction(BaseAction):
         Returns:
             String with variables replaced
         """
-        result = template
-        
-        # Find all {variable} and {nested.variable} patterns
-        pattern = r'\{([\w\.]+)\}'
-        matches = re.findall(pattern, template)
-        
-        # Replace each variable
-        for var_path in matches:
-            # Handle nested paths like current_job.id
-            if '.' in var_path:
-                parts = var_path.split('.')
-                value = context
-                try:
-                    for part in parts:
-                        value = value[part]
-                    result = result.replace(f'{{{var_path}}}', str(value))
-                except (KeyError, TypeError):
-                    logger.warning(f"StartFsmAction: Nested variable '{var_path}' not found in context")
-            # Handle simple variables
-            else:
-                if var_path in context:
-                    value = context[var_path]
-                    result = result.replace(f'{{{var_path}}}', str(value))
-                else:
-                    logger.warning(f"StartFsmAction: Variable '{var_path}' not found in context")
-        
-        return result
+        return interpolate_value(template, context)
+

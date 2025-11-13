@@ -190,3 +190,128 @@ def test_empty_string_machine_type_filters_for_empty_string(job_model):
     job = job_model.get_next_job(job_type="work", machine_type=None)
     assert job is not None
     assert job['job_id'] == "with_machine"  # Gets second one (first already claimed)
+
+
+def test_get_pending_jobs_returns_all(job_model):
+    """Test get_pending_jobs returns all pending jobs without claiming them"""
+    # Create multiple pending jobs
+    job_model.create_job(job_id="job_001", job_type="test", machine_type="worker")
+    job_model.create_job(job_id="job_002", job_type="test", machine_type="worker")
+    job_model.create_job(job_id="job_003", job_type="test", machine_type="worker")
+    
+    # Get all pending jobs
+    jobs = job_model.get_pending_jobs(job_type="test")
+    
+    assert len(jobs) == 3
+    assert jobs[0]['job_id'] == "job_001"
+    assert jobs[1]['job_id'] == "job_002"
+    assert jobs[2]['job_id'] == "job_003"
+    
+    # Verify all still pending (not claimed)
+    for job in jobs:
+        assert job['status'] == 'pending'
+
+
+def test_get_pending_jobs_with_limit(job_model):
+    """Test get_pending_jobs respects limit parameter"""
+    job_model.create_job(job_id="job_001", job_type="test")
+    job_model.create_job(job_id="job_002", job_type="test")
+    job_model.create_job(job_id="job_003", job_type="test")
+    
+    jobs = job_model.get_pending_jobs(job_type="test", limit=2)
+    
+    assert len(jobs) == 2
+    assert jobs[0]['job_id'] == "job_001"
+    assert jobs[1]['job_id'] == "job_002"
+
+
+def test_get_pending_jobs_filters_by_machine_type(job_model):
+    """Test get_pending_jobs filters by machine_type"""
+    job_model.create_job(job_id="job_a1", job_type="test", machine_type="worker_a")
+    job_model.create_job(job_id="job_a2", job_type="test", machine_type="worker_a")
+    job_model.create_job(job_id="job_b1", job_type="test", machine_type="worker_b")
+    
+    jobs = job_model.get_pending_jobs(job_type="test", machine_type="worker_a")
+    
+    assert len(jobs) == 2
+    assert all(j['machine_type'] == "worker_a" for j in jobs)
+
+
+def test_get_pending_jobs_excludes_non_pending(job_model):
+    """Test get_pending_jobs only returns pending jobs"""
+    job_model.create_job(job_id="pending", job_type="test")
+    
+    # Create processing job by claiming it
+    job_model.create_job(job_id="processing", job_type="test")
+    job_model.claim_job("processing")
+    
+    # Create completed job by completing it
+    job_model.create_job(job_id="completed", job_type="test")
+    job_model.claim_job("completed")
+    job_model.complete_job("completed")
+    
+    jobs = job_model.get_pending_jobs(job_type="test")
+    
+    assert len(jobs) == 1
+    assert jobs[0]['job_id'] == "pending"
+
+
+def test_claim_job_marks_as_processing(job_model):
+    """Test claim_job marks pending job as processing"""
+    job_model.create_job(job_id="job_123", job_type="test")
+    
+    # Claim the job
+    result = job_model.claim_job("job_123")
+    assert result is True
+    
+    # Verify status changed
+    job = job_model.get_job("job_123")
+    assert job['status'] == 'processing'
+    assert job['started_at'] is not None
+
+
+def test_claim_job_prevents_double_claim(job_model):
+    """Test claim_job returns False for already claimed job"""
+    job_model.create_job(job_id="job_123", job_type="test")
+    
+    # First claim succeeds
+    result1 = job_model.claim_job("job_123")
+    assert result1 is True
+    
+    # Second claim fails
+    result2 = job_model.claim_job("job_123")
+    assert result2 is False
+
+
+def test_claim_job_nonexistent_returns_false(job_model):
+    """Test claim_job returns False for nonexistent job"""
+    result = job_model.claim_job("nonexistent_job")
+    assert result is False
+
+
+def test_batch_spawning_workflow(job_model):
+    """Test complete workflow: get pending jobs, claim each, spawn workers"""
+    # Create batch of jobs
+    for i in range(5):
+        job_model.create_job(
+            job_id=f"job_{i:03d}",
+            job_type="batch_work",
+            machine_type="worker"
+        )
+    
+    # Step 1: Get all pending jobs (without claiming)
+    pending = job_model.get_pending_jobs(job_type="batch_work")
+    assert len(pending) == 5
+    
+    # Step 2: Claim each job before spawning worker
+    claimed_count = 0
+    for job in pending:
+        if job_model.claim_job(job['job_id']):
+            claimed_count += 1
+            # Here we would spawn worker...
+    
+    assert claimed_count == 5
+    
+    # Step 3: Verify no more pending jobs
+    remaining = job_model.get_pending_jobs(job_type="batch_work")
+    assert len(remaining) == 0

@@ -128,6 +128,68 @@ class JobModel:
                 return job
             return None
     
+    def get_pending_jobs(self, job_type: str = None, machine_type: str = None, limit: int = None) -> List[Dict[str, Any]]:
+        """
+        Get all pending jobs (without marking as processing).
+        
+        Args:
+            job_type: Filter by job type (optional)
+            machine_type: Filter by assigned machine (optional)
+            limit: Maximum number of jobs to return (optional, default: all)
+        
+        Returns:
+            List of job dicts with parsed JSON fields
+        """
+        with self.db._get_connection() as conn:
+            query = "SELECT * FROM jobs WHERE status = 'pending'"
+            params = []
+            
+            if job_type:
+                query += " AND job_type = ?"
+                params.append(job_type)
+            
+            if machine_type is not None:
+                query += " AND machine_type = ?"
+                params.append(machine_type)
+            
+            # Order by priority first (1=highest), then creation time
+            query += " ORDER BY priority ASC, created_at ASC"
+            
+            if limit:
+                query += " LIMIT ?"
+                params.append(limit)
+            
+            rows = conn.execute(query, params).fetchall()
+            
+            jobs = []
+            for row in rows:
+                job = dict(row)
+                # Parse JSON fields
+                if job.get('data'):
+                    try:
+                        job['data'] = json.loads(job['data'])
+                    except (json.JSONDecodeError, TypeError):
+                        logger.warning(f"Failed to parse job data JSON for {job['job_id']}")
+                        job['data'] = {}
+                
+                if job.get('result'):
+                    try:
+                        job['result'] = json.loads(job['result'])
+                    except (json.JSONDecodeError, TypeError):
+                        logger.warning(f"Failed to parse job result JSON for {job['job_id']}")
+                        job['result'] = {}
+                
+                if job.get('metadata'):
+                    try:
+                        job['metadata'] = json.loads(job['metadata'])
+                    except (json.JSONDecodeError, TypeError):
+                        logger.warning(f"Failed to parse job metadata JSON for {job['job_id']}")
+                        job['metadata'] = {}
+                
+                jobs.append(job)
+            
+            return jobs
+    
     def get_latest_job_by_type(self, job_type: str) -> Optional[Dict[str, Any]]:
         """Get the most recent job of given type (for event validation)"""
         with self.db._get_connection() as conn:
@@ -138,6 +200,26 @@ class JobModel:
                 LIMIT 1
             """, (job_type,)).fetchone()
             return dict(row) if row else None
+    
+    def claim_job(self, job_id: str) -> bool:
+        """
+        Mark a pending job as processing (claim it).
+        
+        Args:
+            job_id: ID of job to claim
+        
+        Returns:
+            True if job was successfully claimed, False if not found or already claimed
+        """
+        with self.db._get_connection() as conn:
+            # Only update if status is still 'pending' (prevents race conditions)
+            result = conn.execute("""
+                UPDATE jobs 
+                SET status = 'processing', started_at = CURRENT_TIMESTAMP
+                WHERE job_id = ? AND status = 'pending'
+            """, (job_id,))
+            conn.commit()
+            return result.rowcount > 0
     
     def complete_job(self, job_id: str):
         """Mark job as completed"""

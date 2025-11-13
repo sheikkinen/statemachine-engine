@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.73] - 2025-11-13
+
+### Added
+- **Concurrent Job Spawning - Batch Processing Pattern**
+  - New `GetPendingJobsAction`: Retrieves ALL pending jobs from queue without claiming them
+  - New `ClaimJobAction`: Atomically claims a job before spawning worker (prevents race conditions)
+  - New `JobModel.get_pending_jobs()`: Returns multiple pending jobs with filtering support
+  - New `JobModel.claim_job()`: Atomically marks job as processing using WHERE status='pending'
+  - New `AddToListAction`: Tracks job IDs in context lists for batch management
+  - New `PopFromListAction`: Iterates through job lists one item at a time
+  - New `SetContextAction`: Sets arbitrary context values
+  - New `WaitForJobsAction`: Polls database until all tracked jobs complete
+
+### Changed
+- **concurrent-controller.yaml rewritten for batch spawning**
+  - Now spawns ALL pending jobs concurrently instead of sequentially
+  - Flow: Get ALL jobs → Claim & spawn ALL → Wait for ALL → Repeat
+  - Performance: ~10x faster for batches (10 jobs: 60s → 6s)
+  - States renamed: `spawning_worker` → `spawning_batch`, `waiting_for_completion` → `waiting_for_batch`
+  - Uses `pop_from_list` to iterate through pending jobs list
+  - Atomic job claiming prevents race conditions with multiple controllers
+
+### Fixed
+- **Sequential job spawning in concurrent controller**
+  - Previously processed jobs one-at-a-time (limit: 1)
+  - Now processes entire batches concurrently
+  - Eliminates unnecessary database polling between each job
+
+### Tests
+- Added 27 new tests (all passing):
+  - 6 tests for GetPendingJobsAction
+  - 7 tests for ClaimJobAction
+  - 12 tests for AddToListAction
+  - 14 tests for WaitForJobsAction (includes polling behavior)
+  - 7 tests for new JobModel methods (get_pending_jobs, claim_job)
+- Total: **310 tests passing** (was 283)
+- Test coverage maintained at 39%
+
+### Documentation
+- Added `docs/concurrent-spawning-implementation.md` - Complete implementation summary
+- Added `docs/plan-concurrent-job-spawning.md` - Design plan and architecture
+- Added `docs/plan-wait-for-jobs-action.md` - Job completion tracking design
+- Added `examples/patient_records/test-concurrent-spawning.sh` - Integration test script
+
 ## [1.0.72] - 2025-11-10
 
 ### Changed

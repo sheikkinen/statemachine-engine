@@ -149,7 +149,9 @@ transitions:
 ```
 statemachine-engine/
 ├── src/statemachine_engine/
-│   ├── core/              # engine.py (666 lines), action_loader.py (278), health_monitor.py (236)
+## Codebase Structure
+
+│   ├── core/              # engine.py (666 lines), action_loader.py (278)
 │   ├── actions/           # base.py + builtin/{bash,log,send_event,check_*,clear_events}
 │   ├── database/          # models/ + cli.py (64KB - comprehensive CLI)
 │   ├── monitoring/        # websocket_server.py (FastAPI + Unix socket listener)

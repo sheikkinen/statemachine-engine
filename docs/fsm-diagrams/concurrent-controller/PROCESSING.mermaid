@@ -4,9 +4,12 @@ stateDiagram-v2
     [*] --> checking_queue
 
     %% Internal transitions
-    checking_queue --> spawning_worker : new_job
-    spawning_worker --> waiting_for_completion : worker_started
-    waiting_for_completion --> checking_queue : timeout(5)
+    checking_queue --> spawning_batch : jobs_found
+    spawning_batch --> spawning_batch : worker_spawned
+    spawning_batch --> waiting_for_batch : batch_complete
+    spawning_batch --> spawning_batch : job_taken
+    waiting_for_batch --> checking_queue : all_jobs_complete
+    waiting_for_batch --> waiting_for_batch : timeout(2)
 
     %% External composites
     state IDLE
@@ -14,4 +17,5 @@ stateDiagram-v2
 
     %% Transitions to other composites
     checking_queue --> IDLE : no_jobs
-    spawning_worker --> ERROR : spawn_failed
+    spawning_batch --> ERROR : spawn_failed
+    waiting_for_batch --> ERROR : check_timeout

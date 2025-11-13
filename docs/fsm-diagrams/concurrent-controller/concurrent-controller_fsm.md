@@ -18,11 +18,15 @@ stateDiagram-v2
     %% PROCESSING
     state PROCESSING {
         [*] --> checking_queue
-        checking_queue --> spawning_worker : new_job
-        spawning_worker --> waiting_for_completion : worker_started
-        waiting_for_completion --> checking_queue : timeout(5)
+        checking_queue --> spawning_batch : jobs_found
+        spawning_batch --> spawning_batch : worker_spawned
+        spawning_batch --> waiting_for_batch : batch_complete
+        spawning_batch --> spawning_batch : job_taken
+        waiting_for_batch --> checking_queue : all_jobs_complete
+        waiting_for_batch --> waiting_for_batch : timeout(2)
         checking_queue --> [*] : no_jobs
-        spawning_worker --> [*] : spawn_failed
+        spawning_batch --> [*] : spawn_failed
+        waiting_for_batch --> [*] : check_timeout
     }
 
     %% IDLE
@@ -40,6 +44,7 @@ stateDiagram-v2
     %% Transitions
     PROCESSING --> IDLE : no_jobs
     PROCESSING --> ERROR : spawn_failed
+    PROCESSING --> ERROR : check_timeout
     IDLE --> PROCESSING : timeout(10)
     ERROR --> PROCESSING : retry
 
@@ -51,9 +56,9 @@ stateDiagram-v2
 
 | State | Description | Key Actions |
 |-------|-------------|-------------|
-| `checking_queue` | Checking Queue | log, check_database_queue |
-| `spawning_worker` | Spawning Worker | log, start_fsm, log |
-| `waiting_for_completion` | Waiting For Completion | log |
+| `checking_queue` | Checking Queue | log, set_context, get_pending_jobs |
+| `spawning_batch` | Spawning Batch | pop_from_list, log, claim_job |
+| `waiting_for_batch` | Waiting For Batch | log, wait_for_jobs, log |
 | `idling` | Idling | log |
 | `error_handling` | Error Handling | log, bash |
 
@@ -63,12 +68,18 @@ stateDiagram-v2
 
 | Event | Type | Description |
 |-------|------|-------------|
-| `new_job` | Job | New Job |
+| `jobs_found` | Job | Jobs Found |
 | `no_jobs` | Job | No Jobs |
-| `worker_started` | Internal | Worker Started |
+| `has_job` | Job | Has Job |
+| `worker_spawned` | Internal | Worker Spawned |
+| `batch_complete` | Internal | Batch Complete |
+| `job_claimed` | Job | Job Claimed |
 | `spawn_failed` | Error | Spawn Failed |
+| `job_taken` | Job | Job Taken |
+| `all_jobs_complete` | Job | All Jobs Complete |
+| `check_timeout` | Internal | Check Timeout |
 | `retry` | Internal | Retry |
-| `timeout(5)` | Internal | Timeout(5) |
+| `timeout(2)` | Internal | Timeout(2) |
 | `timeout(10)` | Internal | Timeout(10) |
 
 ---
@@ -76,8 +87,8 @@ stateDiagram-v2
 ## Configuration Summary
 
 - **States:** 5
-- **Events:** 7
-- **Transitions:** 7
+- **Events:** 13
+- **Transitions:** 11
 - **Initial State:** `checking_queue`
 
 ---

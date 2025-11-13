@@ -18,15 +18,16 @@
       "description": "Detailed view of processing",
       "states": [
         "checking_queue",
-        "spawning_worker",
-        "waiting_for_completion"
+        "spawning_batch",
+        "waiting_for_batch"
       ],
       "entry_states": [
         "checking_queue"
       ],
       "exit_states": [
         "checking_queue",
-        "spawning_worker"
+        "spawning_batch",
+        "waiting_for_batch"
       ],
       "parent": "main"
     },

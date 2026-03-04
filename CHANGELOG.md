@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.74] - 2026-03-04
+
+### Added
+- **Event-Level Context Promotion (`context_map`)** — NC-120
+  - Declare `context_map` on YAML events to promote payload fields to durable
+    top-level context keys atomically on event arrival, before any action runs
+  - `_build_context_map_index()`: Parses events config (flat list + dict formats)
+  - `_apply_context_map()`: Promotes fields in `_check_control_socket()`
+  - Initialized `_context_map_index = {}` in `__init__` for test safety
+  - Backward compatible: flat `events:` lists (all existing configs) unchanged
+  - 9 unit tests in `tests/core/test_context_map.py`
+  - README: new "Event Context Promotion" section
+
 ## [1.0.73] - 2025-11-13
 
 ### Added

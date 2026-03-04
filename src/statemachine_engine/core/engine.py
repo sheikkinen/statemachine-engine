@@ -104,6 +104,7 @@ class StateMachineEngine:
         self.is_running = True
         self.propagation_count = 0  # Track frequency of job context propagation
         self.timeout_tasks: Dict[str, asyncio.Task] = {}  # Track active timeout tasks per state
+        self._context_map_index: Dict[str, Dict[str, str]] = {}  # NC-120: event → {ctx_key: payload_path}
         
     async def load_config(self, yaml_path: str) -> None:
         """Load state machine configuration from YAML file"""
@@ -132,6 +133,9 @@ class StateMachineEngine:
         # Register actions
         await self._register_actions()
         
+        # NC-120: Build context_map index from events config
+        self._context_map_index = self._build_context_map_index()
+        
         logger.info(f"[{self.machine_name}] Loaded state machine config: {self.config.get('metadata', {}).get('name', 'Unknown')}")
         logger.info(f"[{self.machine_name}] Machine name: {self.machine_name}")
         logger.info(f"[{self.machine_name}] Initial state: {self.current_state}")
@@ -140,6 +144,61 @@ class StateMachineEngine:
         """Register action handlers - uses ActionLoader dynamically"""
         # Actions are loaded dynamically via ActionLoader when needed
         pass
+    
+    def _build_context_map_index(self) -> Dict[str, Dict[str, str]]:
+        """Build event_name → {ctx_key: payload_path} index from YAML events config.
+
+        Supports two YAML formats:
+          events:                     # flat list (existing)
+            - transcribed
+            - speak_done
+
+          events:                     # dict with context_map (new, NC-120)
+            transcribed:
+              context_map:
+                user_utterance: payload.user_utterance
+            speak_done: {}            # no promotion
+        """
+        raw_events = self.config.get('events', [])
+        index: Dict[str, Dict[str, str]] = {}
+
+        if isinstance(raw_events, list):
+            # Flat list — no context_map for any event (backward compat)
+            return index
+
+        if isinstance(raw_events, dict):
+            for event_name, event_cfg in raw_events.items():
+                if isinstance(event_cfg, dict) and 'context_map' in event_cfg:
+                    index[event_name] = event_cfg['context_map']
+
+        return index
+
+    def _apply_context_map(self, event_type: str, event: dict) -> None:
+        """NC-120: Promote event payload fields to top-level context.
+
+        Looks up context_map for this event_type. For each mapping,
+        traverses the dot-path into the event dict and writes the value
+        to a durable top-level context key.
+        """
+        mapping = self._context_map_index.get(event_type)
+        if not mapping:
+            return
+
+        for ctx_key, payload_path in mapping.items():
+            parts = payload_path.split('.')
+            value = event
+            for part in parts:
+                if isinstance(value, dict):
+                    value = value.get(part)
+                else:
+                    value = None
+                    break
+            if value is not None:
+                self.context[ctx_key] = value
+                logger.debug(
+                    f"[{self.machine_name}] 📌 context_map: "
+                    f"{ctx_key} = {str(value)[:80]}"
+                )
     
     def _create_control_socket(self) -> None:
         """Create Unix socket for receiving control events"""
@@ -208,6 +267,9 @@ class StateMachineEngine:
                 # Handle different event types
                 # Store event data in context for actions to access
                 self.context['event_data'] = event
+                
+                # NC-120: Promote event payload fields to durable context keys
+                self._apply_context_map(event_type, event)
                 
                 # Process the actual event type received
                 await self.process_event(event_type)

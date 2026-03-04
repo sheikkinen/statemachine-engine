@@ -12,6 +12,7 @@ Event-driven state machine framework with real-time monitoring and database-back
 - **Unix Socket Communication**: Low-latency inter-machine events
 - **Multi-Machine Coordination**: Event-driven machine-to-machine communication
 - **Multiple Engine Support**: Run multiple engines simultaneously with configurable socket paths
+- **Event Context Promotion**: Declare `context_map` on events to promote payload fields to durable context keys
 
 ## Installation
 
@@ -787,6 +788,96 @@ The interpolation happens in the `StateMachineEngine._interpolate_config()` meth
 - Custom actions don't need to implement their own interpolation
 - Variables are resolved consistently across the entire workflow
 - Performance is optimized (single pass per action config)
+
+## Event Context Promotion (`context_map`)
+
+**New in v1.0.74:** Events can declare a `context_map` that promotes payload fields
+to durable top-level context keys the moment an event fires — before any action runs.
+
+### The Problem
+
+`context["event_data"]` is overwritten on every incoming event. Any payload field
+accessed via `{event_data.payload.field}` is lost as soon as the next event arrives.
+This forces actions to manually copy values into context as workarounds.
+
+### Solution
+
+Declare `context_map` on events in YAML. The engine promotes fields atomically at
+the boundary where external data enters:
+
+```yaml
+events:
+  transcribed:
+    context_map:
+      user_utterance: payload.user_utterance   # context["user_utterance"] = event["payload"]["user_utterance"]
+  speak_done: {}                                # no promotion needed
+  incoming_call:
+    context_map:
+      call_sid: payload.call_sid
+      caller: payload.caller
+```
+
+Downstream actions reference `{user_utterance}` — a durable context key that
+survives any number of subsequent events.
+
+### How It Works
+
+1. **Config load**: `load_config()` builds an index of event → context_map entries
+2. **Event arrives**: `_check_control_socket()` writes `context["event_data"]` (as before)
+3. **Promotion**: Engine applies `context_map` — walks the dot-path in the event dict,
+   writes the value to a top-level context key
+4. **Action runs**: Actions see both `event_data` (transient) and promoted keys (durable)
+
+### Backward Compatibility
+
+The `events:` block accepts both formats:
+
+```yaml
+# Old format (flat list) — still works, no promotion
+events:
+  - transcribed
+  - speak_done
+  - hangup
+
+# New format (dict) — enables context_map
+events:
+  transcribed:
+    context_map:
+      user_utterance: payload.user_utterance
+  speak_done: {}
+  hangup: {}
+```
+
+### Rules
+
+- **Missing payload fields are silently skipped** — no error if the path doesn't exist
+- **Null values are skipped** — only non-None values are promoted
+- **Dot notation** traverses nested dicts: `payload.user.name` → `event["payload"]["user"]["name"]`
+- **Overwrites are intentional** — each event firing re-promotes its mapped fields
+- **No action needed** — promotion happens at engine level before `process_event()`
+
+### Example: Voice Coordinator
+
+```yaml
+events:
+  transcribed:
+    context_map:
+      user_utterance: payload.user_utterance
+
+actions:
+  classifying:
+    - type: yamlgraph
+      params:
+        input_value: "{user_utterance}"          # durable — survives speak_done
+
+  forwarding_to_ninchat:
+    - type: ninchat_send
+      params:
+        text: "{user_utterance}"                 # still available after acknowledging
+```
+
+Without `context_map`, `user_utterance` would be lost after any `speak_done` event
+overwrites `event_data`.
 
 ## Multi-Machine Setup
 

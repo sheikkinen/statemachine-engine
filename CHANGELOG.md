@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.75] - 2026-03-12
+
+### Fixed
+- **EventSocketManager lazy reconnect with rate limiting**
+  - `emit()` now attempts reconnect when socket is unavailable (lazy reconnect)
+  - Reconnect rate-limited to once per 5 seconds to prevent spam
+  - Failed reconnect logged at WARNING level (was DEBUG)
+  - `_connect()` closes socket fd on failure (fixes fd leak)
+  - 4 unit tests in `tests/core/test_event_socket_reconnect.py`
+
 ## [1.0.74] - 2026-03-04
 
 ### Added

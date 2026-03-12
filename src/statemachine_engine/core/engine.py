@@ -42,31 +42,43 @@ logger = logging.getLogger(__name__)
 class EventSocketManager:
     """Manages Unix socket connection for real-time event emission"""
 
+    RECONNECT_INTERVAL = 5.0  # seconds between reconnect attempts
+
     def __init__(self, socket_path: str = None):
         self.socket_path = socket_path or '/tmp/statemachine-events.sock'
         self.sock: Optional[socket.socket] = None
         self.logger = logging.getLogger(__name__)
+        self._last_connect_attempt = 0.0
         self._connect()
 
     def _connect(self):
-        """Attempt to connect to Unix socket (non-blocking)"""
+        """Attempt to connect to Unix socket (non-blocking). Closes fd on failure."""
+        self._last_connect_attempt = time.monotonic()
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         try:
-            self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-            self.sock.setblocking(False)
-            self.sock.connect(self.socket_path)
+            sock.setblocking(False)
+            sock.connect(self.socket_path)
+            self.sock = sock
             self.logger.debug(f"Connected to event socket: {self.socket_path}")
         except Exception as e:
+            sock.close()
             self.logger.debug(f"Event socket not available: {e}")
             self.sock = None
 
     def emit(self, event_data: dict) -> bool:
         """
         Emit event to socket. Returns True if successful, False otherwise.
+        Attempts lazy reconnect (rate-limited) when socket is unavailable.
         Never blocks or raises exceptions.
         """
         if not self.sock:
-            self.logger.debug(f"📭 Socket not connected, cannot emit: {event_data.get('type', 'unknown')}")
-            return False
+            # Lazy reconnect with rate limiting
+            now = time.monotonic()
+            if now - self._last_connect_attempt >= self.RECONNECT_INTERVAL:
+                self._connect()
+            if not self.sock:
+                self.logger.warning(f"📭 Socket not connected, cannot emit: {event_data.get('type', 'unknown')}")
+                return False
 
         try:
             message = json.dumps(event_data).encode('utf-8')

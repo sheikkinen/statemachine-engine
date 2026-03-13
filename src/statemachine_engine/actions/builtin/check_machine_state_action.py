@@ -10,7 +10,7 @@ and validates it against expected states.
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from statemachine_engine.database.models import get_job_model
 

@@ -31,7 +31,7 @@ import importlib.util
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Type
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 

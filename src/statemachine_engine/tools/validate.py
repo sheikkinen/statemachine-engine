@@ -38,7 +38,6 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
 
 import yaml
 
@@ -444,10 +443,10 @@ def main():
 Examples:
   # Validate all configs
   statemachine-validate config/*.yaml
-  
+
   # Strict mode (warnings cause failure)
   statemachine-validate --strict config/*.yaml
-  
+
   # Quiet mode (errors only)
   statemachine-validate --quiet config/*.yaml
         """,

@@ -9,6 +9,7 @@ Provides database management and querying capabilities
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -20,11 +21,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import socket
 
 from statemachine_engine.database.models import (
+    get_database,
     get_job_model,
     get_machine_event_model,
     get_machine_state_model,
     get_realtime_event_model,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _send_wake_up_socket(target_machine: str) -> bool:
@@ -151,17 +155,17 @@ def cmd_reset_processing(args):
         if args.force:
             # Reset all processing jobs
             cursor = conn.execute("""
-                UPDATE jobs 
-                SET status = 'pending', started_at = NULL 
+                UPDATE jobs
+                SET status = 'pending', started_at = NULL
                 WHERE status = 'processing'
             """)
             count = cursor.rowcount
         else:
             # Only reset jobs older than 10 minutes
             cursor = conn.execute("""
-                UPDATE jobs 
-                SET status = 'pending', started_at = NULL 
-                WHERE status = 'processing' 
+                UPDATE jobs
+                SET status = 'pending', started_at = NULL
+                WHERE status = 'processing'
                 AND started_at < datetime('now', '-10 minutes')
             """)
             count = cursor.rowcount
@@ -684,13 +688,13 @@ def cmd_machine_state(args):
     # Query all machine states including PID for process checking
     with machine_state_model.db._get_connection() as conn:
         rows = conn.execute("""
-            SELECT 
+            SELECT
                 machine_name,
                 current_state,
                 last_activity,
                 pid,
                 metadata
-            FROM machine_state 
+            FROM machine_state
             ORDER BY machine_name
         """).fetchall()
 
@@ -735,7 +739,7 @@ def cmd_transition_history(args):
         with realtime_model.db._get_connection() as conn:
             # Build query based on filters
             query = """
-                SELECT 
+                SELECT
                     id,
                     machine_name,
                     payload,
@@ -813,7 +817,7 @@ def cmd_error_history(args):
         with realtime_model.db._get_connection() as conn:
             # Build query for error events
             query = """
-                SELECT 
+                SELECT
                     id,
                     machine_name,
                     payload,
@@ -883,20 +887,20 @@ def cmd_error_history(args):
 
 def cmd_controller_log(args):
     """Show controller event processing log"""
-    controller_log = get_controller_log_model()
+    db = get_database()
 
     try:
-        with controller_log.db._get_connection() as conn:
+        with db._get_connection() as conn:
             query = """
-                SELECT 
+                SELECT
                     id,
-                    job_id, 
-                    event_type, 
-                    event_id, 
-                    action, 
+                    job_id,
+                    event_type,
+                    event_id,
+                    action,
                     details,
                     created_at
-                FROM controller_log 
+                FROM controller_log
                 ORDER BY created_at DESC
             """
 
@@ -1246,9 +1250,7 @@ def main():
     )
 
     # Machine health command
-    subparsers.add_parser(
-        "machine-health", help="Check concurrent machine health"
-    )
+    subparsers.add_parser("machine-health", help="Check concurrent machine health")
 
     # Machine state command
     machine_state_parser = subparsers.add_parser(

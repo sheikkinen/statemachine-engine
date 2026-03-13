@@ -99,7 +99,7 @@ import logging
 import logging.handlers
 import queue
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 
 def setup_async_logging(

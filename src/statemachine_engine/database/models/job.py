@@ -11,7 +11,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .base import Database
 
@@ -55,7 +55,7 @@ class JobModel:
         with self.db._get_connection() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO jobs (job_id, job_type, machine_type, source_job_id, 
+                INSERT INTO jobs (job_id, job_type, machine_type, source_job_id,
                                  priority, data, metadata, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
             """,
@@ -109,7 +109,7 @@ class JobModel:
                 # Mark as processing
                 conn.execute(
                     """
-                    UPDATE jobs 
+                    UPDATE jobs
                     SET status = 'processing', started_at = CURRENT_TIMESTAMP
                     WHERE job_id = ?
                 """,
@@ -227,9 +227,9 @@ class JobModel:
         with self.db._get_connection() as conn:
             row = conn.execute(
                 """
-                SELECT * FROM jobs 
-                WHERE job_type = ? 
-                ORDER BY created_at DESC 
+                SELECT * FROM jobs
+                WHERE job_type = ?
+                ORDER BY created_at DESC
                 LIMIT 1
             """,
                 (job_type,),
@@ -250,7 +250,7 @@ class JobModel:
             # Only update if status is still 'pending' (prevents race conditions)
             result = conn.execute(
                 """
-                UPDATE jobs 
+                UPDATE jobs
                 SET status = 'processing', started_at = CURRENT_TIMESTAMP
                 WHERE job_id = ? AND status = 'pending'
             """,
@@ -264,7 +264,7 @@ class JobModel:
         with self.db._get_connection() as conn:
             conn.execute(
                 """
-                UPDATE jobs 
+                UPDATE jobs
                 SET status = 'completed', completed_at = CURRENT_TIMESTAMP
                 WHERE job_id = ?
             """,
@@ -277,7 +277,7 @@ class JobModel:
         with self.db._get_connection() as conn:
             conn.execute(
                 """
-                UPDATE jobs 
+                UPDATE jobs
                 SET status = 'failed', error_message = ?, completed_at = CURRENT_TIMESTAMP
                 WHERE job_id = ?
             """,
@@ -412,7 +412,7 @@ class JobModel:
         with self.db._get_connection() as conn:
             conn.execute(
                 """
-                UPDATE jobs 
+                UPDATE jobs
                 SET status = 'pending', started_at = NULL, error_message = ?
                 WHERE job_id = ? AND status = 'processing'
             """,
@@ -464,7 +464,7 @@ class JobModel:
         with self.db._get_connection() as conn:
             conn.execute(
                 """
-                INSERT INTO pipeline_results 
+                INSERT INTO pipeline_results
                 (job_id, step_name, step_number, metadata)
                 VALUES (?, ?, ?, ?)
             """,

@@ -11,7 +11,7 @@ Usage:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from ...database.models import get_job_model
 from ...utils.interpolation import interpolate_value

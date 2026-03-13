@@ -11,7 +11,7 @@ import json
 import logging
 import socket
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from statemachine_engine.database.models import get_machine_event_model
 

@@ -9,7 +9,7 @@ IMPORTANT: Changes via Change Management, see CLAUDE.md
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .base import Database
 
@@ -78,12 +78,12 @@ class MachineStateModel:
         with self.db._get_connection() as conn:
             rows = conn.execute(
                 """
-                SELECT 
+                SELECT
                     json_extract(metadata, '$.machine') as machine_name,
                     json_extract(metadata, '$.state') as current_state,
                     json_extract(metadata, '$.event') as event,
                     completed_at as timestamp
-                FROM pipeline_results 
+                FROM pipeline_results
                 WHERE step_name = 'state_change'
                 AND completed_at > datetime('now', '-' || ? || ' hour')
                 ORDER BY completed_at DESC

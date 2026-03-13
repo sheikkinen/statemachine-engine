@@ -8,7 +8,7 @@ IMPORTANT: Changes via Change Management, see CLAUDE.md
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from .base import Database
 
@@ -46,7 +46,7 @@ class MachineEventModel:
         with self.db._get_connection() as conn:
             rows = conn.execute(
                 """
-                SELECT * FROM machine_events 
+                SELECT * FROM machine_events
                 WHERE target_machine = ? AND status = 'pending'
                 ORDER BY created_at
             """,
@@ -59,7 +59,7 @@ class MachineEventModel:
         with self.db._get_connection() as conn:
             conn.execute(
                 """
-                UPDATE machine_events 
+                UPDATE machine_events
                 SET status = 'processed', processed_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             """,

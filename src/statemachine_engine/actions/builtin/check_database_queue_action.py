@@ -9,7 +9,7 @@ Supports both face_processing and pony_flux job types in a single unified action
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))

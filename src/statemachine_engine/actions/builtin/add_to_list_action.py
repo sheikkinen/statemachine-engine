@@ -14,7 +14,7 @@ YAML Usage:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from ...utils.interpolation import interpolate_value
 from ..base import BaseAction

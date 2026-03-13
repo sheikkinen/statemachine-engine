@@ -9,7 +9,7 @@ IMPORTANT: Changes via Change Management, see CLAUDE.md
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .base import Database
 

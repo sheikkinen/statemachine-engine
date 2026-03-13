@@ -9,7 +9,7 @@ controller FSM.
 import json
 import logging
 import subprocess
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from ...utils.interpolation import interpolate_value
 from ..base import BaseAction

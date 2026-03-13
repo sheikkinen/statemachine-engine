@@ -30,7 +30,7 @@ Usage:
 """
 
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 
 def interpolate_value(template: Any, context: Optional[dict[str, Any]]) -> Any:

@@ -64,7 +64,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import yaml
 
@@ -430,7 +430,9 @@ def generate_states_table(config: dict[str, Any]) -> str:
                     action_desc = action.get("description", "")
 
                     if action_type == "log" and action_desc:
-                        description = action_desc.strip("📡🎨🔄✅🔀👤🔍🔗⏳😴💤🧹⚠️⏹️")
+                        description = action_desc
+                        for ch in "📡🎨🔄✅🔀👤🔍🔗⏳😴💤🧹⚠️⏹️":
+                            description = description.strip(ch)
                         break
 
             # Get key action types
@@ -833,12 +835,10 @@ def generate_metadata(
         exit_states = []
 
         for t in transitions:
-            if t.get("to") in group_states and t.get("from") not in group_states:
-                if t.get("to") not in entry_states:
-                    entry_states.append(t.get("to"))
-            if t.get("from") in group_states and t.get("to") not in group_states:
-                if t.get("from") not in exit_states:
-                    exit_states.append(t.get("from"))
+            if t.get("to") in group_states and t.get("from") not in group_states and t.get("to") not in entry_states:
+                entry_states.append(t.get("to"))
+            if t.get("from") in group_states and t.get("to") not in group_states and t.get("from") not in exit_states:
+                exit_states.append(t.get("from"))
 
         metadata["diagrams"][composite_name] = {
             "file": composite_files[group_name],

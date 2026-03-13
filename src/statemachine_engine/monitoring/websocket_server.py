@@ -19,7 +19,6 @@ import time
 import traceback
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
-from typing import Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -177,7 +176,7 @@ class WatchdogThread(threading.Thread):
                                         if t.ident == thread_id:
                                             thread_name = t.name
                                             break
-                            except:
+                            except Exception:
                                 pass
 
                             thread_info = f"Thread {thread_id} ({thread_name}):"
@@ -213,7 +212,7 @@ class WatchdogThread(threading.Thread):
                             f.write("\n".join(hang_report))
                             f.write(f"\n{'=' * 80}\n")
                             f.flush()
-                    except:
+                    except Exception:
                         pass  # If emergency log fails, nothing we can do
 
                     # Reset heartbeat to avoid spam (one dump per hang)
@@ -600,7 +599,7 @@ async def unix_socket_listener():
                         logger.info(
                             f"📥 Unix socket: Event #{event_count} type={event_type} ({len(event_json)} bytes)"
                         )
-                    except:
+                    except Exception:
                         logger.info(
                             f"📥 Unix socket: Event #{event_count} ({len(event_json)} bytes)"
                         )

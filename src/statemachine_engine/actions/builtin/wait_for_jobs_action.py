@@ -19,7 +19,7 @@ YAML Usage:
 
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 from ...database.models import get_job_model
 from ..base import BaseAction

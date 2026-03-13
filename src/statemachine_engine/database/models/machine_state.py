@@ -6,6 +6,7 @@ Currently used by UI and CLI for status monitoring.
 
 IMPORTANT: Changes via Change Management, see CLAUDE.md
 """
+
 import json
 import logging
 from typing import Optional, Dict, List, Any
@@ -13,12 +14,13 @@ from .base import Database
 
 logger = logging.getLogger(__name__)
 
+
 class MachineStateModel:
     """Model for machine state tracking"""
-    
+
     def __init__(self, db: Database):
         self.db = db
-    
+
     def get_all_machines(self) -> List[Dict[str, Any]]:
         """Get all machines with their current state"""
         with self.db._get_connection() as conn:
@@ -27,23 +29,32 @@ class MachineStateModel:
                 FROM machine_state ORDER BY machine_name
             """).fetchall()
             return [dict(row) for row in rows]
-    
+
     def get_machine_state(self, machine_name: str) -> Optional[Dict[str, Any]]:
         """Get state for a specific machine"""
         with self.db._get_connection() as conn:
-            row = conn.execute("""
+            row = conn.execute(
+                """
                 SELECT machine_name, current_state, last_activity, metadata, config_type
                 FROM machine_state
                 WHERE machine_name = ?
-            """, (machine_name,)).fetchone()
-            
+            """,
+                (machine_name,),
+            ).fetchone()
+
             return dict(row) if row else None
-    
-    def update_machine_state(self, machine_name: str, current_state: str,
-                            metadata: Dict[str, Any] = None, config_type: str = None):
+
+    def update_machine_state(
+        self,
+        machine_name: str,
+        current_state: str,
+        metadata: Dict[str, Any] = None,
+        config_type: str = None,
+    ):
         """Update or insert machine state"""
         with self.db._get_connection() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO machine_state (machine_name, current_state, metadata, config_type)
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT(machine_name) DO UPDATE SET
@@ -51,13 +62,21 @@ class MachineStateModel:
                     last_activity = CURRENT_TIMESTAMP,
                     metadata = excluded.metadata,
                     config_type = excluded.config_type
-            """, (machine_name, current_state, json.dumps(metadata) if metadata else None, config_type))
+            """,
+                (
+                    machine_name,
+                    current_state,
+                    json.dumps(metadata) if metadata else None,
+                    config_type,
+                ),
+            )
             conn.commit()
-    
+
     def get_recent_state_changes(self, hours: int = 1) -> List[Dict[str, Any]]:
         """Get recent state changes (from pipeline_results)"""
         with self.db._get_connection() as conn:
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT 
                     json_extract(metadata, '$.machine') as machine_name,
                     json_extract(metadata, '$.state') as current_state,
@@ -67,6 +86,8 @@ class MachineStateModel:
                 WHERE step_name = 'state_change'
                 AND completed_at > datetime('now', '-' || ? || ' hour')
                 ORDER BY completed_at DESC
-            """, (hours,)).fetchall()
-            
+            """,
+                (hours,),
+            ).fetchall()
+
             return [dict(row) for row in rows]

@@ -32,7 +32,7 @@ from statemachine_engine.monitoring.async_logging import setup_async_logging
 logger, queue_listener = setup_async_logging(
     log_file=Path.cwd() / "logs" / "websocket-server.log",
     log_level=logging.INFO,
-    logger_name=__name__
+    logger_name=__name__,
 )
 
 logger.info("=" * 80)
@@ -41,11 +41,12 @@ logger.info("Using QueueHandler to prevent blocking I/O in event loop")
 logger.info("=" * 80)
 
 # Global socket path (configurable via CLI)
-unix_socket_path = '/tmp/statemachine-events.sock'
+unix_socket_path = "/tmp/statemachine-events.sock"
 
 # ============================================================================
 # SAFE JSON SERIALIZATION
 # ============================================================================
+
 
 def safe_json_dumps_compact(obj: dict) -> tuple[str, bool]:
     """
@@ -58,13 +59,20 @@ def safe_json_dumps_compact(obj: dict) -> tuple[str, bool]:
         return (json_str, True)
     except RecursionError as e:
         logger.error(f"JSON serialization recursion error (circular reference?): {e}")
-        return (f'{{"error":"serialization_failed","message":"circular_reference"}}', False)
+        return (
+            f'{{"error":"serialization_failed","message":"circular_reference"}}',
+            False,
+        )
     except TypeError as e:
         logger.error(f"JSON serialization type error (non-serializable object?): {e}")
-        return (f'{{"error":"serialization_failed","message":"non_serializable_object"}}', False)
+        return (
+            f'{{"error":"serialization_failed","message":"non_serializable_object"}}',
+            False,
+        )
     except Exception as e:
         logger.error(f"JSON serialization failed: {e}")
         return (f'{{"error":"serialization_failed","message":"{str(e)}"}}', False)
+
 
 # ============================================================================
 
@@ -72,26 +80,29 @@ def safe_json_dumps_compact(obj: dict) -> tuple[str, bool]:
 # HANG DETECTION & PERFORMANCE MONITORING
 # ============================================================================
 
+
 class PerformanceMonitor:
     """Monitor for detecting server hangs and performance issues"""
-    
+
     def __init__(self):
         self.last_heartbeat = time.time()
         self.operation_times = {}
         self.watchdog_enabled = True
-        
+
     def heartbeat(self):
         """Update heartbeat timestamp"""
         self.last_heartbeat = time.time()
-        
+
     def log_operation(self, name: str, duration_ms: float):
         """Track operation timing"""
         if duration_ms > 100:  # Warn on operations > 100ms
             logger.warning(f"⚠️  SLOW OPERATION: {name} took {duration_ms:.2f}ms")
         self.operation_times[name] = (time.time(), duration_ms)
 
+
 def log_timing(operation_name: str, warn_threshold_ms: float = 100):
     """Decorator to log operation timing and detect slow operations"""
+
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
@@ -102,53 +113,60 @@ def log_timing(operation_name: str, warn_threshold_ms: float = 100):
                 duration_ms = (time.time() - start) * 1000
                 perf_monitor.log_operation(operation_name, duration_ms)
                 if duration_ms > warn_threshold_ms:
-                    logger.warning(f"⚠️  SLOW: {operation_name} took {duration_ms:.2f}ms")
+                    logger.warning(
+                        f"⚠️  SLOW: {operation_name} took {duration_ms:.2f}ms"
+                    )
                 else:
                     logger.debug(f"⏱️  END: {operation_name} ({duration_ms:.2f}ms)")
                 perf_monitor.heartbeat()  # Update heartbeat on successful operation
                 return result
             except Exception as e:
                 duration_ms = (time.time() - start) * 1000
-                logger.error(f"❌ FAILED: {operation_name} after {duration_ms:.2f}ms: {e}")
+                logger.error(
+                    f"❌ FAILED: {operation_name} after {duration_ms:.2f}ms: {e}"
+                )
                 raise
+
         return wrapper
+
     return decorator
+
 
 class WatchdogThread(threading.Thread):
     """Watchdog that dumps stack traces if server hangs"""
-    
+
     def __init__(self, monitor: PerformanceMonitor, timeout: int = 15):
         super().__init__(daemon=True, name="Watchdog")
         self.monitor = monitor
         self.timeout = timeout
         self.running = True
-        
+
     def run(self):
         """Monitor heartbeat and dump stack on hang"""
         logger.info(f"🐕 Watchdog started with {self.timeout}s timeout")
         while self.running:
             time.sleep(2)  # Check every 2 seconds
             time_since_heartbeat = time.time() - self.monitor.last_heartbeat
-            
+
             if time_since_heartbeat > self.timeout:
                 hang_report = []
                 try:
                     hang_msg = f"🚨 SERVER HANG DETECTED: No heartbeat for {time_since_heartbeat:.1f}s"
                     logger.critical(hang_msg)
                     hang_report.append(hang_msg)
-                    
+
                     trace_msg = "🚨 DUMPING ALL THREAD STACK TRACES:"
                     logger.critical(trace_msg)
                     hang_report.append(trace_msg)
-                    
+
                     # Dump stack traces for all threads
                     for thread_id, frame in sys._current_frames().items():
                         try:
-                            separator = f"\n{'='*80}"
+                            separator = f"\n{'=' * 80}"
                             logger.critical(separator)
                             hang_report.append(separator)
-                            
-                            thread_name = 'Unknown'
+
+                            thread_name = "Unknown"
                             try:
                                 if thread_id == threading.get_ident():
                                     thread_name = threading.current_thread().name
@@ -160,23 +178,25 @@ class WatchdogThread(threading.Thread):
                                             break
                             except:
                                 pass
-                            
+
                             thread_info = f"Thread {thread_id} ({thread_name}):"
                             logger.critical(thread_info)
                             hang_report.append(thread_info)
-                            
-                            stack_trace = ''.join(traceback.format_stack(frame))
+
+                            stack_trace = "".join(traceback.format_stack(frame))
                             logger.critical(stack_trace)
                             hang_report.append(stack_trace)
                         except Exception as e:
-                            error_msg = f"Failed to dump stack for thread {thread_id}: {e}"
+                            error_msg = (
+                                f"Failed to dump stack for thread {thread_id}: {e}"
+                            )
                             logger.critical(error_msg)
                             hang_report.append(error_msg)
-                    
-                    final_separator = f"{'='*80}\n"
+
+                    final_separator = f"{'=' * 80}\n"
                     logger.critical(final_separator)
                     hang_report.append(final_separator)
-                    
+
                 except Exception as e:
                     error_msg = f"Failed to dump stack traces: {e}"
                     logger.critical(error_msg)
@@ -187,16 +207,17 @@ class WatchdogThread(threading.Thread):
                         emergency_file = Path.cwd() / "logs" / "hang-emergency.log"
                         emergency_file.parent.mkdir(exist_ok=True)
                         with open(emergency_file, "a") as f:
-                            f.write(f"\n{'='*80}\n")
+                            f.write(f"\n{'=' * 80}\n")
                             f.write(f"HANG DETECTED AT {time.time()}\n")
-                            f.write('\n'.join(hang_report))
-                            f.write(f"\n{'='*80}\n")
+                            f.write("\n".join(hang_report))
+                            f.write(f"\n{'=' * 80}\n")
                             f.flush()
                     except:
                         pass  # If emergency log fails, nothing we can do
-                    
+
                     # Reset heartbeat to avoid spam (one dump per hang)
                     self.monitor.last_heartbeat = time.time()
+
 
 # Global performance monitor and watchdog
 perf_monitor = PerformanceMonitor()
@@ -204,6 +225,7 @@ watchdog = WatchdogThread(perf_monitor, timeout=15)
 watchdog.start()
 
 # ============================================================================
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -214,20 +236,20 @@ async def lifespan(app: FastAPI):
     logger.info("✅ Non-blocking logging with QueueHandler architecture")
     logger.info("=" * 80)
     logger.info("Starting WebSocket server background tasks...")
-    
+
     try:
         # Start background tasks with error tracking
         tasks = {
-            'unix_socket_listener': asyncio.create_task(unix_socket_listener()),
-            'server_heartbeat': asyncio.create_task(server_heartbeat())
+            "unix_socket_listener": asyncio.create_task(unix_socket_listener()),
+            "server_heartbeat": asyncio.create_task(server_heartbeat()),
         }
-        
+
         # Store tasks for potential monitoring
         app.state.background_tasks = tasks
-        
+
         logger.info(f"WebSocket server started with {len(tasks)} background tasks")
         logger.info("🐕 Watchdog thread monitoring for hangs (15s timeout)")
-        
+
         # Log task status after brief delay
         await asyncio.sleep(0.5)
         for name, task in tasks.items():
@@ -239,18 +261,18 @@ async def lifespan(app: FastAPI):
                     logger.error(f"Background task '{name}' error: {e}", exc_info=True)
             else:
                 logger.info(f"✅ Background task '{name}' running successfully")
-                
+
     except Exception as e:
         logger.error(f"Failed to start background tasks: {e}", exc_info=True)
         raise
-    
+
     yield  # Server is running
-    
+
     # Shutdown
     logger.info("Shutting down WebSocket server...")
-    
+
     # Cancel background tasks
-    if hasattr(app.state, 'background_tasks'):
+    if hasattr(app.state, "background_tasks"):
         for name, task in app.state.background_tasks.items():
             logger.info(f"Cancelling background task: {name}")
             task.cancel()
@@ -258,16 +280,17 @@ async def lifespan(app: FastAPI):
                 await task
             except asyncio.CancelledError:
                 logger.info(f"Background task '{name}' cancelled successfully")
-    
+
     # Stop background logging thread
     logger.info("Stopping background logging thread...")
     queue_listener.stop()
     logger.info("Logging thread stopped")
-    
+
     # Cleanup Unix socket
     if Path(unix_socket_path).exists():
         Path(unix_socket_path).unlink()
         logger.info(f"Cleaned up Unix socket: {unix_socket_path}")
+
 
 app = FastAPI(title="State Machine Event Stream", lifespan=lifespan)
 
@@ -279,6 +302,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 class EventBroadcaster:
     """Manages WebSocket connections and broadcasts events"""
@@ -301,7 +325,7 @@ class EventBroadcaster:
     @log_timing("broadcast_event", warn_threshold_ms=50)
     async def broadcast(self, event_json: str):
         """Send event to all connected clients
-        
+
         Args:
             event_json: Pre-serialized JSON string (NOT a dict)
         """
@@ -309,17 +333,21 @@ class EventBroadcaster:
 
         # Remove disconnected clients
         dead_connections = set()
-        logger.info(f"📡 Broadcasting to {len(self.connections)} clients ({len(event_json)} bytes)")
-        
+        logger.info(
+            f"📡 Broadcasting to {len(self.connections)} clients ({len(event_json)} bytes)"
+        )
+
         for ws in self.connections:
             try:
                 client_id = id(ws)
-                
+
                 # Event is already JSON string - send directly without re-serialization!
                 await asyncio.wait_for(ws.send_text(event_json), timeout=2.0)
                 logger.debug(f"✅ Sent to client {client_id}")
             except asyncio.TimeoutError:
-                logger.warning(f"⏱️  Client {id(ws)}: Send timed out after 2s, marking as dead")
+                logger.warning(
+                    f"⏱️  Client {id(ws)}: Send timed out after 2s, marking as dead"
+                )
                 dead_connections.add(ws)
             except Exception as e:
                 logger.warning(f"Failed to send to client {id(ws)}: {e}")
@@ -329,7 +357,9 @@ class EventBroadcaster:
         if dead_connections:
             logger.info(f"Removed {len(dead_connections)} dead connections")
 
+
 broadcaster = EventBroadcaster()
+
 
 @log_timing("get_initial_state", warn_threshold_ms=200)
 async def get_initial_state() -> dict:
@@ -347,25 +377,22 @@ async def get_initial_state() -> dict:
         # Convert to dict
         machines_data = [dict(machine) for machine in machines]
 
-        return {
-            'type': 'initial',
-            'machines': machines_data,
-            'timestamp': time.time()
-        }
+        return {"type": "initial", "machines": machines_data, "timestamp": time.time()}
     except Exception as e:
         logger.error(f"Failed to get initial state: {e}", exc_info=True)
         return {
-            'type': 'initial',
-            'machines': [],
-            'timestamp': time.time(),
-            'error': str(e)
+            "type": "initial",
+            "machines": [],
+            "timestamp": time.time(),
+            "error": str(e),
         }
+
 
 @app.websocket("/ws/events")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time event streaming"""
     client_id = id(websocket)  # Unique ID for logging
-    
+
     try:
         await broadcaster.connect(websocket)
         logger.info(f"Client {client_id} connected from {websocket.client}")
@@ -374,16 +401,23 @@ async def websocket_endpoint(websocket: WebSocket):
         try:
             logger.info(f"📋 Client {client_id}: Fetching initial state...")
             initial_state = await get_initial_state()
-            logger.info(f"📋 Client {client_id}: Sending initial state with {len(initial_state.get('machines', []))} machines")
+            logger.info(
+                f"📋 Client {client_id}: Sending initial state with {len(initial_state.get('machines', []))} machines"
+            )
             # Pre-serialize to avoid blocking event loop
             initial_json, success = safe_json_dumps_compact(initial_state)
             if not success:
-                logger.error(f"❌ Client {client_id}: Failed to serialize initial state")
+                logger.error(
+                    f"❌ Client {client_id}: Failed to serialize initial state"
+                )
                 raise ValueError("Failed to serialize initial state")
             await websocket.send_text(initial_json)
             logger.info(f"✅ Client {client_id}: Initial state sent successfully")
         except Exception as e:
-            logger.error(f"❌ Client {client_id}: Failed to send initial state: {e}", exc_info=True)
+            logger.error(
+                f"❌ Client {client_id}: Failed to send initial state: {e}",
+                exc_info=True,
+            )
 
         # Keep connection alive with periodic pings - run as background task
         async def send_keepalive():
@@ -393,7 +427,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 while True:
                     await asyncio.sleep(ping_interval)
                     try:
-                        ping_data = {'type': 'ping', 'timestamp': time.time()}
+                        ping_data = {"type": "ping", "timestamp": time.time()}
                         logger.debug(f"🏓 Client {client_id}: Sending keepalive ping")
                         # Pre-serialize to avoid blocking event loop
                         ping_json, success = safe_json_dumps_compact(ping_data)
@@ -401,16 +435,20 @@ async def websocket_endpoint(websocket: WebSocket):
                             await websocket.send_text(ping_json)
                             logger.debug(f"✅ Client {client_id}: Keepalive ping sent")
                         else:
-                            logger.error(f"❌ Client {client_id}: Failed to serialize ping data")
+                            logger.error(
+                                f"❌ Client {client_id}: Failed to serialize ping data"
+                            )
                     except Exception as e:
-                        logger.warning(f"Client {client_id}: Failed to send keepalive ping: {e}")
+                        logger.warning(
+                            f"Client {client_id}: Failed to send keepalive ping: {e}"
+                        )
                         break
             except asyncio.CancelledError:
                 logger.info(f"Client {client_id}: Keepalive task cancelled")
-                
+
         # Start keepalive as background task
         keepalive_task = asyncio.create_task(send_keepalive())
-        
+
         try:
             # Handle incoming client messages
             while True:
@@ -418,43 +456,58 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Wait for client messages with timeout
                     data = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
                     logger.info(f"📨 Client {client_id}: Received message: {data}")
-                    
+
                     # Handle control messages
-                    if data == 'ping':
-                        logger.debug(f"🏓 Client {client_id}: Received ping, sending pong")
-                        pong_data = {'type': 'pong'}
+                    if data == "ping":
+                        logger.debug(
+                            f"🏓 Client {client_id}: Received ping, sending pong"
+                        )
+                        pong_data = {"type": "pong"}
                         # Pre-serialize to avoid blocking event loop
                         pong_json, success = safe_json_dumps_compact(pong_data)
                         if success:
                             await websocket.send_text(pong_json)
                             logger.debug(f"🏓 Client {client_id}: Sent pong response")
                         else:
-                            logger.error(f"❌ Client {client_id}: Failed to serialize pong data")
-                    elif data == 'pong':
+                            logger.error(
+                                f"❌ Client {client_id}: Failed to serialize pong data"
+                            )
+                    elif data == "pong":
                         logger.info(f"🏓 Client {client_id}: Received pong response")
-                    elif data == 'refresh':
+                    elif data == "refresh":
                         # Client can request fresh initial state
                         logger.info(f"🔄 Client {client_id}: Requested state refresh")
                         try:
                             refresh_state = await get_initial_state()
-                            logger.info(f"🔄 Client {client_id}: Sending refresh state with {len(refresh_state.get('machines', []))} machines")
+                            logger.info(
+                                f"🔄 Client {client_id}: Sending refresh state with {len(refresh_state.get('machines', []))} machines"
+                            )
                             # Pre-serialize to avoid blocking event loop
-                            refresh_json, success = safe_json_dumps_compact(refresh_state)
+                            refresh_json, success = safe_json_dumps_compact(
+                                refresh_state
+                            )
                             if not success:
-                                logger.error(f"❌ Client {client_id}: Failed to serialize refresh state")
+                                logger.error(
+                                    f"❌ Client {client_id}: Failed to serialize refresh state"
+                                )
                                 raise ValueError("Failed to serialize refresh state")
                             await websocket.send_text(refresh_json)
                             logger.info(f"✅ Client {client_id}: Sent refresh state")
                         except Exception as e:
-                            logger.error(f"Client {client_id}: Failed to send refresh: {e}", exc_info=True)
+                            logger.error(
+                                f"Client {client_id}: Failed to send refresh: {e}",
+                                exc_info=True,
+                            )
                     else:
-                        logger.info(f"❓ Client {client_id}: Unknown message type: {data}")
-                        
+                        logger.info(
+                            f"❓ Client {client_id}: Unknown message type: {data}"
+                        )
+
                 except asyncio.TimeoutError:
                     # No message from client in 5 seconds - this is normal, continue
                     logger.debug(f"Client {client_id}: No message in 5s (normal)")
                     continue
-                    
+
         finally:
             # Cancel keepalive task on disconnect
             keepalive_task.cancel()
@@ -473,6 +526,7 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         broadcaster.disconnect(websocket)
         logger.debug(f"Client {client_id} cleanup complete")
+
 
 async def unix_socket_listener():
     """Listen for events from state machines via Unix socket"""
@@ -498,38 +552,44 @@ async def unix_socket_listener():
             # Heartbeat logging every 60 seconds to detect silent failures
             current_time = time.time()
             if current_time - last_heartbeat > 60:
-                logger.info(f"Unix socket listener heartbeat: {event_count} events received, still listening")
+                logger.info(
+                    f"Unix socket listener heartbeat: {event_count} events received, still listening"
+                )
                 last_heartbeat = current_time
                 perf_monitor.heartbeat()  # Update watchdog heartbeat
-            
+
             # Non-blocking receive from DGRAM socket with timeout
             # Use sock_recvfrom for datagram sockets (returns data and address)
             # CRITICAL: Add timeout to prevent indefinite blocking
             try:
                 recv_start = time.time()
                 logger.debug(f"⏱️  Unix socket: Starting receive (timeout=0.1s)")
-                
+
                 data, addr = await asyncio.wait_for(
                     loop.sock_recvfrom(sock, 4096),
-                    timeout=0.1  # 100ms timeout - shorter to prevent buffer buildup
+                    timeout=0.1,  # 100ms timeout - shorter to prevent buffer buildup
                 )
-                
+
                 recv_duration_ms = (time.time() - recv_start) * 1000
-                logger.debug(f"🔌 Unix socket: Received {len(data)} bytes in {recv_duration_ms:.2f}ms from {addr}")
+                logger.debug(
+                    f"🔌 Unix socket: Received {len(data)} bytes in {recv_duration_ms:.2f}ms from {addr}"
+                )
                 perf_monitor.heartbeat()  # Update watchdog heartbeat
-                
+
             except asyncio.TimeoutError:
                 # No data available, yield to event loop before continuing
-                logger.debug(f"⏱️  Unix socket: Timeout (no data), yielding to event loop")
+                logger.debug(
+                    f"⏱️  Unix socket: Timeout (no data), yielding to event loop"
+                )
                 perf_monitor.heartbeat()  # Still alive, just no data
                 await asyncio.sleep(0)  # Yield to other tasks
                 continue
-                
+
             if data:
                 event_count += 1
                 try:
                     # Keep as JSON string - avoid unnecessary parse/serialize cycle
-                    event_json = data.decode('utf-8')
+                    event_json = data.decode("utf-8")
 
                     # Update heartbeat immediately after decode
                     perf_monitor.heartbeat()
@@ -537,21 +597,29 @@ async def unix_socket_listener():
                     # Parse event to log type (for debugging)
                     try:
                         event_data = json.loads(event_json)
-                        event_type = event_data.get('type', 'unknown')
-                        logger.info(f"📥 Unix socket: Event #{event_count} type={event_type} ({len(event_json)} bytes)")
+                        event_type = event_data.get("type", "unknown")
+                        logger.info(
+                            f"📥 Unix socket: Event #{event_count} type={event_type} ({len(event_json)} bytes)"
+                        )
                     except:
-                        logger.info(f"📥 Unix socket: Event #{event_count} ({len(event_json)} bytes)")
+                        logger.info(
+                            f"📥 Unix socket: Event #{event_count} ({len(event_json)} bytes)"
+                        )
 
                     # Broadcast JSON string directly - no re-serialization needed!
                     await broadcaster.broadcast(event_json)  # Pass JSON string directly
 
                     perf_monitor.heartbeat()  # Update after successful broadcast
-                    
+
                 except json.JSONDecodeError as e:
-                    logger.error(f"Invalid JSON received (event #{event_count}): {e}, data: {data[:100]}")
+                    logger.error(
+                        f"Invalid JSON received (event #{event_count}): {e}, data: {data[:100]}"
+                    )
                 except Exception as e:
-                    logger.error(f"Error broadcasting event #{event_count}: {e}", exc_info=True)
-                    
+                    logger.error(
+                        f"Error broadcasting event #{event_count}: {e}", exc_info=True
+                    )
+
         except BlockingIOError:
             # No data available, sleep briefly
             logger.debug("🚫 Unix socket: BlockingIOError, sleeping briefly")
@@ -561,10 +629,14 @@ async def unix_socket_listener():
             logger.warning("⚠️  Unix socket listener cancelled, shutting down")
             raise
         except OSError as e:
-            logger.error(f"❌ Unix socket OS error: {e}, attempting to continue", exc_info=True)
+            logger.error(
+                f"❌ Unix socket OS error: {e}, attempting to continue", exc_info=True
+            )
             await asyncio.sleep(1)  # Back off on OS errors
         except Exception as e:
-            logger.error(f"❌ Unexpected error in Unix socket listener: {e}", exc_info=True)
+            logger.error(
+                f"❌ Unexpected error in Unix socket listener: {e}", exc_info=True
+            )
             await asyncio.sleep(0.1)  # Brief pause before continuing
 
 
@@ -575,64 +647,78 @@ async def server_heartbeat():
         try:
             await asyncio.sleep(5)
             heartbeat_count += 1
-            
+
             # Get task count
             tasks = asyncio.all_tasks()
             task_count = len(tasks)
-            
+
             # Log comprehensive health
             time_since_last_event = time.time() - broadcaster.last_event_time
-            logger.info(f"💓 Server heartbeat #{heartbeat_count} | "
-                       f"connections={len(broadcaster.connections)} | "
-                       f"tasks={task_count} | "
-                       f"last_event={time_since_last_event:.1f}s ago")
-            
+            logger.info(
+                f"💓 Server heartbeat #{heartbeat_count} | "
+                f"connections={len(broadcaster.connections)} | "
+                f"tasks={task_count} | "
+                f"last_event={time_since_last_event:.1f}s ago"
+            )
+
             # Update watchdog
             perf_monitor.heartbeat()
-            
+
             # Log active tasks in debug mode
             if task_count > 10:  # Warn if too many tasks
                 logger.warning(f"⚠️  High task count: {task_count} active tasks")
                 for task in list(tasks)[:5]:  # Log first 5
                     logger.debug(f"  Task: {task.get_name()} - {task._state}")
-                    
+
         except asyncio.CancelledError:
             logger.info("Server heartbeat cancelled")
             raise
         except Exception as e:
             logger.error(f"Error in server heartbeat: {e}", exc_info=True)
 
+
 @app.get("/health")
 async def health():
     """Health check endpoint"""
     time_since_last_event = time.time() - broadcaster.last_event_time
-    
+
     return {
         "status": "ok",
         "connections": len(broadcaster.connections),
         "last_event_time": broadcaster.last_event_time,
         "seconds_since_last_event": round(time_since_last_event, 2),
-        "unix_socket_active": time_since_last_event < 10.0
+        "unix_socket_active": time_since_last_event < 10.0,
     }
+
 
 @app.get("/initial")
 async def get_initial_endpoint():
     """HTTP endpoint to get initial state (for debugging)"""
     return await get_initial_state()
 
+
 if __name__ == "__main__":
     import uvicorn
     import argparse
-    
-    parser = argparse.ArgumentParser(description="WebSocket server for state machine monitoring")
-    parser.add_argument('--host', default='127.0.0.1', help='Host to bind to (default: 127.0.0.1)')
-    parser.add_argument('--port', type=int, default=3002, help='Port to bind to (default: 3002)')
-    parser.add_argument('--event-socket-path', default='/tmp/statemachine-events.sock', 
-                       help='Path to event socket (default: /tmp/statemachine-events.sock)')
-    
+
+    parser = argparse.ArgumentParser(
+        description="WebSocket server for state machine monitoring"
+    )
+    parser.add_argument(
+        "--host", default="127.0.0.1", help="Host to bind to (default: 127.0.0.1)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=3002, help="Port to bind to (default: 3002)"
+    )
+    parser.add_argument(
+        "--event-socket-path",
+        default="/tmp/statemachine-events.sock",
+        help="Path to event socket (default: /tmp/statemachine-events.sock)",
+    )
+
     args = parser.parse_args()
-    
+
     # Update the Unix socket path for event listening
     unix_socket_path = args.event_socket_path
-    
+
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")

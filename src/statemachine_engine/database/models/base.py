@@ -6,12 +6,14 @@ Loads schemas from configurable directories.
 
 IMPORTANT: Changes via Change Management, see CLAUDE.md
 """
+
 import sqlite3
 import logging
 from pathlib import Path
 from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
+
 
 class Database:
     """SQLite database manager for state machine engine"""
@@ -25,10 +27,10 @@ class Database:
     @contextmanager
     def _get_connection(self):
         """Get database connection with row factory and ensure proper cleanup
-        
+
         CRITICAL: SQLite connections used as context managers do NOT close the connection!
         They only commit/rollback. We must explicitly close to prevent connection leaks.
-        
+
         See: https://docs.python.org/3/library/sqlite3.html#using-the-connection-as-a-context-manager
         """
         conn = sqlite3.connect(self.db_path)

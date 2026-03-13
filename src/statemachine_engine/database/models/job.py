@@ -6,6 +6,7 @@ Supports job chaining via source_job_id.
 
 IMPORTANT: Changes via Change Management, see CLAUDE.md
 """
+
 import json
 import logging
 from datetime import datetime
@@ -15,18 +16,26 @@ from .base import Database
 
 logger = logging.getLogger(__name__)
 
+
 class JobModel:
     """Model for job management"""
-    
+
     def __init__(self, db: Database):
         self.db = db
-    
-    def create_job(self, job_id: str, job_type: str, machine_type: str = None,
-                   source_job_id: str = None, priority: int = 5,
-                   data: Dict[str, Any] = None, metadata: Dict[str, Any] = None) -> int:
+
+    def create_job(
+        self,
+        job_id: str,
+        job_type: str,
+        machine_type: str = None,
+        source_job_id: str = None,
+        priority: int = 5,
+        data: Dict[str, Any] = None,
+        metadata: Dict[str, Any] = None,
+    ) -> int:
         """
         Create a new job with JSON-based data storage.
-        
+
         Args:
             job_id: Unique job identifier
             job_type: Type of job (e.g., 'face_processing', 'sdxl_generation')
@@ -34,364 +43,430 @@ class JobModel:
             source_job_id: Parent job ID for chaining (optional)
             priority: Job priority (1=highest, 10=lowest, default=5)
             data: Domain-specific parameters as dict (stored as JSON)
-                  Example: {'input_image_path': '/path/to/img.jpg', 
+                  Example: {'input_image_path': '/path/to/img.jpg',
                            'user_prompt': 'make younger',
                            'padding_factor': 1.5}
             metadata: Additional metadata as dict (stored as JSON)
-        
+
         Returns:
             Row ID of created job
         """
         with self.db._get_connection() as conn:
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 INSERT INTO jobs (job_id, job_type, machine_type, source_job_id, 
                                  priority, data, metadata, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-            """, (
-                job_id, 
-                job_type, 
-                machine_type, 
-                source_job_id,
-                priority,
-                json.dumps(data) if data else None,
-                json.dumps(metadata) if metadata else None
-            ))
+            """,
+                (
+                    job_id,
+                    job_type,
+                    machine_type,
+                    source_job_id,
+                    priority,
+                    json.dumps(data) if data else None,
+                    json.dumps(metadata) if metadata else None,
+                ),
+            )
             conn.commit()
             return cursor.lastrowid
-    
-    def get_next_job(self, job_type: str = None, machine_type: str = None) -> Optional[Dict[str, Any]]:
+
+    def get_next_job(
+        self, job_type: str = None, machine_type: str = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Get next pending job with priority support and JSON parsing.
-        
+
         Args:
             job_type: Filter by job type (optional)
             machine_type: Filter by assigned machine (optional)
                 - If None: match ANY machine (enables controller to claim any job)
                 - If specified: match ONLY jobs assigned to that machine
-        
+
         Returns:
             Job dict with parsed JSON fields, or None if no jobs found
         """
         with self.db._get_connection() as conn:
             query = "SELECT * FROM jobs WHERE status = 'pending'"
             params = []
-            
+
             if job_type:
                 query += " AND job_type = ?"
                 params.append(job_type)
-            
+
             # Only filter by machine_type if explicitly provided (not None)
             if machine_type is not None:
                 query += " AND machine_type = ?"
                 params.append(machine_type)
-            
+
             # Order by priority first (1=highest), then creation time
             query += " ORDER BY priority ASC, created_at ASC LIMIT 1"
-            
+
             row = conn.execute(query, params).fetchone()
-            
+
             if row:
                 # Mark as processing
-                conn.execute("""
+                conn.execute(
+                    """
                     UPDATE jobs 
                     SET status = 'processing', started_at = CURRENT_TIMESTAMP
                     WHERE job_id = ?
-                """, (row['job_id'],))
+                """,
+                    (row["job_id"],),
+                )
                 conn.commit()
-                
+
                 # Convert to dict and parse JSON fields
                 job = dict(row)
                 # Update status in dict to reflect the database change
-                job['status'] = 'processing'
-                job['started_at'] = datetime.now().isoformat()
-                if job.get('data'):
+                job["status"] = "processing"
+                job["started_at"] = datetime.now().isoformat()
+                if job.get("data"):
                     try:
-                        job['data'] = json.loads(job['data'])
+                        job["data"] = json.loads(job["data"])
                     except (json.JSONDecodeError, TypeError):
-                        logger.warning(f"Failed to parse job data JSON for {job['job_id']}")
-                        job['data'] = {}
-                
-                if job.get('result'):
+                        logger.warning(
+                            f"Failed to parse job data JSON for {job['job_id']}"
+                        )
+                        job["data"] = {}
+
+                if job.get("result"):
                     try:
-                        job['result'] = json.loads(job['result'])
+                        job["result"] = json.loads(job["result"])
                     except (json.JSONDecodeError, TypeError):
-                        logger.warning(f"Failed to parse job result JSON for {job['job_id']}")
-                        job['result'] = {}
-                
-                if job.get('metadata'):
+                        logger.warning(
+                            f"Failed to parse job result JSON for {job['job_id']}"
+                        )
+                        job["result"] = {}
+
+                if job.get("metadata"):
                     try:
-                        job['metadata'] = json.loads(job['metadata'])
+                        job["metadata"] = json.loads(job["metadata"])
                     except (json.JSONDecodeError, TypeError):
-                        logger.warning(f"Failed to parse job metadata JSON for {job['job_id']}")
-                        job['metadata'] = {}
-                
+                        logger.warning(
+                            f"Failed to parse job metadata JSON for {job['job_id']}"
+                        )
+                        job["metadata"] = {}
+
                 return job
             return None
-    
-    def get_pending_jobs(self, job_type: str = None, machine_type: str = None, limit: int = None) -> List[Dict[str, Any]]:
+
+    def get_pending_jobs(
+        self, job_type: str = None, machine_type: str = None, limit: int = None
+    ) -> List[Dict[str, Any]]:
         """
         Get all pending jobs (without marking as processing).
-        
+
         Args:
             job_type: Filter by job type (optional)
             machine_type: Filter by assigned machine (optional)
             limit: Maximum number of jobs to return (optional, default: all)
-        
+
         Returns:
             List of job dicts with parsed JSON fields
         """
         with self.db._get_connection() as conn:
             query = "SELECT * FROM jobs WHERE status = 'pending'"
             params = []
-            
+
             if job_type:
                 query += " AND job_type = ?"
                 params.append(job_type)
-            
+
             if machine_type is not None:
                 query += " AND machine_type = ?"
                 params.append(machine_type)
-            
+
             # Order by priority first (1=highest), then creation time
             query += " ORDER BY priority ASC, created_at ASC"
-            
+
             if limit:
                 query += " LIMIT ?"
                 params.append(limit)
-            
+
             rows = conn.execute(query, params).fetchall()
-            
+
             jobs = []
             for row in rows:
                 job = dict(row)
                 # Parse JSON fields
-                if job.get('data'):
+                if job.get("data"):
                     try:
-                        job['data'] = json.loads(job['data'])
+                        job["data"] = json.loads(job["data"])
                     except (json.JSONDecodeError, TypeError):
-                        logger.warning(f"Failed to parse job data JSON for {job['job_id']}")
-                        job['data'] = {}
-                
-                if job.get('result'):
+                        logger.warning(
+                            f"Failed to parse job data JSON for {job['job_id']}"
+                        )
+                        job["data"] = {}
+
+                if job.get("result"):
                     try:
-                        job['result'] = json.loads(job['result'])
+                        job["result"] = json.loads(job["result"])
                     except (json.JSONDecodeError, TypeError):
-                        logger.warning(f"Failed to parse job result JSON for {job['job_id']}")
-                        job['result'] = {}
-                
-                if job.get('metadata'):
+                        logger.warning(
+                            f"Failed to parse job result JSON for {job['job_id']}"
+                        )
+                        job["result"] = {}
+
+                if job.get("metadata"):
                     try:
-                        job['metadata'] = json.loads(job['metadata'])
+                        job["metadata"] = json.loads(job["metadata"])
                     except (json.JSONDecodeError, TypeError):
-                        logger.warning(f"Failed to parse job metadata JSON for {job['job_id']}")
-                        job['metadata'] = {}
-                
+                        logger.warning(
+                            f"Failed to parse job metadata JSON for {job['job_id']}"
+                        )
+                        job["metadata"] = {}
+
                 jobs.append(job)
-            
+
             return jobs
-    
+
     def get_latest_job_by_type(self, job_type: str) -> Optional[Dict[str, Any]]:
         """Get the most recent job of given type (for event validation)"""
         with self.db._get_connection() as conn:
-            row = conn.execute("""
+            row = conn.execute(
+                """
                 SELECT * FROM jobs 
                 WHERE job_type = ? 
                 ORDER BY created_at DESC 
                 LIMIT 1
-            """, (job_type,)).fetchone()
+            """,
+                (job_type,),
+            ).fetchone()
             return dict(row) if row else None
-    
+
     def claim_job(self, job_id: str) -> bool:
         """
         Mark a pending job as processing (claim it).
-        
+
         Args:
             job_id: ID of job to claim
-        
+
         Returns:
             True if job was successfully claimed, False if not found or already claimed
         """
         with self.db._get_connection() as conn:
             # Only update if status is still 'pending' (prevents race conditions)
-            result = conn.execute("""
+            result = conn.execute(
+                """
                 UPDATE jobs 
                 SET status = 'processing', started_at = CURRENT_TIMESTAMP
                 WHERE job_id = ? AND status = 'pending'
-            """, (job_id,))
+            """,
+                (job_id,),
+            )
             conn.commit()
             return result.rowcount > 0
-    
+
     def complete_job(self, job_id: str):
         """Mark job as completed"""
         with self.db._get_connection() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 UPDATE jobs 
                 SET status = 'completed', completed_at = CURRENT_TIMESTAMP
                 WHERE job_id = ?
-            """, (job_id,))
+            """,
+                (job_id,),
+            )
             conn.commit()
-    
+
     def fail_job(self, job_id: str, error_message: str):
         """Mark job as failed"""
         with self.db._get_connection() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 UPDATE jobs 
                 SET status = 'failed', error_message = ?, completed_at = CURRENT_TIMESTAMP
                 WHERE job_id = ?
-            """, (error_message, job_id))
+            """,
+                (error_message, job_id),
+            )
             conn.commit()
-    
+
     def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
         """Get job by ID with JSON parsing"""
         with self.db._get_connection() as conn:
-            row = conn.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM jobs WHERE job_id = ?", (job_id,)
+            ).fetchone()
             if row:
                 job = dict(row)
                 # Parse JSON fields
-                if job.get('data'):
+                if job.get("data"):
                     try:
-                        job['data'] = json.loads(job['data'])
+                        job["data"] = json.loads(job["data"])
                     except (json.JSONDecodeError, TypeError):
                         logger.warning(f"Failed to parse job data JSON for {job_id}")
-                        job['data'] = {}
-                
-                if job.get('result'):
+                        job["data"] = {}
+
+                if job.get("result"):
                     try:
-                        job['result'] = json.loads(job['result'])
+                        job["result"] = json.loads(job["result"])
                     except (json.JSONDecodeError, TypeError):
                         logger.warning(f"Failed to parse job result JSON for {job_id}")
-                        job['result'] = {}
-                
-                if job.get('metadata'):
+                        job["result"] = {}
+
+                if job.get("metadata"):
                     try:
-                        job['metadata'] = json.loads(job['metadata'])
+                        job["metadata"] = json.loads(job["metadata"])
                     except (json.JSONDecodeError, TypeError):
-                        logger.warning(f"Failed to parse job metadata JSON for {job_id}")
-                        job['metadata'] = {}
-                
+                        logger.warning(
+                            f"Failed to parse job metadata JSON for {job_id}"
+                        )
+                        job["metadata"] = {}
+
                 return job
             return None
-    
-    def list_jobs(self, status: Optional[str] = None, job_type: Optional[str] = None, 
-                  machine_type: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
+
+    def list_jobs(
+        self,
+        status: Optional[str] = None,
+        job_type: Optional[str] = None,
+        machine_type: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
         """List jobs with optional status, job_type, and machine_type filters (parses JSON fields)"""
         with self.db._get_connection() as conn:
             query = "SELECT * FROM jobs WHERE 1=1"
             params = []
-            
+
             if status:
                 query += " AND status = ?"
                 params.append(status)
-            
+
             if job_type:
                 query += " AND job_type = ?"
                 params.append(job_type)
-            
+
             if machine_type:
                 query += " AND machine_type = ?"
                 params.append(machine_type)
-            
+
             query += " ORDER BY created_at DESC LIMIT ?"
             params.append(limit)
-            
+
             rows = conn.execute(query, params).fetchall()
             jobs = []
             for row in rows:
                 job = dict(row)
                 # Parse JSON fields
-                if job.get('data'):
+                if job.get("data"):
                     try:
-                        job['data'] = json.loads(job['data'])
+                        job["data"] = json.loads(job["data"])
                     except (json.JSONDecodeError, TypeError):
-                        logger.warning(f"Failed to parse job data JSON for {job.get('job_id')}")
-                        job['data'] = {}
-                
-                if job.get('result'):
+                        logger.warning(
+                            f"Failed to parse job data JSON for {job.get('job_id')}"
+                        )
+                        job["data"] = {}
+
+                if job.get("result"):
                     try:
-                        job['result'] = json.loads(job['result'])
+                        job["result"] = json.loads(job["result"])
                     except (json.JSONDecodeError, TypeError):
-                        logger.warning(f"Failed to parse job result JSON for {job.get('job_id')}")
-                        job['result'] = {}
-                
-                if job.get('metadata'):
+                        logger.warning(
+                            f"Failed to parse job result JSON for {job.get('job_id')}"
+                        )
+                        job["result"] = {}
+
+                if job.get("metadata"):
                     try:
-                        job['metadata'] = json.loads(job['metadata'])
+                        job["metadata"] = json.loads(job["metadata"])
                     except (json.JSONDecodeError, TypeError):
-                        logger.warning(f"Failed to parse job metadata JSON for {job.get('job_id')}")
-                        job['metadata'] = {}
-                
+                        logger.warning(
+                            f"Failed to parse job metadata JSON for {job.get('job_id')}"
+                        )
+                        job["metadata"] = {}
+
                 jobs.append(job)
             return jobs
-    
-    def count_jobs(self, status: Optional[str] = None, job_type: Optional[str] = None, machine_type: Optional[str] = None) -> int:
+
+    def count_jobs(
+        self,
+        status: Optional[str] = None,
+        job_type: Optional[str] = None,
+        machine_type: Optional[str] = None,
+    ) -> int:
         """Count jobs by status, job_type, and/or machine_type"""
         with self.db._get_connection() as conn:
             query = "SELECT COUNT(*) FROM jobs WHERE 1=1"
             params = []
-            
+
             if status:
                 query += " AND status = ?"
                 params.append(status)
-            
+
             if job_type:
                 query += " AND job_type = ?"
                 params.append(job_type)
-            
+
             if machine_type:
                 query += " AND machine_type = ?"
                 params.append(machine_type)
-            
+
             return conn.execute(query, params).fetchone()[0]
-    
+
     def reset_job_to_pending(self, job_id: str, reason: str = "Reset to pending"):
         """Reset a specific job from processing back to pending"""
         with self.db._get_connection() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 UPDATE jobs 
                 SET status = 'pending', started_at = NULL, error_message = ?
                 WHERE job_id = ? AND status = 'processing'
-            """, (reason, job_id))
+            """,
+                (reason, job_id),
+            )
             conn.commit()
             logger.info(f"Reset job {job_id} to pending: {reason}")
-    
-    def get_processing_jobs_with_missing_files(self, machine_type: Optional[str] = None) -> List[Dict[str, Any]]:
+
+    def get_processing_jobs_with_missing_files(
+        self, machine_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Find processing jobs that reference non-existent input files (checks data.input_image_path)"""
         with self.db._get_connection() as conn:
             query = "SELECT * FROM jobs WHERE status = 'processing'"
             params = []
-            
+
             if machine_type:
                 query += " AND machine_type = ?"
                 params.append(machine_type)
-                
+
             query += " ORDER BY started_at"
-            
+
             rows = conn.execute(query, params).fetchall()
-            
+
             problem_jobs = []
             for row in rows:
                 job_dict = dict(row)
                 # Parse JSON data field
-                if job_dict.get('data'):
+                if job_dict.get("data"):
                     try:
-                        data = json.loads(job_dict['data'])
-                        input_path_str = data.get('input_image_path')
+                        data = json.loads(job_dict["data"])
+                        input_path_str = data.get("input_image_path")
                         if input_path_str:
                             input_path = Path(input_path_str)
                             if not input_path.exists():
-                                job_dict['data'] = data  # Include parsed data
+                                job_dict["data"] = data  # Include parsed data
                                 problem_jobs.append(job_dict)
                     except (json.JSONDecodeError, TypeError):
-                        logger.warning(f"Failed to parse data JSON for job {job_dict.get('job_id')}")
-            
+                        logger.warning(
+                            f"Failed to parse data JSON for job {job_dict.get('job_id')}"
+                        )
+
             return problem_jobs
-    
-    def store_pipeline_result(self, job_id: str, step_name: str, step_number: int = 0, metadata: str = None):
+
+    def store_pipeline_result(
+        self, job_id: str, step_name: str, step_number: int = 0, metadata: str = None
+    ):
         """Store a pipeline result (used for state change logging)"""
         with self.db._get_connection() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO pipeline_results 
                 (job_id, step_name, step_number, metadata)
                 VALUES (?, ?, ?, ?)
-            """, (job_id, step_name, step_number, metadata))
+            """,
+                (job_id, step_name, step_number, metadata),
+            )
             conn.commit()

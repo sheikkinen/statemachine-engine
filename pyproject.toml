@@ -53,6 +53,8 @@ dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
     "httpx>=0.25.0",  # Required for FastAPI TestClient
+    "ruff>=0.1.0",
+    "pre-commit>=3.0.0",
 ]
 
 [project.scripts]
@@ -72,3 +74,17 @@ where = ["src"]
 
 [tool.setuptools.data-files]
 "." = ["templates/start-system.sh", "templates/README.md"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+extend-exclude = ["tests", "examples", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "strict"
+addopts = "-q"

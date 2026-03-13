@@ -223,7 +223,7 @@ statemachine engine1_config.yaml \
     --event-socket-path /tmp/engine1-events.sock \
     --control-socket-prefix /tmp/engine1-control
 
-# Terminal 2 - Engine 2  
+# Terminal 2 - Engine 2
 statemachine engine2_config.yaml \
     --machine-name engine2 \
     --event-socket-path /tmp/engine2-events.sock \
@@ -398,7 +398,7 @@ transitions:
   - from: waiting
     to: timed_out
     event: timeout(5)    # Fires after 5 seconds if still in 'waiting' state
-  
+
   - from: processing
     to: timeout_error
     event: timeout(30.5) # Fires after 30.5 seconds
@@ -420,20 +420,20 @@ transitions:
   - from: waiting
     to: timed_out
     event: timeout(5)
-  
+
   - from: waiting
     to: processing
     event: start_work    # Cancels the timeout if received
-  
+
   # Process with 10-second timeout
   - from: processing
     to: timed_out
     event: timeout(10)
-  
+
   - from: processing
     to: completed
     event: work_done     # Cancels the timeout if received
-  
+
   # Retry after timeout
   - from: timed_out
     to: waiting
@@ -467,7 +467,7 @@ transitions:
   - from: waiting
     to: short_timeout_path
     event: timeout(5)    # Fires first after 5 seconds
-  
+
   - from: waiting
     to: long_timeout_path
     event: timeout(30)   # Would fire after 30s, but short fires first
@@ -666,7 +666,7 @@ actions:
   processing:
     - type: log
       message: "Processing job {job_id} with status {status}"
-    
+
     - type: bash
       command: "python process.py --id {job_id} --state {current_state}"
 ```
@@ -687,10 +687,10 @@ actions:
   relaying:
     - type: bash
       command: "process {event_data.payload.job_id}"
-      
+
     - type: log
       message: "Input: {event_data.payload.input_file}, Prompt: {event_data.payload.user_prompt}"
-      
+
     - type: send_event
       target_machine: worker
       event_type: task_request
@@ -715,12 +715,12 @@ class CustomExtractAction(BaseAction):
     async def execute(self, context):
         # Extract data from event payload
         payload = context['event_data']['payload']
-        
+
         # Add to context for subsequent actions
         context['user_id'] = payload.get('user_id')
         context['file_path'] = payload.get('input_file')
         context['processing_mode'] = 'fast'
-        
+
         return 'extracted'
 ```
 
@@ -730,11 +730,11 @@ actions:
   extracting:
     - type: custom_extract
       success: extracted
-    
+
     # These actions now see the extracted variables
     - type: log
       message: "Processing file {file_path} for user {user_id} in {processing_mode} mode"
-    
+
     - type: bash
       command: "process --user {user_id} --file {file_path} --mode {processing_mode}"
 ```
@@ -1005,7 +1005,7 @@ actions:
         job_id: "{event_data.payload.job_id}"
         style: "{event_data.payload.face_style}"
       success: start_relay
-  
+
   # Forward complete result
   relaying_to_finalizer:
     - type: send_event
@@ -1229,6 +1229,20 @@ tail -f logs/*.log
 
 ## Development
 
+### Development Setup
+
+```bash
+# Install in development mode with all dev dependencies
+pip install -e ".[dev]"
+
+# Install pre-commit hooks (BOTH required)
+pre-commit install
+pre-commit install --hook-type commit-msg
+```
+
+Pre-commit hooks enforce: ruff lint + format, file size gate (450 max),
+forbidden terms, pytest, and conventional commits.
+
 ### Migrating add-job Scripts (v1.0.2 → v1.0.3)
 
 If you have existing scripts using `add-job`, update them as follows:
@@ -1265,7 +1279,7 @@ add_job_v103() {
     local job_type="$2"
     local input_file="$3"
     local payload="$4"
-    
+
     statemachine-db add-job "$job_id" \
         --type "$job_type" \
         ${input_file:+--input-file "$input_file"} \

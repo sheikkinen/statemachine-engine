@@ -1,0 +1,56 @@
+fail_fast: true
+exclude: 'node_modules/'
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-ast
+      - id: debug-statements
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: file-size-gate
+        name: file size gate (>450 error, >400 warn)
+        entry: bash -c 'fail=0; warn=0; EXCLUDED="database/cli.py|tools/diagrams.py|core/engine.py|monitoring/websocket_server.py|tools/validate.py|database/models/job.py"; for f in $(find src/statemachine_engine -type f -name "*.py" ! -path "*/__pycache__/*" ! -path "*/node_modules/*"); do base=$(echo "$f" | sed "s|src/statemachine_engine/||"); echo "$base" | grep -qE "$EXCLUDED" && continue; lines=$(wc -l < "$f"); if [ "$lines" -gt 450 ]; then echo "ERROR $f -- $lines lines (max 450)"; fail=1; elif [ "$lines" -gt 400 ]; then echo "WARN  $f -- $lines lines (target <=400)"; warn=1; fi; done; if [ "$fail" -eq 1 ]; then echo ""; echo "FAIL -- code files exceeding 450 lines detected"; exit 1; fi; if [ "$warn" -eq 1 ]; then echo ""; echo "(warnings only -- hook passes)"; fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: forbid-terms
+        name: forbid drift terms
+        entry: bash -c '! find src/statemachine_engine -type f -name "*.py" ! -path "*/__pycache__/*" ! -path "*/node_modules/*" -print0 | xargs -0 grep -nE "backward.compat|pre.existing.fail"'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: pytest
+        name: pytest (unit tests)
+        entry: bash -c '.venv/bin/python -m pytest tests/ -q -x'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, chore, docs, refactor, test, ci, perf, style, build, revert]

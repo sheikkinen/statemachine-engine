@@ -835,9 +835,17 @@ def generate_metadata(
         exit_states = []
 
         for t in transitions:
-            if t.get("to") in group_states and t.get("from") not in group_states and t.get("to") not in entry_states:
+            if (
+                t.get("to") in group_states
+                and t.get("from") not in group_states
+                and t.get("to") not in entry_states
+            ):
                 entry_states.append(t.get("to"))
-            if t.get("from") in group_states and t.get("to") not in group_states and t.get("from") not in exit_states:
+            if (
+                t.get("from") in group_states
+                and t.get("to") not in group_states
+                and t.get("from") not in exit_states
+            ):
                 exit_states.append(t.get("from"))
 
         metadata["diagrams"][composite_name] = {

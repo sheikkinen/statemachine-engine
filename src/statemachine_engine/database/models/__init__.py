@@ -20,7 +20,7 @@ __all__ = [
     "MachineStateModel",
 ]
 
-# Global database instance (for backward compatibility)
+# Global database instance (legacy singleton)
 _db_instance = None
 
 

@@ -56,7 +56,7 @@ def main():
     parser.add_argument(
         "output_file",
         nargs="?",
-        help="Output Markdown file (optional, for backward compatibility)",
+        help="Output Markdown file (optional, legacy positional arg)",
     )
     parser.add_argument(
         "--output-dir",

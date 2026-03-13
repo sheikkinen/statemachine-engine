@@ -30,7 +30,7 @@ class CheckDatabaseQueueAction(BaseAction):
     def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.job_model = get_job_model()
-        # Get job type from config, default to face_processing for backward compatibility
+        # Get job type from config, default to face_processing (legacy default)
         self.job_type = config.get("job_type", "face_processing")
         # Get machine type for concurrent architecture
         self.machine_type = config.get("machine_type")

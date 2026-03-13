@@ -65,7 +65,7 @@ class ActionLoader:
         self._action_map: dict[str, str] = {}  # action_type -> module_path or file_path
         self._class_cache: dict[str, type] = {}  # action_type -> loaded class
 
-        # Action type aliases (for backward compatibility)
+        # Action type aliases (legacy names)
         self._aliases: dict[str, str] = {
             "activity_log": "log",  # activity_log maps to log_action.py
         }

@@ -208,7 +208,7 @@ class StateMachineEngine:
         index: dict[str, dict[str, str]] = {}
 
         if isinstance(raw_events, list):
-            # Flat list — no context_map for any event (backward compat)
+            # Flat list — no context_map for any event
             return index
 
         if isinstance(raw_events, dict):

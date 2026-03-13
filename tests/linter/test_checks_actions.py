@@ -150,6 +150,7 @@ class TestE010:
         issues = check_actions(cfg, FAKE)
         e010 = [i for i in issues if i.code == "E010"]
         assert len(e010) >= 1
+        assert "target_machine" in e010[0].message
 
     def test_complete_job_missing_job_id(self):
         cfg = _base_config(

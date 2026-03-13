@@ -48,6 +48,14 @@ repos:
         always_run: true
         stages: [pre-commit]
 
+      - id: statemachine-lint
+        name: statemachine-lint (FSM config linter)
+        entry: bash -c '.venv/bin/statemachine-lint examples/simple_worker/config/worker.yaml examples/timeout_demo/config/timeout_worker.yaml'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.6.0
     hooks:

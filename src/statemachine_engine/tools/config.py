@@ -31,15 +31,16 @@ USAGE:
     groups = parse_state_groups('config/machine.yaml')
 """
 
-import yaml
 import sys
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
+import yaml
 
 
 def load_yaml(file_path: str) -> Dict[str, Any]:
     """Load YAML configuration file."""
     try:
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             return yaml.safe_load(f)
     except Exception as e:
         print(f"Error loading YAML file {file_path}: {e}")
@@ -52,7 +53,7 @@ def parse_state_groups(yaml_path: str) -> Dict[str, List[str]]:
     current_group = None
 
     try:
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             in_states_section = False
             for line in f:
                 line = line.rstrip()

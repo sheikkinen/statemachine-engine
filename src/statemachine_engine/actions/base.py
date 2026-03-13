@@ -19,10 +19,9 @@ KEY FUNCTIONS:
 - get_config_value(key, default) - Retrieve configuration values with fallbacks
 """
 
-import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
 
 class BaseAction(ABC):

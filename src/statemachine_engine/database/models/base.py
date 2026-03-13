@@ -7,10 +7,10 @@ Loads schemas from configurable directories.
 IMPORTANT: Changes via Change Management, see CLAUDE.md
 """
 
-import sqlite3
 import logging
-from pathlib import Path
+import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 

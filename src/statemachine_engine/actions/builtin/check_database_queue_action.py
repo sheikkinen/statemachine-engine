@@ -7,15 +7,16 @@ Supports both face_processing and pony_flux job types in a single unified action
 """
 
 import logging
-from typing import Dict, Any, Optional
 import sys
 from pathlib import Path
+from typing import Any, Dict
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from ..base import BaseAction
 from statemachine_engine.database.models import get_job_model
+
+from ..base import BaseAction
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class CheckDatabaseQueueAction(BaseAction):
         # Get job type from config, default to face_processing for backward compatibility
         self.job_type = config.get("job_type", "face_processing")
         # Get machine type for concurrent architecture
-        self.machine_type = config.get("machine_type", None)
+        self.machine_type = config.get("machine_type")
 
     async def execute(self, context: Dict[str, Any]) -> str:
         """Check database queue for next job of specified type"""

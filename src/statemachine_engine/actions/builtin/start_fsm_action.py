@@ -6,15 +6,13 @@ enabling concurrent execution of multiple FSM instances managed by a
 controller FSM.
 """
 
+import json
 import logging
 import subprocess
-import re
-import json
-from typing import Dict, Any, List, Optional
-from pathlib import Path
+from typing import Any, Dict, Optional
 
-from ..base import BaseAction
 from ...utils.interpolation import interpolate_value
+from ..base import BaseAction
 
 logger = logging.getLogger(__name__)
 

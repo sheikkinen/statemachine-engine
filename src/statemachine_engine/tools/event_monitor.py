@@ -10,15 +10,15 @@ USAGE:
     statemachine-events --duration 60
 """
 
+import argparse
 import asyncio
-import websockets
 import json
 import sys
-import signal
 import time
-import argparse
 from datetime import datetime
 from typing import Optional
+
+import websockets
 
 
 class EventMonitor:
@@ -141,7 +141,7 @@ class EventMonitor:
                 f"ws://{self.host}:{self.port}/ws/events"
             ) as websocket:
                 if self.output_format != "json":
-                    print(f"✅ Connected! Monitoring events...", file=sys.stderr)
+                    print("✅ Connected! Monitoring events...", file=sys.stderr)
                     print("", file=sys.stderr)
 
                 while self.running:
@@ -167,9 +167,9 @@ class EventMonitor:
                 f"❌ Could not connect to WebSocket server at {self.host}:{self.port}",
                 file=sys.stderr,
             )
-            print(f"   Is the WebSocket server running?", file=sys.stderr)
+            print("   Is the WebSocket server running?", file=sys.stderr)
             print(
-                f"   Start it with: python -m statemachine_engine.monitoring.websocket_server",
+                "   Start it with: python -m statemachine_engine.monitoring.websocket_server",
                 file=sys.stderr,
             )
             sys.exit(1)

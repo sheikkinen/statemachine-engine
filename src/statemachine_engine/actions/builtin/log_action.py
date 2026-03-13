@@ -6,12 +6,13 @@ in the web UI's activity log. Useful for tracking state transitions
 and important operations.
 """
 
-import logging
 import json
-from typing import Dict, Any
+import logging
+from typing import Any, Dict
+
+from statemachine_engine.database.models import get_machine_event_model
 
 from ..base import BaseAction
-from statemachine_engine.database.models import get_machine_event_model
 
 logger = logging.getLogger(__name__)
 

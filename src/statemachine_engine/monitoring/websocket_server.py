@@ -8,24 +8,25 @@ Listens on:
 Version: 1.0.31 - Non-blocking logging with QueueHandler architecture
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 import asyncio
-import socket
+import functools
 import json
 import logging
+import socket
+import sys
+import threading
 import time
+import traceback
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Set
-import sys
-import functools
-import threading
-import traceback
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from statemachine_engine.database.models import Database, get_realtime_event_model
+from statemachine_engine.database.models import Database
 from statemachine_engine.monitoring.async_logging import setup_async_logging
 
 # Setup non-blocking logging (prevents I/O from blocking event loop)
@@ -60,13 +61,13 @@ def safe_json_dumps_compact(obj: dict) -> tuple[str, bool]:
     except RecursionError as e:
         logger.error(f"JSON serialization recursion error (circular reference?): {e}")
         return (
-            f'{{"error":"serialization_failed","message":"circular_reference"}}',
+            '{"error":"serialization_failed","message":"circular_reference"}',
             False,
         )
     except TypeError as e:
         logger.error(f"JSON serialization type error (non-serializable object?): {e}")
         return (
-            f'{{"error":"serialization_failed","message":"non_serializable_object"}}',
+            '{"error":"serialization_failed","message":"non_serializable_object"}',
             False,
         )
     except Exception as e:
@@ -563,7 +564,7 @@ async def unix_socket_listener():
             # CRITICAL: Add timeout to prevent indefinite blocking
             try:
                 recv_start = time.time()
-                logger.debug(f"⏱️  Unix socket: Starting receive (timeout=0.1s)")
+                logger.debug("⏱️  Unix socket: Starting receive (timeout=0.1s)")
 
                 data, addr = await asyncio.wait_for(
                     loop.sock_recvfrom(sock, 4096),
@@ -579,7 +580,7 @@ async def unix_socket_listener():
             except asyncio.TimeoutError:
                 # No data available, yield to event loop before continuing
                 logger.debug(
-                    f"⏱️  Unix socket: Timeout (no data), yielding to event loop"
+                    "⏱️  Unix socket: Timeout (no data), yielding to event loop"
                 )
                 perf_monitor.heartbeat()  # Still alive, just no data
                 await asyncio.sleep(0)  # Yield to other tasks
@@ -698,8 +699,9 @@ async def get_initial_endpoint():
 
 
 if __name__ == "__main__":
-    import uvicorn
     import argparse
+
+    import uvicorn
 
     parser = argparse.ArgumentParser(
         description="WebSocket server for state machine monitoring"

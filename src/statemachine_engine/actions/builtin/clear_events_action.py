@@ -18,10 +18,11 @@ EVENTS GENERATED:
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Any, Dict
+
+from statemachine_engine.database.models import get_machine_event_model
 
 from ..base import BaseAction
-from statemachine_engine.database.models import get_machine_event_model
 
 logger = logging.getLogger(__name__)
 

@@ -9,8 +9,8 @@ IMPORTANT: Changes via Change Management, see CLAUDE.md
 
 import json
 import logging
-from datetime import datetime
-from typing import Optional, Dict, List, Any
+from typing import Any, Dict, List, Optional
+
 from .base import Database
 
 logger = logging.getLogger(__name__)
@@ -122,11 +122,11 @@ class RealtimeEventModel:
         try:
             with self.db._get_connection() as conn:
                 cursor = conn.execute(
-                    """
+                    f"""
                     DELETE FROM realtime_events
                     WHERE consumed = 1
-                    AND consumed_at < datetime('now', '-{} hours')
-                """.format(hours_old)
+                    AND consumed_at < datetime('now', '-{hours_old} hours')
+                """
                 )
                 deleted_count = cursor.rowcount
                 conn.commit()

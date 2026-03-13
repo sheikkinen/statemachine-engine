@@ -8,22 +8,23 @@ Provides database management and querying capabilities
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
+
 from tabulate import tabulate
-import json
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import socket
+
 from statemachine_engine.database.models import (
-    get_database,
     get_job_model,
     get_machine_event_model,
     get_machine_state_model,
     get_realtime_event_model,
 )
-import socket
 
 
 def _send_wake_up_socket(target_machine: str) -> bool:
@@ -59,7 +60,7 @@ def cmd_status(args):
     completed = job_model.count_jobs("completed")
     failed = job_model.count_jobs("failed")
 
-    print(f"Database Status:")
+    print("Database Status:")
     print(f"  Total jobs: {total}")
     print(f"  Pending: {pending}")
     print(f"  Processing: {processing}")
@@ -216,8 +217,8 @@ def cmd_cleanup_events(args):
 
 def cmd_add_job(args):
     """Add a new job to the database"""
-    import os
     import json
+    import os
 
     job_model = get_job_model()
 
@@ -238,7 +239,7 @@ def cmd_add_job(args):
         try:
             job_data = json.loads(args.payload)
         except json.JSONDecodeError:
-            print(f"Error: Invalid JSON payload")
+            print("Error: Invalid JSON payload")
             return 1
 
     # Add input file if provided
@@ -254,7 +255,7 @@ def cmd_add_job(args):
             data=job_data,
             metadata={},
         )
-        print(f"✅ Job created successfully!")
+        print("✅ Job created successfully!")
         print(f"   Job ID: {args.job_id}")
         print(f"   Job Type: {args.type}")
         print(f"   Machine Type: {machine_type}")
@@ -330,6 +331,7 @@ def cmd_remove_job(args):
 def cmd_recreate_database(args):
     """Recreate database with fresh schema"""
     import os
+
     from database.models import Database
 
     db_path = "data/pipeline.db"
@@ -404,7 +406,7 @@ def cmd_send_event(args):
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
                 sock.sendto(ws_event_msg.encode("utf-8"), websocket_socket_path)
                 sock.close()
-                print(f"📡 Sent to WebSocket server for real-time UI update")
+                print("📡 Sent to WebSocket server for real-time UI update")
             except Exception as e:
                 print(f"⚠️  WebSocket socket unavailable: {e}")
 
@@ -430,7 +432,7 @@ def cmd_send_event(args):
                     # Socket error - machine will fall back to polling
                     print(f"⚠️  Control socket unavailable: {e}")
 
-        print(f"✅ Event sent successfully!")
+        print("✅ Event sent successfully!")
         print(f"   Event ID: {event_id}")
         print(f"   Target: {args.target}")
         print(f"   Type: {args.type}")
@@ -523,9 +525,9 @@ def cmd_process_events(args):
 
 def cmd_machine_status(args):
     """Show concurrent machine status"""
-    import psutil
-    import os
     from datetime import datetime
+
+    import psutil
 
     job_model = get_job_model()
 
@@ -605,7 +607,6 @@ def cmd_machine_status(args):
 
 def cmd_machine_health(args):
     """Check concurrent machine health"""
-    import os
     from datetime import datetime, timedelta
     from pathlib import Path
 

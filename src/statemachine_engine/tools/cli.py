@@ -31,9 +31,8 @@ TECHNICAL:
 - Imports from diagrams: load_yaml, generate_markdown, generate_diagram_files
 """
 
-import sys
-import os
 import argparse
+import sys
 from pathlib import Path
 
 # Handle direct execution - add parent directory to path
@@ -45,7 +44,7 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "fsm_generator"
 
 # Import all functions from diagrams module (which contains the full original code)
-from .diagrams import load_yaml, generate_markdown, generate_diagram_files
+from .diagrams import generate_diagram_files, generate_markdown, load_yaml
 
 
 def main():

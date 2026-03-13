@@ -3,10 +3,10 @@
 State Machine CLI - Main entry point for running the state machine
 """
 
-import asyncio
 import argparse
-import logging
+import asyncio
 import json
+import logging
 import sys
 from pathlib import Path
 

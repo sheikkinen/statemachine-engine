@@ -10,8 +10,9 @@ IMPORTANT: Changes via Change Management, see CLAUDE.md
 import json
 import logging
 from datetime import datetime
-from typing import Optional, Dict, List, Any
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from .base import Database
 
 logger = logging.getLogger(__name__)

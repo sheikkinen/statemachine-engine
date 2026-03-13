@@ -9,8 +9,8 @@ Domain-specific models are not included in this generic engine package.
 from .base import Database
 from .job import JobModel
 from .machine_event import MachineEventModel
-from .realtime_event import RealtimeEventModel
 from .machine_state import MachineStateModel
+from .realtime_event import RealtimeEventModel
 
 __all__ = [
     "Database",

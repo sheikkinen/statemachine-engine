@@ -9,7 +9,8 @@ IMPORTANT: Changes via Change Management, see CLAUDE.md
 
 import json
 import logging
-from typing import Optional, Dict, List, Any
+from typing import Any, Dict, List, Optional
+
 from .base import Database
 
 logger = logging.getLogger(__name__)

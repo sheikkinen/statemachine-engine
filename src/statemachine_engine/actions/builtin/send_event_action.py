@@ -7,15 +7,16 @@ This action sends events to other machines for coordination in concurrent archit
 Used to notify other machines about job completion, status changes, etc.
 """
 
-import logging
 import json
+import logging
 import socket
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
-from ..base import BaseAction
 from statemachine_engine.database.models import get_machine_event_model
+
 from ...utils.interpolation import interpolate_config
+from ..base import BaseAction
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +170,7 @@ class SendEventAction(BaseAction):
         event_payload = event_data.get("payload", {}) if event_data else {}
 
         # DEBUG: Comprehensive logging of context state
-        logger.info(f"[SendEvent._process_payload] === CONTEXT DEBUG START ===")
+        logger.info("[SendEvent._process_payload] === CONTEXT DEBUG START ===")
         logger.info(f"[SendEvent._process_payload] Template: {template}")
         logger.info(
             f"[SendEvent._process_payload] event_data exists: {'event_data' in context}"
@@ -179,7 +180,7 @@ class SendEventAction(BaseAction):
             f"[SendEvent._process_payload] event_payload type: {type(event_payload)}"
         )
         logger.info(f"[SendEvent._process_payload] event_payload: {event_payload}")
-        logger.info(f"[SendEvent._process_payload] === CONTEXT DEBUG END ===")
+        logger.info("[SendEvent._process_payload] === CONTEXT DEBUG END ===")
 
         # Support both context formats: current_job.id and direct context.id
         job_id = current_job.get("id") if current_job else context.get("id")

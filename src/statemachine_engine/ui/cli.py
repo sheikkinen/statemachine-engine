@@ -7,9 +7,9 @@ Starts the web UI server with WebSocket monitoring for state machine visualizati
 
 import argparse
 import os
-import sys
-import subprocess
 import signal
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -105,7 +105,7 @@ def main():
     project_root = args.project_root or os.getcwd()
     project_root = os.path.abspath(project_root)
 
-    print(f"🚀 Starting statemachine-engine UI server...")
+    print("🚀 Starting statemachine-engine UI server...")
     print(f"📁 Project root: {project_root}")
     print(f"🌐 UI Port: {args.port}")
     if args.websocket_port:

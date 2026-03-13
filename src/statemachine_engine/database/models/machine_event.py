@@ -7,10 +7,9 @@ Supports event routing to specific target machines.
 IMPORTANT: Changes via Change Management, see CLAUDE.md
 """
 
-import json
 import logging
-from datetime import datetime
-from typing import Optional, Dict, List, Any
+from typing import Any, Dict, List
+
 from .base import Database
 
 logger = logging.getLogger(__name__)

@@ -33,13 +33,14 @@ Exit codes:
     2 - Warnings found (only in --strict mode)
 """
 
-import sys
-import yaml
 import argparse
-from pathlib import Path
-from typing import Dict, List, Set, Tuple, Any
+import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict, List, Set, Tuple
+
+import yaml
 
 
 @dataclass
@@ -92,7 +93,7 @@ class StateMachineValidator:
         result = ValidationResult(config_path=config_path)
 
         try:
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config = yaml.safe_load(f)
         except FileNotFoundError:
             result.add_error(
@@ -490,7 +491,7 @@ Examples:
         print(f"✅ All {total_configs} configurations passed validation")
         return 0
     else:
-        print(f"📊 Summary:")
+        print("📊 Summary:")
         print(f"   Configurations checked: {total_configs}")
         print(f"   Passed: {passed_configs}")
         print(f"   Errors: {total_errors}")

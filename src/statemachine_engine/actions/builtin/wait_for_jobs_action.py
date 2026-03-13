@@ -19,10 +19,10 @@ YAML Usage:
 
 import logging
 import time
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
-from ..base import BaseAction
 from ...database.models import get_job_model
+from ..base import BaseAction
 
 logger = logging.getLogger(__name__)
 

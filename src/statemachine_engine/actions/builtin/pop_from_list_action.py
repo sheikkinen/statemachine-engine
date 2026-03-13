@@ -19,7 +19,7 @@ YAML Usage:
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 from ..base import BaseAction
 

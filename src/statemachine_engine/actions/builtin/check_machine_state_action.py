@@ -7,14 +7,14 @@ Queries pipeline_results table to get target machine's current state
 and validates it against expected states.
 """
 
-import logging
-import subprocess
 import asyncio
-from typing import Dict, Any, List, Optional
+import logging
 from datetime import datetime
+from typing import Any, Dict, Optional
+
+from statemachine_engine.database.models import get_job_model
 
 from ..base import BaseAction
-from statemachine_engine.database.models import get_job_model
 
 logger = logging.getLogger(__name__)
 

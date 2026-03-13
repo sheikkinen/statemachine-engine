@@ -26,16 +26,17 @@ KEY FUNCTIONS:
 """
 
 import asyncio
-import logging
-import yaml
-import socket
-from ..utils.interpolation import interpolate_value, interpolate_config
 import json
-import time
+import logging
 import re
-from typing import Dict, Any, Optional, List
+import socket
+import time
 from pathlib import Path
-from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import yaml
+
+from ..utils.interpolation import interpolate_config, interpolate_value
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +151,7 @@ class StateMachineEngine:
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {yaml_path}")
 
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             self.config = yaml.safe_load(f)
 
         # Extract config name from file path for diagram mapping

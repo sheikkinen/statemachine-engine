@@ -11,11 +11,11 @@ Usage:
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
-from ..base import BaseAction
 from ...database.models import get_job_model
 from ...utils.interpolation import interpolate_value
+from ..base import BaseAction
 
 logger = logging.getLogger(__name__)
 

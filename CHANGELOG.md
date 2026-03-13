@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.77] - 2026-03-13
+
+### Added
+- **FR-FSM-001 FSM Graph Linter** — 25-check static analysis for YAML configs
+  - `tools/linter/` package: 4 check modules, core orchestrator, CLI, Pydantic models
+  - Structural checks (E001–E005): initial_state, transitions, events, duplicates
+  - Reachability checks (E006–E007, W001–W003): terminal reach, dead-ends, orphans, wildcards
+  - Action checks (E008–E011, W004–W006): types, emissions, required fields, shell expansion
+  - Semantic checks (E012–E015, W007–W010): interpolation, context_map, unused events
+  - CLI: `statemachine-lint` with `--strict`, `--format json`, `--select` flags
+  - `actions_root` discovery for custom action types
+  - Pre-commit hook `statemachine-lint` registered
+  - 67 unit tests
+
 ## [1.0.76] - 2026-03-13
 
 ### Added

@@ -67,16 +67,16 @@ app.get('/api/diagram/:machine_name', (req, res) => {
 // IMPORTANT: This route must come BEFORE the :diagram_name route to avoid matching "metadata" as a diagram name
 app.get('/api/diagram/:machine_name/metadata', (req, res) => {
     const { machine_name } = req.params;
-    
+
     try {
         const metadataPath = path.join(PROJECT_ROOT, 'docs', 'fsm-diagrams', machine_name, 'metadata.json');
-        
+
         if (!fs.existsSync(metadataPath)) {
-            return res.status(404).json({ 
-                error: `Machine not found: ${machine_name}` 
+            return res.status(404).json({
+                error: `Machine not found: ${machine_name}`
             });
         }
-        
+
         const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
         res.json(metadata);
     } catch (error) {
@@ -88,41 +88,41 @@ app.get('/api/diagram/:machine_name/metadata', (req, res) => {
 // Get FSM diagram with hierarchical navigation (NEW FORMAT)
 app.get('/api/diagram/:machine_name/:diagram_name', (req, res) => {
     const { machine_name, diagram_name } = req.params;
-    
+
     try {
         // Load metadata
         const metadataPath = path.join(PROJECT_ROOT, 'docs', 'fsm-diagrams', machine_name, 'metadata.json');
-        
+
         if (!fs.existsSync(metadataPath)) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 error: `Machine not found: ${machine_name}`,
                 hint: 'Machine may not have composite states. Use /api/diagram/:machine_name instead.'
             });
         }
-        
+
         const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
-        
+
         // Validate diagram exists
         if (!metadata.diagrams[diagram_name]) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 error: `Diagram not found: ${diagram_name}`,
                 available_diagrams: Object.keys(metadata.diagrams),
                 machine_name: machine_name
             });
         }
-        
+
         // Read Mermaid file directly (no parsing!)
         const diagramInfo = metadata.diagrams[diagram_name];
         const diagramPath = path.join(PROJECT_ROOT, 'docs', 'fsm-diagrams', machine_name, diagramInfo.file);
-        
+
         if (!fs.existsSync(diagramPath)) {
-            return res.status(500).json({ 
-                error: `Diagram file not found: ${diagramInfo.file}` 
+            return res.status(500).json({
+                error: `Diagram file not found: ${diagramInfo.file}`
             });
         }
-        
+
         const mermaidCode = fs.readFileSync(diagramPath, 'utf-8');
-        
+
         // Return diagram + COMPLETE metadata (needed for state highlighting map)
         res.json({
             machine_name,
@@ -141,12 +141,12 @@ app.get('/api/diagram/:machine_name/:diagram_name', (req, res) => {
 // This endpoint is kept for backward compatibility but should not be used
 app.get('/api/events', (req, res) => {
     console.warn('⚠️  DEPRECATED: Client requested /api/events (SSE). Please use WebSocket from /api/config');
-    
+
     res.writeHead(410, {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*'
     });
-    
+
     res.end(JSON.stringify({
         error: 'SSE endpoint deprecated',
         message: 'This endpoint has been replaced with WebSocket for real-time communication.',

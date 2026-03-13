@@ -14,10 +14,10 @@ metadata:
 states:
   # === INITIALIZATION STATES ===
   - initializing
-  
+
   # === MONITORING STATES ===
   - monitoring
-  
+
   # === COMPLETION STATES ===
   - stopped
 

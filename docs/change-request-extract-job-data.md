@@ -1,12 +1,12 @@
 # Change Request: Custom Action Context Persistence
 
-**Date:** 2025-10-12  
-**Status:** ✅ **IMPLEMENTED** (Option C - Engine-Level Variable Interpolation)  
-**Implementation Date:** 2025-10-12  
-**Commit:** 4143b12  
-**Component:** statemachine-engine  
-**Issue:** Custom actions cannot persist context modifications for variable interpolation  
-**Severity:** High - Blocks event-driven architecture (v2.0) *(RESOLVED)*  
+**Date:** 2025-10-12
+**Status:** ✅ **IMPLEMENTED** (Option C - Engine-Level Variable Interpolation)
+**Implementation Date:** 2025-10-12
+**Commit:** 4143b12
+**Component:** statemachine-engine
+**Issue:** Custom actions cannot persist context modifications for variable interpolation
+**Severity:** High - Blocks event-driven architecture (v2.0) *(RESOLVED)*
 **Related:** [extract-job-data-action-blocking-issue.md](extract-job-data-action-blocking-issue.md), [test-case-custom-action-context/](test-case-custom-action-context/)
 
 ---
@@ -120,7 +120,7 @@ After examining statemachine-engine source code, the issue stems from how contex
 
 ### 1. Variable Interpolation Location
 
-**File:** `src/statemachine_engine/actions/builtin/bash_action.py` (lines 85-150)  
+**File:** `src/statemachine_engine/actions/builtin/bash_action.py` (lines 85-150)
 **File:** `src/statemachine_engine/actions/builtin/log_action.py` (lines 56-90)
 
 Built-in actions handle variable substitution **internally** during their `execute()` method:
@@ -132,7 +132,7 @@ async def execute(self, context: Dict[str, Any]) -> str:
     job_data = job['data']
     context_data = {**context}  # Snapshot at execution time
     context_data.update(job_data)
-    
+
     # Substitute {param_name} placeholders
     for key, value in context_data.items():
         placeholder = f"{{{key}}}"
@@ -163,12 +163,12 @@ async def _execute_state_actions(self) -> None:
     """Execute actions defined for current state"""
     # Add current_state to context
     self.context['current_state'] = self.current_state
-    
+
     state_actions = self.config.get('actions', {}).get(self.current_state, [])
-    
+
     for action_config in state_actions:
         await self._execute_action(action_config)  # ← Sequential execution
-        
+
         # After each action, propagate job data
         self._propagate_job_context()
 ```
@@ -196,7 +196,7 @@ And log_action.py:
 def _process_message(self, template: str, context: Dict[str, Any]) -> str:
     # It checks for specific keys
     job_id = current_job.get('id') if current_job else context.get('id')
-    
+
     substitutions = {
         '{id}': job_id or 'unknown',
         # ...
@@ -220,11 +220,11 @@ async def _execute_pluggable_action(self, action_type: str, action_config: Dict[
     try:
         # Load action class dynamically
         action_class = loader.load_action_class(action_type)
-        
+
         # Create and execute action instance
         action = action_class(action_config)
         event = await action.execute(self.context)  # ← Gets return value
-        
+
         # Process the returned event (if any)
         if event:
             await self.process_event(event)  # ← Should trigger transition
@@ -262,11 +262,11 @@ async def execute(self, context: Dict[str, Any]) -> str:
     """Extract job data from event payload to context variables"""
     try:
         # ... extraction logic ...
-        
+
         # Return configured success event (like bash_action does)
         success_event = self.get_config_value('success', 'job_done')
         return success_event  # Returns "data_extracted"
-        
+
     except Exception as e:
         # Return configured error event
         error_event = self.get_config_value('error', 'error')
@@ -286,10 +286,10 @@ async def execute(self, context: Dict[str, Any]) -> str:
 def _process_message(self, template: str, context: Dict[str, Any]) -> str:
     """Process message template with context substitution"""
     message = template
-    
+
     # Standard substitutions (existing code)
     # ...
-    
+
     # NEW: Handle ALL context variables dynamically
     import re
     pattern = r'\{(\w+)\}'
@@ -300,7 +300,7 @@ def _process_message(self, template: str, context: Dict[str, Any]) -> str:
             # Skip complex types (dicts, lists)
             if isinstance(value, (str, int, float, bool, type(None))):
                 message = message.replace(f'{{{key}}}', str(value))
-    
+
     return message
 ```
 
@@ -324,7 +324,7 @@ def _process_message(self, template: str, context: Dict[str, Any]) -> str:
 def _interpolate_config(self, config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     """Recursively interpolate variables in action config"""
     interpolated = {}
-    
+
     for key, value in config.items():
         if isinstance(value, str):
             # Substitute all {variable} placeholders
@@ -338,14 +338,14 @@ def _interpolate_config(self, config: Dict[str, Any], context: Dict[str, Any]) -
             ]
         else:
             interpolated[key] = value
-    
+
     return interpolated
 
 def _substitute_variables(self, template: str, context: Dict[str, Any]) -> str:
     """Substitute {variable} placeholders with context values"""
     import re
     pattern = r'\{(\w+)\}'
-    
+
     def replace_match(match):
         key = match.group(1)
         value = context.get(key)
@@ -362,14 +362,14 @@ def _substitute_variables(self, template: str, context: Dict[str, Any]) -> str:
                     return match.group(0)  # Keep placeholder
             return str(obj) if obj is not None else match.group(0)
         return match.group(0)  # Keep placeholder if not found
-    
+
     return re.sub(pattern, replace_match, template)
 
 async def _execute_action(self, action_config: Dict[str, Any]) -> None:
     """Execute a single action"""
     # Interpolate variables BEFORE passing to action
     resolved_config = self._interpolate_config(action_config, self.context)
-    
+
     # Now pass resolved config to action
     action_type = resolved_config.get('type')
     # ... rest of existing logic ...
@@ -392,7 +392,7 @@ class ContextView:
     """Proxy that provides live view of context with interpolation"""
     def __init__(self, context: Dict[str, Any]):
         self._context = context
-    
+
     def get(self, key: str, default=None):
         """Get value with nested key support"""
         if '.' in key:
@@ -406,7 +406,7 @@ class ContextView:
                     return default
             return obj if obj is not None else default
         return self._context.get(key, default)
-    
+
     def interpolate(self, template: str) -> str:
         """Interpolate {variables} in template string"""
         # Implementation similar to Option C
@@ -493,18 +493,18 @@ See main todo list for details.
 def test_custom_action_context_persistence():
     """Verify custom actions can modify context for subsequent actions"""
     context = {'event_data': {'payload': {'job_id': 'test_123'}}}
-    
+
     # Action 1: Extract data
     action1 = ExtractJobDataAction({})
     result1 = await action1.execute(context)
-    
+
     assert result1 == "success"
     assert context['id'] == 'test_123'  # Verify modification
-    
+
     # Action 2: Should see the modification
     action2 = LogAction({'message': 'Job {id} started'})
     result2 = await action2.execute(context)
-    
+
     # Should log "Job test_123 started", not "Job {id} started"
     assert '{id}' not in last_log_message
 ```
@@ -573,14 +573,14 @@ echo "✅ PASS: Context persistence working"
   - Line 350-380: `_execute_state_actions()` - Sequential action execution
   - Line 420-450: `_execute_pluggable_action()` - Custom action loading
   - Line 180: `context['event_data'] = event` - Event data storage
-  
+
 - `/Users/sheikki/Documents/src/statemachine-engine/src/statemachine_engine/actions/builtin/bash_action.py` (400 lines)
   - Line 85-150: Variable substitution logic
   - Line 270: `success_event = self.get_config_value('success', 'job_done')`
-  
+
 - `/Users/sheikki/Documents/src/statemachine-engine/src/statemachine_engine/actions/builtin/log_action.py` (90 lines)
   - Line 56-90: `_process_message()` - Limited key checking
-  
+
 - `/Users/sheikki/Documents/src/statemachine-engine/src/statemachine_engine/actions/base.py` (50 lines)
   - BaseAction interface definition
 
@@ -622,7 +622,7 @@ class ExtractJobDataAction(BaseAction):
             payload = context['event_data']['payload']
             context['id'] = payload.get('job_id')
             context['pony_prompt'] = payload.get('pony_prompt')
-            
+
             # ✅ Read success event from config
             success_event = self.get_config_value('success', 'job_done')
             return success_event
@@ -637,9 +637,9 @@ class ExtractJobDataAction(BaseAction):
 ```python
 def _process_message(self, template: str, context: Dict[str, Any]) -> str:
     message = template
-    
+
     # Existing code for standard substitutions...
-    
+
     # ✅ NEW: Handle all context variables dynamically
     import re
     pattern = r'\{(\w+)\}'
@@ -650,7 +650,7 @@ def _process_message(self, template: str, context: Dict[str, Any]) -> str:
             # Only substitute simple types
             if isinstance(value, (str, int, float, bool, type(None))):
                 message = message.replace(f'{{{key}}}', str(value))
-    
+
     return message
 ```
 

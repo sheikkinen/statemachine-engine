@@ -310,7 +310,7 @@ pytest tests/actions/test_start_fsm_action.py -v
 class StartFsmAction(BaseAction):
     """
     Spawns a new FSM instance as a separate process.
-    
+
     YAML Usage:
         actions:
           - type: start_fsm
@@ -321,20 +321,20 @@ class StartFsmAction(BaseAction):
               success: worker_started
               error: spawn_failed
     """
-    
+
     async def execute(self, context):
         yaml_path = self.config.get('params', {}).get('yaml_path')
         machine_name = self.config.get('params', {}).get('machine_name')
-        
+
         # Variable interpolation for machine_name
         # e.g., "worker_{job_id}" -> "worker_job123"
-        
+
         # Build command
         cmd = ['statemachine', yaml_path, '--machine-name', machine_name]
-        
+
         # Spawn process
         process = subprocess.Popen(cmd, ...)
-        
+
         # Return success with PID
         return 'worker_started'
 ```
@@ -402,25 +402,25 @@ transitions:
   - from: checking_queue
     to: spawning_worker
     event: job_found
-  
+
   - from: checking_queue
     to: idling
     event: queue_empty
-  
+
   # Spawn worker for job
   - from: spawning_worker
     to: checking_queue
     event: worker_started
-  
+
   - from: spawning_worker
     to: error_handling
     event: spawn_failed
-  
+
   # Idle when queue empty
   - from: idling
     to: checking_queue
     event: timeout(10)  # Wait 10 seconds
-  
+
   # Error recovery
   - from: error_handling
     to: checking_queue
@@ -435,7 +435,7 @@ actions:
         machine_type: patient_records
         success: job_found
         no_jobs: queue_empty
-  
+
   spawning_worker:
     - type: start_fsm
       params:
@@ -444,16 +444,16 @@ actions:
         job_id: "{job_id}"
         success: worker_started
         error: spawn_failed
-    
+
     - type: log
       message: "🚀 Spawned worker: patient_record_{job_id}"
       level: info
-  
+
   idling:
     - type: log
       message: "😴 Queue empty, waiting 10 seconds..."
       level: info
-  
+
   error_handling:
     - type: log
       message: "❌ Failed to spawn worker for job {job_id}"
@@ -541,7 +541,7 @@ open http://localhost:3001
   - PID tracking and error handling
   - subprocess.Popen() with detached mode
   - All 224 tests passing
-  
+
 - [x] **concurrent-controller.yaml** (Phase 3.3)
   - 4-state workflow (checking_queue, spawning_worker, idling, error_handling)
   - check_database_queue integration
@@ -549,7 +549,7 @@ open http://localhost:3001
   - 10-second idle timeout
   - Error recovery with retry
   - Validates successfully
-  
+
 - [x] **Refactored run-demo.sh** (Phase 3.4)
   - populate_queue() function
   - start_controller() function
@@ -617,15 +617,15 @@ start_demo() {
     generate_diagrams
     start_monitoring
     start_ui_server
-    
+
     # NEW: Populate job queue
     echo "📥 Populating job queue with $MACHINE_COUNT jobs..."
     populate_queue
-    
+
     # NEW: Start controller (replaces worker loop)
     echo "🎮 Starting concurrent controller..."
     start_controller
-    
+
     echo "📊 Demo running! Open http://localhost:3001"
 }
 ```

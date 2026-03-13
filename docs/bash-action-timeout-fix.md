@@ -13,7 +13,7 @@ The original implementation used `asyncio.wait_for()` which cancels waiting but 
 ```python
 # OLD - Process not killed on timeout
 stdout, stderr = await asyncio.wait_for(
-    process.communicate(), 
+    process.communicate(),
     timeout=timeout
 )
 ```
@@ -26,7 +26,7 @@ Added explicit process termination on timeout with graceful fallback:
 # NEW - Process explicitly killed on timeout
 try:
     stdout, stderr = await asyncio.wait_for(
-        process.communicate(), 
+        process.communicate(),
         timeout=timeout
     )
 except asyncio.TimeoutError:

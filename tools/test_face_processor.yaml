@@ -12,15 +12,15 @@ states:
       running_inpainting:
         on:
           inpainting_complete: POST_PROCESSING
-  
+
   POST_PROCESSING:
-    type: composite  
+    type: composite
     initial_state: resizing_images
     states:
       resizing_images:
         on:
           resize_complete: COMPLETION_PHASE
-  
+
   COMPLETION_PHASE:
     type: composite
     initial_state: finalizing
@@ -28,7 +28,7 @@ states:
       finalizing:
         on:
           job_complete: FINISHED
-  
+
   FINISHED:
     on: {}
 

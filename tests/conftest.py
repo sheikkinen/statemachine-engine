@@ -7,11 +7,10 @@ These fixtures provide common test infrastructure for engine components:
 - State machine configurations
 """
 
-import pytest
 import os
 import tempfile
-import sqlite3
-from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture
@@ -19,9 +18,9 @@ def temp_db():
     """Create a temporary database for testing."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.db', delete=False) as f:
         db_path = f.name
-    
+
     yield db_path
-    
+
     # Cleanup
     if os.path.exists(db_path):
         os.unlink(db_path)

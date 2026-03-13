@@ -5,7 +5,7 @@
 **Workflow Steps:**
 1. Convert report into paragraph
 2. Check that paragraph is based on report, loop if not
-3. Generate full history from paragraphs  
+3. Generate full history from paragraphs
 4. Check the history details are based on paragraphs, loop if not
 
 **Challenge:** Simple FSM UI works great for single instances, but we need to visualize tens or hundreds of concurrent report processing operations.
@@ -64,7 +64,7 @@
 ```yaml
 # TODO: Create simple FSM demo
 # - 4 states: waiting, summarizing, fact_checking, completed
-# - Loop transitions for validation failures  
+# - Loop transitions for validation failures
 # - Use log actions to simulate processing
 # - Support 10+ concurrent instances via machine naming
 ```
@@ -133,13 +133,13 @@ export class KanbanManager {
         this.instances = [];                  // Current instance data
         this.stateColumns = [];               // FSM state definitions
     }
-    
+
     // Public API
     detectBatchStates(machines)              // → {fsmType: count} map
     showKanbanModal(fsmType, instances)      // Display Kanban for FSM type
     updateInstance(machineName, newState)    // Move card between columns
     closeKanbanModal()                       // Hide modal
-    
+
     // Private methods
     _renderBoard()                           // Build column structure
     _createCard(instance)                    // Generate instance card HTML
@@ -165,7 +165,7 @@ export class KanbanManager {
 ## Technical Notes
 
 - **No database changes** - use existing machine_states table
-- **No engine changes** - leverage current multi-instance support  
+- **No engine changes** - leverage current multi-instance support
 - **No websocket changes** - use existing state_change events
 - **CSS-first approach** - minimize JavaScript complexity
 - **Progressive enhancement** - Kanban view optional, FSM diagram remains primary

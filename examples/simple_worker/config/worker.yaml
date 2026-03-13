@@ -14,11 +14,11 @@ metadata:
 states:
   # === INITIALIZATION STATES ===
   - initializing
-  
+
   # === MAIN LOOP STATES ===
   - waiting
   - processing
-  
+
   # === COMPLETION STATES ===
   - completed
 

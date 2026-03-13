@@ -1,7 +1,7 @@
 # Status Update: Machine-Card Real-Time Updates Fix
 
-**Date:** 2025-11-09  
-**Version:** v1.0.70  
+**Date:** 2025-11-09
+**Version:** v1.0.70
 **Commits:** 348a230, 9ef6d07
 
 ## Problem Summary
@@ -9,7 +9,7 @@
 Machine-cards (top-level UI items showing registered FSM instances) were not being created or removed automatically when `machine_registered` and `machine_terminated` events arrived via WebSocket. The cards would only appear/update on manual page refresh.
 
 ### User Report
-> "issue: machine-cards, top level items are not created / refreshed automatically"  
+> "issue: machine-cards, top level items are not created / refreshed automatically"
 > "cards would be updated normally in manual refresh"
 
 ## Root Cause Analysis
@@ -28,7 +28,7 @@ From `logs/localhost-1762593393455.log`:
    ```javascript
    // Add to machine manager
    this.machineManager.machines.set(machine_name, {...});
-   
+
    // Rebuild diagram tabs to include new machine
    const allMachines = Array.from(this.machineManager.machines.values());
    this.createDiagramTabs(allMachines);
@@ -39,7 +39,7 @@ From `logs/localhost-1762593393455.log`:
    ```javascript
    // Remove from machine manager
    this.machineManager.machines.delete(machine_name);
-   
+
    // Rebuild diagram tabs to remove terminated machine
    const allMachines = Array.from(this.machineManager.machines.values());
    this.createDiagramTabs(allMachines);
@@ -111,9 +111,9 @@ This release also includes the previous fix for kanban card updates (commit 468b
 
 ## Release Information
 
-**Version:** 1.0.70  
-**Release Date:** 2025-11-08  
-**Tag:** v1.0.70  
+**Version:** 1.0.70
+**Release Date:** 2025-11-08
+**Tag:** v1.0.70
 **Release Type:** Bug fix (patch)
 
 ### Files Modified
@@ -190,6 +190,6 @@ Both issues had the same root pattern: WebSocket events received, state updated,
 
 ---
 
-**Status:** ✅ Complete and Released  
-**Impact:** High - Core UI functionality now works correctly  
+**Status:** ✅ Complete and Released
+**Impact:** High - Core UI functionality now works correctly
 **Stability:** Stable - Clean architectural fix, no side effects expected

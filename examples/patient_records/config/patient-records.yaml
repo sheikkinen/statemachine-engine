@@ -9,7 +9,7 @@ states:
   # === FACT_CHECKING ===
   - fact_checking
   # === COMPLETED ===
-  - ready  
+  - ready
   - failed
   - shutdown
 
@@ -18,7 +18,7 @@ transitions:
   - from: summarizing
     to: fact_checking
     event: timeout(30)
-  
+
   # Manual completion (if needed before timeout)
   - from: summarizing
     to: fact_checking
@@ -30,12 +30,12 @@ transitions:
     event: summary_invalid
 
   # Check that summary is based on report (auto-validates after 5s)
-  - from: fact_checking  
+  - from: fact_checking
     to: ready
     event: timeout(30)
-  
+
   # Manual validation (if needed before timeout)
-  - from: fact_checking  
+  - from: fact_checking
     to: ready
     event: validation_passed
 
@@ -106,12 +106,12 @@ actions:
     - type: log
       message: "✅ Report {report_id} validation passed - ready for history generation"
       level: success
-    
+
     - type: complete_job
       job_id: "{job_id}"
       success: job_completed
       error: completion_failed
-    
+
     - type: bash
       command: "echo 'Report {report_id} complete - triggering shutdown'"
       timeout: 5

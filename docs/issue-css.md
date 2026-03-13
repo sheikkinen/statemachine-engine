@@ -1,4 +1,4 @@
- transition: 
+ transition:
 {from: 'early_face_detection', to: 'scaling_image', event: 'early_faces_detected', timestamp: 1761502294.5970151}
 DiagramManager.js:783 [CSS-only] Node not found for "scaling_image" - fallback
 updateStateHighlight	@	DiagramManager.js:783

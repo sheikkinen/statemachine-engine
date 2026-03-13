@@ -7,7 +7,7 @@ Making it a true generic state machine database CLI
 import re
 
 # Read the file
-with open('src/statemachine_engine/database/cli.py', 'r') as f:
+with open('src/statemachine_engine/database/cli.py') as f:
     content = f.read()
 
 print("Starting comprehensive cleanup...")
@@ -68,7 +68,7 @@ print("✓ Simplified cmd_list_jobs formatting")
 job_details_old = r'''    print\(f"Job Details: \{args\.job_id\}"\)
     print\(f"  Status: \{job\['status'\]\}"\)
     print\(f"  Job Type: \{job\['job_type'\]\}"\)
-    
+
     # Display job-type specific information
     data = job\.get\('data', \{\}\)
     if job\['job_type'\] in \['sdxl_generation', 'pony_flux'\]:
@@ -77,7 +77,7 @@ job_details_old = r'''    print\(f"Job Details: \{args\.job_id\}"\)
     else:
         print\(f"  Image: \{data\.get\('input_image_path', 'N/A'\)\}"\)
         print\(f"  Prompt: \{data\.get\('user_prompt', 'N/A'\)\}"\)
-    
+
     print\(f"  Padding Factor: \{data\.get\('padding_factor', 1\.5\)\}"\)
     print\(f"  Mask Padding: \{data\.get\('mask_padding_factor', 1\.2\)\}"\)
     print\(f"  Created: \{job\['created_at'\]\}"\)'''
@@ -111,7 +111,7 @@ add_job_validation_old = r'''    # Validate job type specific requirements
             print\(f"Error: --pony-prompt and --flux-prompt are required for \{args\.type\} jobs"\)
             return 1
         abs_path = None
-    
+
     # Set machine type based on job type
     if args\.type == 'sdxl_generation':
         machine_type = 'sdxl_generator'
@@ -122,7 +122,7 @@ add_job_validation_old = r'''    # Validate job type specific requirements
 
 add_job_validation_new = '''    # Set machine type
     machine_type = args.machine_type or args.type
-    
+
     # Build job data from provided arguments
     abs_path = None
     if args.input_file:
@@ -141,7 +141,7 @@ add_job_data_old = r'''    # Create metadata
         'padding_factor': args\.padding_factor,
         'mask_padding_factor': args\.mask_padding_factor
     \}
-    
+
     # Create the job with JSON data
     try:
         db_id = job_model\.create_job\(
@@ -167,11 +167,11 @@ add_job_data_new = '''    # Create job data from JSON payload if provided
         except json.JSONDecodeError:
             print(f"Error: Invalid JSON payload")
             return 1
-    
+
     # Add input file if provided
     if abs_path:
         job_data['input_file_path'] = abs_path
-    
+
     # Create the job
     try:
         db_id = job_model.create_job(
@@ -190,14 +190,14 @@ add_job_output_old = r'''        print\(f"✅ Job created successfully!"\)
         print\(f"   Job ID: \{args\.job_id\}"\)
         print\(f"   Job Type: \{args\.type\}"\)
         print\(f"   Database ID: \{db_id\}"\)
-        
+
         if args\.type == 'face_processing':
             print\(f"   Input Image: \{abs_path\}"\)
             print\(f"   Prompt: \{args\.prompt\}"\)
         elif args\.type == 'pony_flux':
             print\(f"   Pony Prompt: \{args\.pony_prompt\}"\)
             print\(f"   Flux Prompt: \{args\.flux_prompt\}"\)
-        
+
         print\(f"   Padding Factor: \{args\.padding_factor\}"\)
         print\(f"   Mask Padding Factor: \{args\.mask_padding_factor\}"\)'''
 
@@ -216,15 +216,15 @@ machine_status_counts = r'''    # Face processing jobs
     face_processing = len\(job_model\.list_jobs\(job_type='face_processing', status='processing'\)\)
     face_completed = len\(job_model\.list_jobs\(job_type='face_processing', status='completed'\)\)
     face_failed = len\(job_model\.list_jobs\(job_type='face_processing', status='failed'\)\)
-    
+
     print\(f"  Face Processing: \{face_pending\} pending, \{face_processing\} processing, \{face_completed\} completed, \{face_failed\} failed"\)
-    
+
     # SDXL generation jobs
     sdxl_pending = len\(job_model\.list_jobs\(job_type='sdxl_generation', status='pending'\)\)
     sdxl_processing = len\(job_model\.list_jobs\(job_type='sdxl_generation', status='processing'\)\)
     sdxl_completed = len\(job_model\.list_jobs\(job_type='sdxl_generation', status='completed'\)\)
     sdxl_failed = len\(job_model\.list_jobs\(job_type='sdxl_generation', status='failed'\)\)
-    
+
     print\(f"  SDXL Generation: \{sdxl_pending\} pending, \{sdxl_processing\} processing, \{sdxl_completed\} completed, \{sdxl_failed\} failed"\)'''
 
 content = re.sub(machine_status_counts, '    # Job counts by status are shown in the status command\n', content, flags=re.DOTALL)
@@ -232,10 +232,10 @@ print("✓ Removed domain-specific counts from cmd_machine_status")
 
 # 11. Update argparse for add-job - make generic
 add_job_args_old = r'''    add_job_parser\.add_argument\('job_id', help='Unique job identifier'\)
-    add_job_parser\.add_argument\('--type', choices=\['face_processing', 'pony_flux', 'sdxl_generation'\], 
+    add_job_parser\.add_argument\('--type', choices=\['face_processing', 'pony_flux', 'sdxl_generation'\],
                                default='face_processing', help='Job type \(default: face_processing\)'\)
     add_job_parser\.add_argument\('--input-image', help='Path to input image file \(required for face_processing\)'\)
-    add_job_parser\.add_argument\('--prompt', default='make this person more attractive', 
+    add_job_parser\.add_argument\('--prompt', default='make this person more attractive',
                                help='AI prompt for face modification'\)
     add_job_parser\.add_argument\('--pony-prompt', help='Pony model prompt \(for pony_flux jobs\)'\)
     add_job_parser\.add_argument\('--flux-prompt', help='Flux model prompt \(for pony_flux jobs\)'\)

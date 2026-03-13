@@ -28,13 +28,13 @@ mkdir -p "$LOG_DIR"
 # Function to clean up background processes
 cleanup() {
     echo "🧹 Cleaning up patient records demo..."
-    
+
     # Stop controller first
     pkill -f "statemachine.*concurrent.*controller" 2>/dev/null || true
-    
+
     # Stop any worker machines
     pkill -f "statemachine.*patient.*record" 2>/dev/null || true
-    
+
     # Stop WebSocket server if running
     if [[ -f "$LOG_DIR/websocket_server.pid" ]]; then
         local ws_pid=$(cat "$LOG_DIR/websocket_server.pid")
@@ -44,7 +44,7 @@ cleanup() {
         fi
         rm -f "$LOG_DIR/websocket_server.pid"
     fi
-    
+
     # Stop UI server if running
     if [[ -f "$LOG_DIR/ui_server.pid" ]]; then
         local ui_pid=$(cat "$LOG_DIR/ui_server.pid")
@@ -54,11 +54,11 @@ cleanup() {
         fi
         rm -f "$LOG_DIR/ui_server.pid"
     fi
-    
+
     # Clean up control sockets (controller + workers)
     rm -f /tmp/statemachine-control-concurrent_controller.sock 2>/dev/null || true
     rm -f /tmp/statemachine-control-patient_record_*.sock 2>/dev/null || true
-    
+
     # Nuke the database for fresh start (both locations)
     if [[ -f "$SCRIPT_DIR/data/pipeline.db" ]]; then
         rm -f "$SCRIPT_DIR/data/pipeline.db"
@@ -68,7 +68,7 @@ cleanup() {
         rm -f "$SCRIPT_DIR/../../data/pipeline.db"
         echo "✓ Database cleaned (repo root)"
     fi
-    
+
     sleep 2
     echo "✅ Cleanup complete"
 }
@@ -76,19 +76,19 @@ cleanup() {
 # Function to populate job queue with pending jobs
 populate_queue() {
     echo "📥 Populating job queue with $MACHINE_COUNT jobs..."
-    
+
     for i in $(seq 1 $MACHINE_COUNT); do
         local job_id="job_$(printf '%03d' $i)"
         local report_id="report_${i}"
-        
+
         statemachine-db add-job "$job_id" \
             --type patient_records \
             --payload "{\"report_id\":\"${report_id}\",\"report_title\":\"Patient Report ${i}\",\"summary_text\":\"Processing report ${i}\"}" \
             >/dev/null 2>&1
-        
+
         echo "   └─ Added job: $job_id (report: $report_id)"
     done
-    
+
     echo "✅ Queue populated with $MACHINE_COUNT jobs"
 }
 
@@ -97,11 +97,11 @@ start_controller() {
     echo "🎮 Starting concurrent controller..."
     local controller_name="concurrent_controller"
     local log_file="$LOG_DIR/${controller_name}.log"
-    
+
     # Start controller in background
     statemachine "$CONTROLLER_CONFIG" \
         --machine-name "$controller_name" > "$log_file" 2>&1 &
-    
+
     local pid=$!
     echo "$pid" > "$LOG_DIR/${controller_name}.pid"
     echo "   └─ PID: $pid, Log: $log_file"
@@ -113,13 +113,13 @@ start_machine() {
     local instance_id=$1
     local machine_name="patient_record_${instance_id}"
     local log_file="$LOG_DIR/${machine_name}.log"
-    
+
     echo "🏥 Starting machine: $machine_name"
-    
+
     # Start state machine in background
     statemachine "$CONFIG_FILE" \
         --machine-name "$machine_name" > "$log_file" 2>&1 &
-    
+
     local pid=$!
     echo "$pid" > "$LOG_DIR/${machine_name}.pid"
     echo "   └─ PID: $pid, Log: $log_file"
@@ -129,19 +129,19 @@ start_machine() {
 start_monitoring() {
     echo "📡 Starting WebSocket monitoring server..."
     cd "$SCRIPT_DIR/../.."
-    
+
     # Check if monitoring server is already running
     if lsof -ti:3002 >/dev/null 2>&1; then
         echo "   └─ Monitoring server already running on port 3002"
         return 0
     fi
-    
+
     # Start monitoring in background
     python -m statemachine_engine.monitoring.websocket_server > "$LOG_DIR/websocket-server.log" 2>&1 &
     local pid=$!
     echo "$pid" > "$LOG_DIR/websocket_server.pid"
     echo "   └─ PID: $pid, URL: http://localhost:3002"
-    
+
     # Wait for server to start
     sleep 3
 }
@@ -150,25 +150,25 @@ start_monitoring() {
 generate_diagrams() {
     echo "📚 Generating FSM diagrams..."
     cd "$SCRIPT_DIR/../.."
-    
+
     mkdir -p docs/fsm-diagrams
-    
+
     echo "📄 Processing $CONFIG_FILE..."
     python -m statemachine_engine.tools.cli "$CONFIG_FILE" 2>&1 | grep -E "(✅|⚠️|❌|📁)" || {
         echo "  ⚠️  Failed to generate diagrams"
     }
-    
+
     echo "📄 Processing $CONTROLLER_CONFIG..."
     python -m statemachine_engine.tools.cli "$CONTROLLER_CONFIG" 2>&1 | grep -E "(✅|⚠️|❌|📁)" || {
         echo "  ⚠️  Failed to generate controller diagrams"
     }
-    
+
     if ls docs/fsm-diagrams/patient_records/*.mermaid 1> /dev/null 2>&1; then
         echo "✓ Diagrams generated in docs/fsm-diagrams/patient_records/"
     else
         echo "⚠️  No diagrams generated (UI may not display properly)"
     fi
-    
+
     if ls docs/fsm-diagrams/concurrent-controller/*.mermaid 1> /dev/null 2>&1; then
         echo "✓ Controller diagrams generated in docs/fsm-diagrams/concurrent-controller/"
     else
@@ -180,24 +180,24 @@ generate_diagrams() {
 # Function to start UI server
 start_ui_server() {
     echo "🖥️  Starting Web UI..."
-    
+
     # Check if statemachine-ui is available
     if ! command -v statemachine-ui &> /dev/null; then
         echo "⚠️  statemachine-ui not found, skipping Web UI"
         echo "   Install statemachine-engine to enable the web interface"
         return 1
     fi
-    
+
     # Kill any stale processes on port 3001
     lsof -ti:3001 | xargs kill -9 2>/dev/null || true
     sleep 1
-    
+
     # Start UI server in background using statemachine-ui command
     local project_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
     statemachine-ui --port 3001 --project-root "$project_root" --no-websocket > "$LOG_DIR/ui-server.log" 2>&1 &
     local pid=$!
     echo "$pid" > "$LOG_DIR/ui_server.pid"
-    
+
     # Wait for UI to be ready with health checks
     local max_attempts=10
     local attempt=0
@@ -210,7 +210,7 @@ start_ui_server() {
         fi
         attempt=$((attempt + 1))
     done
-    
+
     echo "   └─ ⚠️ UI server may not be fully ready (check logs/ui-server.log)"
     return 1
 }
@@ -218,10 +218,10 @@ start_ui_server() {
 # Function to verify API endpoints are accessible
 verify_api_endpoints() {
     echo "🔍 Verifying API endpoints..."
-    
+
     local base_url="http://localhost:3001"
     local all_passed=true
-    
+
     # Expected diagram endpoints (based on generated diagrams)
     local endpoints=(
         "/api/diagram/patient-records/main"
@@ -234,11 +234,11 @@ verify_api_endpoints() {
         "/api/diagram/concurrent-controller/IDLE"
         "/api/diagram/concurrent-controller/ERROR"
     )
-    
+
     for endpoint in "${endpoints[@]}"; do
         local response=$(curl -s -w "\n%{http_code}" "${base_url}${endpoint}")
         local http_code=$(echo "$response" | tail -n1)
-        
+
         if [[ "$http_code" == "200" ]]; then
             echo "   ✅ $endpoint"
         else
@@ -246,7 +246,7 @@ verify_api_endpoints() {
             all_passed=false
         fi
     done
-    
+
     if [[ "$all_passed" == true ]]; then
         echo "✅ All API endpoints verified"
         return 0
@@ -270,22 +270,22 @@ continuous_events() {
     echo "🔄 Adding jobs continuously to the queue..."
     echo "   Controller will spawn workers as needed"
     echo ""
-    
+
     local counter=$((MACHINE_COUNT + 1))
-    
+
     while true; do
         local job_id="job_$(printf '%03d' $counter)"
         local report_id="report_${counter}"
-        
+
         echo "   └─ [$counter] Adding job: $job_id"
-        
+
         statemachine-db add-job "$job_id" \
             --type patient_records \
             --payload "{\"report_id\":\"${report_id}\",\"report_title\":\"Report ${counter}\",\"timestamp\":\"$(date -Iseconds)\"}" \
             >/dev/null 2>&1
-        
+
         counter=$((counter + 1))
-        
+
         # Random delay between 3-10 seconds
         sleep $(( (RANDOM % 8) + 3 ))
     done
@@ -295,21 +295,21 @@ continuous_events() {
 status() {
     echo "📊 Patient Records Demo Status (Controller Pattern):"
     echo "===================================================="
-    
+
     # Check monitoring server
     if lsof -ti:3002 >/dev/null 2>&1; then
         echo "✅ Monitoring server: Running (http://localhost:3002)"
     else
         echo "❌ Monitoring server: Not running"
     fi
-    
+
     # Check UI server
     if lsof -ti:3001 >/dev/null 2>&1; then
         echo "✅ UI server: Running (http://localhost:3001)"
     else
         echo "❌ UI server: Not running"
     fi
-    
+
     # Check controller
     local controller_pid_file="$LOG_DIR/concurrent_controller.pid"
     if [[ -f "$controller_pid_file" ]]; then
@@ -323,7 +323,7 @@ status() {
     else
         echo "❌ Controller: Not started"
     fi
-    
+
     # Check worker machines (dynamically spawned)
     echo ""
     echo "🔍 Active Workers (spawned by controller):"
@@ -340,20 +340,20 @@ status() {
             fi
         fi
     done
-    
+
     if [[ $worker_count -eq 0 ]]; then
         echo "   └─ No active workers (controller spawns workers as needed)"
     fi
-    
+
     echo ""
     echo "📋 Job Queue Status:"
     # Show pending jobs count
     local pending_count=$(statemachine-db list-jobs --status pending 2>/dev/null | grep -c "patient_records" || echo "0")
     echo "   └─ Pending jobs: $pending_count"
-    
+
     echo "--------------------------------"
     echo "Total: $worker_count active workers"
-    
+
     # Show recent activity
     echo ""
     echo "📋 Recent Controller Activity (last 5 entries):"
@@ -379,25 +379,25 @@ case "${1:-help}" in
         generate_diagrams
         start_monitoring
         start_ui_server
-        
+
         # Verify API endpoints are accessible
         echo ""
         verify_api_endpoints
         echo ""
-        
+
         # Populate job queue
         populate_queue
-        
+
         echo ""
         echo "⏳ Waiting for services to initialize..."
         sleep 3
-        
+
         # Start controller (spawns workers dynamically)
         start_controller
-        
+
         echo ""
         sleep 2
-        
+
         send_sample_events
         echo ""
         echo "🎯 Demo started successfully!"
@@ -409,26 +409,26 @@ case "${1:-help}" in
         echo "   • Run '$0 continuous' to add jobs dynamically"
         echo "   • Run '$0 status' to see controller + workers"
         ;;
-        
+
     "continuous")
         echo "🎬 Adding jobs continuously to queue..."
         echo "   Controller will spawn workers dynamically"
         echo "Press Ctrl+C to stop"
         continuous_events
         ;;
-        
+
     "events")
         events
         ;;
-        
+
     "status")
         status
         ;;
-        
+
     "cleanup"|"stop")
         cleanup
         ;;
-        
+
     "help"|*)
         echo "🏥 Patient Records Demo - Controller Pattern + Kanban"
         echo "====================================================="

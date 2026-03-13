@@ -3,8 +3,9 @@ Test ClearEventsAction - Clear pending events from queue
 
 Tests that the action correctly clears stale pending events of specific types.
 """
+
 import pytest
-import asyncio
+
 from statemachine_engine.actions.builtin import ClearEventsAction
 from statemachine_engine.database.models import get_machine_event_model
 

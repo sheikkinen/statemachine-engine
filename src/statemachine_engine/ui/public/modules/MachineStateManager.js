@@ -8,11 +8,11 @@ export class MachineStateManager {
         this.container = container;
         this.statusElements = statusElements;
         this.logger = logger;
-        
+
         // Load persisted state from localStorage
         this.loadPersistedState();
     }
-    
+
     /**
      * Load machine states from localStorage
      */
@@ -26,7 +26,7 @@ export class MachineStateManager {
                 });
                 console.log('[StateManager] Loaded persisted states for', this.machines.size, 'machines');
             }
-            
+
             const persistedTransitions = localStorage.getItem('machineTransitions');
             if (persistedTransitions) {
                 const transitions = JSON.parse(persistedTransitions);
@@ -39,7 +39,7 @@ export class MachineStateManager {
             console.error('[StateManager] Failed to load persisted state:', error);
         }
     }
-    
+
     /**
      * Save machine states to localStorage
      */
@@ -47,10 +47,10 @@ export class MachineStateManager {
         try {
             const states = Array.from(this.machines.values());
             localStorage.setItem('machineStates', JSON.stringify(states));
-            
+
             const transitions = Array.from(this.lastTransitions.entries());
             localStorage.setItem('machineTransitions', JSON.stringify(transitions));
-            
+
             console.debug('[StateManager] Persisted state for', states.length, 'machines');
         } catch (error) {
             console.error('[StateManager] Failed to persist state:', error);
@@ -63,7 +63,7 @@ export class MachineStateManager {
             localStorage.removeItem('machineStates');
             localStorage.removeItem('machineTransitions');
         }
-        
+
         this.machines.clear();
         machines.forEach(machine => {
             this.machines.set(machine.machine_name, machine);
@@ -87,11 +87,11 @@ export class MachineStateManager {
     handleStateChange(data) {
         const machineName = data.machine_name;
         const payload = data.payload || {};
-        
+
         // Debug: log the full payload structure
         console.log(`[StateChange Debug] Full payload:`, payload);
         console.log(`[StateChange Debug] Available keys:`, Object.keys(payload));
-        
+
         // Store last transition
         if (payload.from_state && payload.to_state) {
             this.lastTransitions.set(machineName, {
@@ -103,7 +103,7 @@ export class MachineStateManager {
             console.log(`[Transition] ${machineName}: ${payload.from_state} → ${payload.to_state}`);
             console.log(`[Transition Debug] Event trigger: "${payload.event_trigger}"`);
         }
-        
+
         // Update machine state in map
         let machine = this.machines.get(machineName);
         if (!machine) {
@@ -124,7 +124,7 @@ export class MachineStateManager {
             console.log(`[MachineStateManager] Calling updateMachineCard for ${machineName}`);
             this.updateMachineCard(machine);
         }
-        
+
         // Log transition
         if (payload.from_state && payload.to_state) {
             this.logger.log('info', `${machineName}: ${payload.from_state} → ${payload.to_state}`);
@@ -149,17 +149,17 @@ export class MachineStateManager {
 
     updateMachineCard(machine) {
         console.log(`[MachineStateManager] updateMachineCard called for ${machine.machine_name}, state: ${machine.current_state}`);
-        
+
         // Find all card instances (kanban cards and machine panel cards)
         const cardElements = document.querySelectorAll(`[data-machine="${machine.machine_name}"]`);
-        
+
         cardElements.forEach(cardEl => {
             // Check if it's a kanban card (simpler structure)
             if (cardEl.classList.contains('kanban-card')) {
                 console.log(`[MachineStateManager] Updating kanban card for ${machine.machine_name}`);
                 // Kanban cards just show the machine name, no state update needed here
                 // State is managed by KanbanView.updateCard which moves cards between columns
-            } 
+            }
             // Check if it's a machine panel card (detailed structure)
             else if (cardEl.classList.contains('machine-card')) {
                 console.log(`[MachineStateManager] Updating machine panel card for ${machine.machine_name}`);
@@ -182,7 +182,7 @@ export class MachineStateManager {
 
     renderMachines() {
         this.container.innerHTML = '';
-        
+
         this.machines.forEach(machine => {
             const cardEl = this.createMachineCard(machine);
             this.container.appendChild(cardEl);
@@ -194,14 +194,14 @@ export class MachineStateManager {
         card.className = 'machine-card';
         card.setAttribute('data-machine', machine.machine_name);
 
-        const lastActivity = machine.last_activity ? 
+        const lastActivity = machine.last_activity ?
             new Date(machine.last_activity * 1000).toLocaleString() : 'Never';
 
         card.innerHTML = `
             <div class="machine-header">
                 <div class="machine-name">${machine.machine_name}</div>
             </div>
-            
+
             <div class="machine-info">
                 <div class="info-row">
                     <span class="info-label">Current State:</span>

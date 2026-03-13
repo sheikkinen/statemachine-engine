@@ -1,7 +1,7 @@
 # Plan: UI FSM Configuration Refresh for Dynamic Worker Spawning
 
-**Date:** November 8, 2025  
-**Issue:** Dynamic worker spawning requires UI to refresh FSM configuration to display new machines  
+**Date:** November 8, 2025
+**Issue:** Dynamic worker spawning requires UI to refresh FSM configuration to display new machines
 **Context:** Controller spawns workers dynamically; UI needs to know about new FSM configs without restart
 
 ## Problem Statement
@@ -128,14 +128,14 @@ setInterval(() => this.refreshAvailableDiagrams(), 5000); // Every 5s
 # engine.py - _update_machine_state()
 def _update_machine_state(self, current_state: str):
     # ... existing code ...
-    
+
     # Check if this is first time seeing this config_type
     with job_model.db._get_connection() as conn:
         existing = conn.execute(
             "SELECT COUNT(*) FROM machine_state WHERE config_type = ?",
             (self.config_name,)
         ).fetchone()[0]
-        
+
         if existing == 0:
             # First machine of this type - notify UI to refresh
             self._emit_realtime_event('diagram_refresh', {
@@ -149,7 +149,7 @@ def _update_machine_state(self, current_state: str):
 # websocket_server.py - unix_socket_listener()
 async def unix_socket_listener():
     # ... existing event handling ...
-    
+
     if event_type == 'diagram_refresh':
         # Broadcast to all connected UIs
         await broadcaster.broadcast(json.dumps(event_data))
@@ -176,7 +176,7 @@ this.wsManager = new WebSocketManager({
     diagram_refresh: (data) => {
         this.logger.log('info', `Refreshing diagrams for ${data.config_type}`);
         this.diagramManager.refreshAvailableDiagrams();
-        
+
         // Auto-create tab if this is a new config type
         const machines = this.machineManager.getMachinesByConfigType(data.config_type);
         if (machines.length > 0 && !this.diagramTabs[data.config_type]) {
@@ -214,7 +214,7 @@ async loadDiagram(machineName, configType, stateName) {
         console.log(`Fetching metadata for new config: ${configType}`);
         await this.fetchConfigMetadata(configType);
     }
-    
+
     // Now load diagram as usual
     // ... existing code ...
 }
@@ -239,7 +239,7 @@ async fetchConfigMetadata(configType) {
 app.get('/api/diagram/:machine/metadata', (req, res) => {
     const { machine } = req.params;
     const metadataPath = path.join(PROJECT_ROOT, 'docs', 'fsm-diagrams', machine, 'metadata.json');
-    
+
     if (fs.existsSync(metadataPath)) {
         res.header('Access-Control-Allow-Origin', '*');
         res.json(JSON.parse(fs.readFileSync(metadataPath, 'utf8')));
@@ -282,7 +282,7 @@ app.get('/api/diagram/:machine/metadata', (req, res) => {
 # engine.py - _update_machine_state()
 def _update_machine_state(self, current_state: str):
     # ... existing INSERT/UPDATE ...
-    
+
     # Emit machine_registered event (every time, let UI decide if new)
     self._emit_realtime_event('machine_registered', {
         'machine_name': self.machine_name,
@@ -315,12 +315,12 @@ this.wsManager = new WebSocketManager({
     // ... existing ...
     machine_registered: async (data) => {
         this.logger.log('info', `Machine registered: ${data.machine_name} (${data.config_type})`);
-        
+
         // Check if we have metadata for this config
         if (!this.diagramManager.hasConfig(data.config_type)) {
             this.logger.log('info', `New config detected: ${data.config_type}, fetching metadata...`);
             await this.diagramManager.fetchConfigMetadata(data.config_type);
-            
+
             // Create diagram tab if this is first machine of this type
             if (!this.diagramTabs[data.config_type]) {
                 await this.createDiagramTabForConfig(data.config_type, data.machine_name);
@@ -359,7 +359,7 @@ async fetchConfigMetadata(configType) {
 app.get('/api/diagram/:machine/metadata', (req, res) => {
     const { machine } = req.params;
     const metadataPath = path.join(PROJECT_ROOT, 'docs', 'fsm-diagrams', machine, 'metadata.json');
-    
+
     if (fs.existsSync(metadataPath)) {
         res.header('Access-Control-Allow-Origin', '*');
         res.json(JSON.parse(fs.readFileSync(metadataPath, 'utf8')));
@@ -406,7 +406,7 @@ app.get('/api/diagram/:machine/metadata', (req, res) => {
 - Return metadata.json for specified config_type
 
 #### Phase 3: UI Event Handling
-**Files:** 
+**Files:**
 - `src/statemachine_engine/ui/public/modules/WebSocketManager.js`
 - `src/statemachine_engine/ui/public/app-modular.js`
 - `src/statemachine_engine/ui/public/modules/DiagramManager.js`
@@ -479,11 +479,11 @@ UI can then immediately remove card instead of waiting for timeout.
 
 ## Summary
 
-**Issue:** UI cannot display diagrams for dynamically spawned workers  
-**Root Cause:** Diagram metadata not loaded for new config types  
-**Solution:** Hybrid approach with event-driven metadata refresh + lazy loading  
-**Implementation:** 3 phases (engine event, server endpoint, UI handling)  
-**Effort:** ~300 tokens for full solution, ~150 for quick fix  
+**Issue:** UI cannot display diagrams for dynamically spawned workers
+**Root Cause:** Diagram metadata not loaded for new config types
+**Solution:** Hybrid approach with event-driven metadata refresh + lazy loading
+**Implementation:** 3 phases (engine event, server endpoint, UI handling)
+**Effort:** ~300 tokens for full solution, ~150 for quick fix
 **Timeline:** 1-2 hours for full implementation
 
 **Files to Modify:**

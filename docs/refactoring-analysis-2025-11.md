@@ -4,8 +4,8 @@
 
 This document identifies dead code, refactoring opportunities, and technical debt in the statemachine-engine codebase based on static analysis, test coverage (39% overall), and usage patterns.
 
-**Date**: 2025-11-10  
-**Codebase**: statemachine-engine v1.0.71  
+**Date**: 2025-11-10
+**Codebase**: statemachine-engine v1.0.71
 **Total Lines**: ~3,653 statements (excluding tests, node_modules)
 
 ---
@@ -28,7 +28,7 @@ All five tools are CLI utilities with **zero test coverage**. They work but have
 
 **Status**: Not dead code - these are functional CLI tools, but completely untested.
 
-**Recommendation**: 
+**Recommendation**:
 - **KEEP**: All tools are useful utilities for developers
 - **ADD TESTS**: Write integration tests for each CLI command
 - **Priority**: High for `validate.py` (catches config errors), Medium for others
@@ -40,7 +40,7 @@ All five tools are CLI utilities with **zero test coverage**. They work but have
 - **Coverage**: 0%
 - **Status**: Likely just a stub or unused
 
-**Recommendation**: 
+**Recommendation**:
 - **INVESTIGATE**: Check if this is the intended main entry point
 - If unused, remove it
 - If needed, implement and test it
@@ -124,7 +124,7 @@ All five tools are CLI utilities with **zero test coverage**. They work but have
 
 ### 3.2 Tools Module Structure
 
-**Problem**: 
+**Problem**:
 - `config.py` just wraps YAML loading (36 lines)
 - `cli.py` just wraps `diagrams.py` (44 lines)
 - Unnecessary indirection
@@ -186,7 +186,7 @@ Found **9 skipped tests**:
 - `test_websocket_stress.py` - 2 tests skipped (stress tests disabled)
 - `test_engine_error_emission.py` - 1 test skipped (complex dynamic patching)
 
-**Recommendation**: 
+**Recommendation**:
 - Re-enable skipped tests with proper fixtures
 - Move stress tests to separate suite (run on-demand)
 
@@ -299,7 +299,7 @@ Found **9 skipped tests**:
 3. Test validator tool (HIGH)
 4. Document CLI tools (MEDIUM)
 
-**Estimated Effort**: 
+**Estimated Effort**:
 - High-priority items: 8-12 hours
 - Medium-priority items: 4-6 hours
 - Total: 12-18 hours of focused work

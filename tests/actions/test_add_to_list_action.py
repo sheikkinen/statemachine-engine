@@ -6,6 +6,7 @@ spawned job IDs and other collections.
 """
 
 import pytest
+
 from statemachine_engine.actions.builtin import AddToListAction
 
 
@@ -20,9 +21,9 @@ class TestAddToListAction:
             'value': 'item1'
         })
         context = {}
-        
+
         result = await action.execute(context)
-        
+
         assert result == 'success'
         assert 'my_list' in context
         assert context['my_list'] == ['item1']
@@ -35,9 +36,9 @@ class TestAddToListAction:
             'value': 'item2'
         })
         context = {'my_list': ['item1']}
-        
+
         result = await action.execute(context)
-        
+
         assert result == 'success'
         assert context['my_list'] == ['item1', 'item2']
 
@@ -48,9 +49,9 @@ class TestAddToListAction:
             'value': 'test_value'
         })
         context = {}
-        
+
         result = await action.execute(context)
-        
+
         assert result == 'success'
         assert 'items' in context
         assert context['items'] == ['test_value']
@@ -65,9 +66,9 @@ class TestAddToListAction:
         context = {
             'job': {'id': 42}
         }
-        
+
         result = await action.execute(context)
-        
+
         assert result == 'success'
         assert context['job_ids'] == [42]  # Interpolation preserves numeric type
 
@@ -81,9 +82,9 @@ class TestAddToListAction:
         context = {
             'user': {'profile': {'name': 'Alice'}}
         }
-        
+
         result = await action.execute(context)
-        
+
         assert result == 'success'
         assert context['names'] == ['Alice']
 
@@ -93,12 +94,12 @@ class TestAddToListAction:
         action1 = AddToListAction({'list_key': 'ids', 'value': '1'})
         action2 = AddToListAction({'list_key': 'ids', 'value': '2'})
         action3 = AddToListAction({'list_key': 'ids', 'value': '3'})
-        
+
         context = {}
         await action1.execute(context)
         await action2.execute(context)
         await action3.execute(context)
-        
+
         assert context['ids'] == ['1', '2', '3']
 
     @pytest.mark.asyncio
@@ -109,9 +110,9 @@ class TestAddToListAction:
             'value': 'test'
         })
         context = {'my_key': 'not_a_list'}
-        
+
         result = await action.execute(context)
-        
+
         assert result == 'error'
 
     @pytest.mark.asyncio
@@ -123,9 +124,9 @@ class TestAddToListAction:
             'success': 'item_added'
         })
         context = {}
-        
+
         result = await action.execute(context)
-        
+
         assert result == 'item_added'
 
     @pytest.mark.asyncio
@@ -136,9 +137,9 @@ class TestAddToListAction:
             'value': 42
         })
         context = {}
-        
+
         result = await action.execute(context)
-        
+
         assert result == 'success'
         assert context['numbers'] == [42]
 
@@ -150,9 +151,9 @@ class TestAddToListAction:
             'value': '{missing.variable}'
         })
         context = {}
-        
+
         result = await action.execute(context)
-        
+
         # Should still add the literal string if interpolation fails
         assert result == 'success'
         assert 'items' in context
@@ -165,9 +166,9 @@ class TestAddToListAction:
             'value': 'first'
         })
         context = {}
-        
+
         result = await action.execute(context)
-        
+
         assert result == 'success'
         assert context == {'new_list': ['first']}
 
@@ -182,9 +183,9 @@ class TestAddToListAction:
             'other_key': 'other_value',
             'another_key': 123
         }
-        
+
         result = await action.execute(context)
-        
+
         assert result == 'success'
         assert context['other_key'] == 'other_value'
         assert context['another_key'] == 123

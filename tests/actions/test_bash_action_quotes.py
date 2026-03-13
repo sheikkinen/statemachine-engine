@@ -7,10 +7,11 @@ Tests that bash action correctly handles:
 - Double quotes in YAML commands
 - Proper escaping for shell execution
 """
-import pytest
-import asyncio
-import tempfile
 import os
+import tempfile
+
+import pytest
+
 from statemachine_engine.actions.builtin import BashAction
 
 
@@ -55,7 +56,7 @@ class TestBashActionQuotes:
             assert os.path.exists(output_file)
 
             # Read the output and verify prompt was preserved
-            with open(output_file, 'r') as f:
+            with open(output_file) as f:
                 content = f.read().strip()
 
             # Should contain the full prompt with all special characters
@@ -99,7 +100,7 @@ class TestBashActionQuotes:
             assert result == 'success'
             assert os.path.exists(output_file)
 
-            with open(output_file, 'r') as f:
+            with open(output_file) as f:
                 content = f.read().strip()
 
             # Quotes should be preserved (or properly escaped)
@@ -145,7 +146,7 @@ class TestBashActionQuotes:
 
             assert result == 'success'
 
-            with open(output_file, 'r') as f:
+            with open(output_file) as f:
                 content = f.read().strip()
 
             # Should use enhanced_prompt (primary key)
@@ -169,7 +170,7 @@ class TestBashActionQuotes:
 
             assert result2 == 'success'
 
-            with open(output_file, 'r') as f:
+            with open(output_file) as f:
                 content = f.read().strip()
 
             # Should contain pony_prompt with special chars
@@ -213,7 +214,7 @@ class TestBashActionQuotes:
 
             assert result == 'success'
 
-            with open(output_file, 'r') as f:
+            with open(output_file) as f:
                 content = f.read().strip()
 
             # Verify prompt is properly quoted and contains special chars

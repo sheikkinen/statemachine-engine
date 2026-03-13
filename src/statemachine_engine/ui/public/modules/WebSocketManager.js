@@ -83,12 +83,12 @@ export class WebSocketManager {
             }
             return;
         }
-        
+
         if (data.type === 'pong') {
             // Server acknowledged our ping, ignore
             return;
         }
-        
+
         // Handle application events
         const handler = this.eventHandlers[data.type];
         if (handler) {

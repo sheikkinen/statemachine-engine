@@ -6,6 +6,7 @@ Tests the enhanced template expansion that supports:
 - Whole-dict forwarding: payload: "{event_data.payload}"
 """
 import pytest
+
 from statemachine_engine.actions.builtin.send_event_action import SendEventAction
 
 
@@ -22,7 +23,7 @@ async def test_nested_field_extraction():
             'status': 'pending'  # Static value
         }
     }
-    
+
     context = {
         'machine_name': 'controller',
         'event_data': {
@@ -39,10 +40,10 @@ async def test_nested_field_extraction():
             }
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     assert processed['user_id'] == 123
     assert processed['user_name'] == 'Alice'
     assert processed['image'] == '/path/to/image.png'
@@ -59,7 +60,7 @@ async def test_nested_field_deep_nesting():
             'value': '{event_data.payload.level1.level2.level3.field}'
         }
     }
-    
+
     context = {
         'machine_name': 'controller',
         'event_data': {
@@ -74,10 +75,10 @@ async def test_nested_field_deep_nesting():
             }
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     assert processed['value'] == 'deep_value'
 
 
@@ -91,7 +92,7 @@ async def test_nested_field_missing_path(caplog):
             'value': '{event_data.payload.user.missing.field}'
         }
     }
-    
+
     context = {
         'machine_name': 'controller',
         'event_data': {
@@ -102,10 +103,10 @@ async def test_nested_field_missing_path(caplog):
             }
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     assert processed['value'] is None
     assert any('not found' in record.message for record in caplog.records)
 
@@ -120,7 +121,7 @@ async def test_nested_field_non_dict_intermediate():
             'value': '{event_data.payload.user.name.first}'  # user.name is string, not dict
         }
     }
-    
+
     context = {
         'machine_name': 'controller',
         'event_data': {
@@ -131,10 +132,10 @@ async def test_nested_field_non_dict_intermediate():
             }
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     assert processed['value'] is None
 
 
@@ -146,7 +147,7 @@ async def test_entire_payload_forwarding():
         'event_type': 'relay',
         'payload': '{event_data.payload}'  # String, not dict
     }
-    
+
     context = {
         'machine_name': 'controller',
         'event_data': {
@@ -157,10 +158,10 @@ async def test_entire_payload_forwarding():
             }
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     # Should return the entire dict
     assert processed == {
         'key1': 'value1',
@@ -177,17 +178,17 @@ async def test_entire_payload_forwarding_empty():
         'event_type': 'relay',
         'payload': '{event_data.payload}'
     }
-    
+
     context = {
         'machine_name': 'controller',
         'event_data': {
             'payload': {}
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     assert processed == {}
 
 
@@ -199,15 +200,15 @@ async def test_entire_payload_forwarding_missing_event_data():
         'event_type': 'relay',
         'payload': '{event_data.payload}'
     }
-    
+
     context = {
         'machine_name': 'controller'
         # No event_data
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     assert processed == {}
 
 
@@ -225,7 +226,7 @@ async def test_mixed_extraction_and_static():
             'version': 1  # Static number
         }
     }
-    
+
     context = {
         'machine_name': 'controller',
         'timestamp': '2025-10-09T12:00:00',
@@ -238,10 +239,10 @@ async def test_mixed_extraction_and_static():
             }
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     assert processed['input'] == 'image.png'
     assert processed['user'] == 456
     assert processed['machine'] == 'controller'  # From context
@@ -260,7 +261,7 @@ async def test_flat_field_extraction_still_works():
             'status': '{event_data.payload.status}'
         }
     }
-    
+
     context = {
         'machine_name': 'controller',
         'event_data': {
@@ -270,10 +271,10 @@ async def test_flat_field_extraction_still_works():
             }
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     assert processed['file'] == 'test.png'
     assert processed['status'] == 'ready'
 
@@ -288,7 +289,7 @@ async def test_recursive_placeholder_substitution():
             'output': '{event_data.payload.path_template}'
         }
     }
-    
+
     context = {
         'machine_name': 'controller',
         'current_job': {'id': 'job_123'},
@@ -298,10 +299,10 @@ async def test_recursive_placeholder_substitution():
             }
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     # The {id} should be substituted
     assert processed['output'] == '/output/job_123.png'
 
@@ -316,7 +317,7 @@ async def test_nested_extraction_with_list_values():
             'items': '{event_data.payload.data.items}'
         }
     }
-    
+
     context = {
         'machine_name': 'controller',
         'event_data': {
@@ -327,10 +328,10 @@ async def test_nested_extraction_with_list_values():
             }
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     # List values should be preserved
     assert processed['items'] == ['item1', 'item2', 'item3']
 
@@ -346,7 +347,7 @@ async def test_nested_extraction_with_number_values():
             'percentage': '{event_data.payload.stats.percentage}'
         }
     }
-    
+
     context = {
         'machine_name': 'controller',
         'event_data': {
@@ -358,9 +359,9 @@ async def test_nested_extraction_with_number_values():
             }
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     assert processed['count'] == 42
     assert processed['percentage'] == 95.5

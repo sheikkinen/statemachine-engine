@@ -299,6 +299,6 @@ If you want database-only (no real-time):
 
 ---
 
-**Author:** State Machine Engine Team  
-**Updated:** 2025-10-11  
+**Author:** State Machine Engine Team
+**Updated:** 2025-10-11
 **Version:** 0.0.20

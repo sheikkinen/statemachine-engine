@@ -29,7 +29,7 @@ A comprehensive production-ready startup script template that provides:
    ```bash
    # Configuration files to validate
    CONFIG_FILES="config/worker.yaml config/controller.yaml"
-   
+
    # State machines to start (format: "config_file:machine_name")
    MACHINE_CONFIGS=(
        "config/worker.yaml:worker"
@@ -44,7 +44,7 @@ A comprehensive production-ready startup script template that provides:
 
 **Features:**
 - Validates all configurations before starting
-- Generates diagrams for web UI visualization  
+- Generates diagrams for web UI visualization
 - Starts WebSocket server for real-time monitoring
 - Launches multiple state machines with proper logging
 - Provides graceful shutdown (Ctrl+C)

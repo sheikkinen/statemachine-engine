@@ -250,20 +250,20 @@ header p {
     .container {
         padding: 15px;
     }
-    
+
     header h1 {
         font-size: 2rem;
     }
-    
+
     .status-bar {
         flex-direction: column;
         gap: 15px;
     }
-    
+
     .machines-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .machine-controls {
         flex-direction: column;
     }
@@ -725,11 +725,11 @@ header p {
     .kanban-view.kanban-visible {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .kanban-column-header {
         font-size: 0.8rem;
     }
-    
+
     .kanban-card {
         font-size: 0.85rem;
         padding: 10px;

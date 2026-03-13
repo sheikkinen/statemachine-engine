@@ -1,6 +1,6 @@
 # patient-records
 
-**Description:** 
+**Description:**
 
 **Generated from:** `patient-records.yaml`
 **Machine Name:** `unknown`

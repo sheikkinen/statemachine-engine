@@ -28,7 +28,7 @@ export class ActivityLogger {
         const machineName = data.machine_name;
         const payload = data.payload || {};
         const jobId = payload.job_id || 'unknown';
-        
+
         this.log('info', `${machineName}: Job ${jobId} started`);
     }
 
@@ -36,7 +36,7 @@ export class ActivityLogger {
         const machineName = data.machine_name;
         const payload = data.payload || {};
         const jobId = payload.job_id || 'unknown';
-        
+
         this.log('success', `${machineName}: Job ${jobId} completed`);
     }
 
@@ -45,11 +45,11 @@ export class ActivityLogger {
         const payload = data.payload || {};
         const errorMessage = payload.error_message || 'Unknown error';
         const jobId = payload.job_id;
-        
-        const message = jobId ? 
+
+        const message = jobId ?
             `${machineName}: Error in job ${jobId}: ${errorMessage}` :
             `${machineName}: ${errorMessage}`;
-        
+
         this.log('error', message);
     }
 }

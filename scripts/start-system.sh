@@ -11,21 +11,21 @@ echo ""
 cleanup() {
     echo ""
     echo "🛑 Shutting down all services..."
-    
+
     if [ ! -z "$WS_PID" ]; then
         kill $WS_PID 2>/dev/null || true
         echo "✓ WebSocket server stopped"
     fi
-    
+
     if [ ! -z "$UI_PID" ]; then
         kill $UI_PID 2>/dev/null || true
         echo "✓ Web UI stopped"
     fi
-    
+
     # Stop state machines gracefully
     pkill -f "statemachine" 2>/dev/null || true
     echo "✓ State machines stopped"
-    
+
     echo "🏁 All services stopped"
     exit 0
 }

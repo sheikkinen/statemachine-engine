@@ -1,8 +1,8 @@
 # UI Animation Implementation
 
-**Document Type:** Implementation Analysis  
-**Created:** 2025-10-26  
-**Status:** Active  
+**Document Type:** Implementation Analysis
+**Created:** 2025-10-26
+**Status:** Active
 
 ## Executive Summary
 
@@ -31,7 +31,7 @@
 
 **Priority:** High - user-visible issue affecting experience
 
-**Estimated Effort:** 
+**Estimated Effort:**
 - Double-buffering: ~2-4 hours (quick win)
 - CSS-only updates: ~8-12 hours (optimal long-term solution)
 
@@ -144,7 +144,7 @@ async renderDiagram(highlightState = null, transition = null) {
     if (highlightState) {
         const currentDiagramStates = this.diagramMetadata?.states || [];
         const isMainDiagram = this.currentDiagramName === 'main';
-        
+
         if (isMainDiagram) {
             // Highlight composite containing active state
             compositeToHighlight = await this.findCompositeForState(highlightState);
@@ -168,7 +168,7 @@ async renderDiagram(highlightState = null, transition = null) {
 
 **Animation Characteristics:**
 - **Duration:** 2 seconds per cycle (infinite loop)
-- **Effects:** 
+- **Effects:**
   - Pulse: Scale from 1.0 → 1.05 → 1.0
   - Glow: Drop shadow from 8px → 16px → 8px
 - **Colors:** Light green (#90EE90) with dark green border (#006400)
@@ -235,21 +235,21 @@ highlightTransitionArrowDirect(transition) {
     this.clearArrowHighlights(svg);
 
     const eventTrigger = transition.event;
-    
+
     if (eventTrigger && eventTrigger !== 'unknown') {
         // Find edge by matching label text
         const edge = this.findEdgeByLabel(svg, eventTrigger);
-        
+
         if (edge) {
             edge.classList.add('last-transition-arrow');
-            
+
             // Store reference for cleanup
             this.currentHighlightedEdge = edge;
             this.highlightTimestamp = timestamp;
-            
+
             // Auto-clear after 2 seconds
             setTimeout(() => {
-                if (edge === this.currentHighlightedEdge && 
+                if (edge === this.currentHighlightedEdge &&
                     this.highlightTimestamp === timestamp) {
                     edge.classList.remove('last-transition-arrow');
                     this.currentHighlightedEdge = null;
@@ -263,7 +263,7 @@ highlightTransitionArrowDirect(transition) {
 
 findEdgeByLabel(svg, eventTrigger) {
     const edgeLabels = svg.querySelectorAll('g.edgeLabels g.label');
-    
+
     for (const label of edgeLabels) {
         const labelText = label.textContent || '';
         if (labelText.includes(eventTrigger)) {
@@ -277,7 +277,7 @@ findEdgeByLabel(svg, eventTrigger) {
             }
         }
     }
-    
+
     return null;
 }
 
@@ -286,7 +286,7 @@ clearArrowHighlights(svg) {
     highlightedEdges.forEach(edge => {
         edge.classList.remove('last-transition-arrow');
     });
-    
+
     this.currentHighlightedEdge = null;
     this.highlightTimestamp = null;
 }
@@ -496,7 +496,7 @@ USER-VISIBLE FLICKER: ~70-150ms (during Mermaid render)
 **Current Mitigations (Partial):**
 
 1. **50ms setTimeout** - Delays DOM destruction to let fade effect be visible
-2. **opacity: 0.4** - Dims (but doesn't hide) old diagram during transition  
+2. **opacity: 0.4** - Dims (but doesn't hide) old diagram during transition
 3. **min-height: 600px** - Prevents container collapse (reduces layout shift)
 4. **transition: opacity 0.15s** - Smooth fade in/out
 
@@ -519,7 +519,7 @@ USER-VISIBLE FLICKER: ~70-150ms (during Mermaid render)
      - init_phase_1
      - init_phase_2
      # ... 40 more states
-   
+
    # GOOD - use composite states
    states:
      - idle
@@ -535,7 +535,7 @@ USER-VISIBLE FLICKER: ~70-150ms (during Mermaid render)
        transition_to('processing_item')
        process(item)
        transition_to('waiting')
-   
+
    # GOOD - batch processing with fewer transitions
    transition_to('processing_batch')
    for item in batch:
@@ -550,7 +550,7 @@ USER-VISIBLE FLICKER: ~70-150ms (during Mermaid render)
    transition_to('reading_file')
    transition_to('parsing_data')
    transition_to('validating')
-   
+
    # GOOD - single state with activity logs
    transition_to('processing')
    log_activity('Reading file...')
@@ -576,9 +576,9 @@ USER-VISIBLE FLICKER: ~70-150ms (during Mermaid render)
 5. **Progressive Enhancement - Disable Animations on Slow Devices**
    ```javascript
    // Detect slow device (future enhancement)
-   const isSlowDevice = navigator.hardwareConcurrency < 4 || 
+   const isSlowDevice = navigator.hardwareConcurrency < 4 ||
                         /mobile|android/i.test(navigator.userAgent);
-   
+
    if (isSlowDevice) {
        // Skip fade transitions - instant updates
        this.container.classList.add('no-animations');
@@ -705,7 +705,7 @@ persistState() {
     try {
         const states = Array.from(this.machines.values());
         localStorage.setItem('machineStates', JSON.stringify(states));
-        
+
         const transitions = Array.from(this.lastTransitions.entries());
         localStorage.setItem('machineTransitions', JSON.stringify(transitions));
     } catch (error) {
@@ -748,19 +748,19 @@ loadPersistedState() {
 attachCompositeClickHandlers() {
     const svgEl = this.container.querySelector('svg');
     if (!svgEl) return;
-    
+
     const composites = this.diagramMetadata.composites || [];
-    
+
     composites.forEach(compositeName => {
         const compositeNode = svgEl.querySelector(`[id*="${compositeName}"]`);
-        
+
         if (compositeNode) {
             compositeNode.style.cursor = 'pointer';
             compositeNode.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.loadDiagram(this.selectedMachine, compositeName);
             });
-            
+
             // Visual feedback
             compositeNode.addEventListener('mouseenter', () => {
                 compositeNode.style.opacity = '0.8';
@@ -786,13 +786,13 @@ attachCompositeClickHandlers() {
 ```javascript
 updateBreadcrumb(machineName, diagramName) {
     const breadcrumbItems = [];
-    
+
     breadcrumbItems.push({
         label: 'Overview',
         diagram: 'main',
         active: diagramName === 'main'
     });
-    
+
     if (diagramName !== 'main') {
         breadcrumbItems.push({
             label: this.diagramMetadata.title || diagramName,
@@ -800,14 +800,14 @@ updateBreadcrumb(machineName, diagramName) {
             active: true
         });
     }
-    
+
     this.breadcrumbNav.innerHTML = breadcrumbItems.map(item => `
-        <span class="breadcrumb-item ${item.active ? 'active' : ''}" 
+        <span class="breadcrumb-item ${item.active ? 'active' : ''}"
               data-diagram="${item.diagram}">
             ${item.label}
         </span>
     `).join(' › ');
-    
+
     // Attach click handlers
     this.breadcrumbNav.querySelectorAll('.breadcrumb-item').forEach(item => {
         item.addEventListener('click', () => {
@@ -835,7 +835,7 @@ createDiagramTabs(machines) {
 
         button.addEventListener('click', () => {
             // Update active state
-            document.querySelectorAll('.tab-button').forEach(btn => 
+            document.querySelectorAll('.tab-button').forEach(btn =>
                 btn.classList.remove('active'));
             button.classList.add('active');
 
@@ -913,7 +913,7 @@ Modern browsers (2020+) have native support for all features.
 
 **Flicker intensity varies by browser due to rendering pipeline differences:**
 
-- **Chrome/Edge (Blink):** 
+- **Chrome/Edge (Blink):**
   - Fastest SVG rendering (~80-100ms typical)
   - Smooth opacity transitions
   - Best overall experience
@@ -956,14 +956,14 @@ transitions:
 
 **Limitation:** Visible flicker during re-render (~80-150ms).
 
-**Root Cause:** 
+**Root Cause:**
 - Mermaid.js doesn't support partial SVG updates (no incremental rendering)
 - Complete DOM replacement via `innerHTML` destroys entire diagram
 - 50-100ms Mermaid render time exceeds fade transition duration (150ms)
 - Gap between DOM destruction and new diagram creation exposes white background
 - Browser paints intermediate render states during progressive SVG generation
 
-**Current Mitigation (Partial):** 
+**Current Mitigation (Partial):**
 - Fade transition (opacity 0.4) dims but doesn't fully hide transition
 - 50ms setTimeout delays DOM destruction to show fade effect
 - Min-height prevents layout collapse and height "jump"
@@ -984,10 +984,10 @@ transitions:
    offscreenContainer.style.display = 'none';
    offscreenContainer.innerHTML = `<pre class="mermaid">${diagramCode}</pre>`;
    document.body.appendChild(offscreenContainer);
-   
+
    // Render offscreen
    await mermaid.run({ nodes: [offscreenContainer.querySelector('.mermaid')] });
-   
+
    // Swap when ready
    this.container.innerHTML = offscreenContainer.innerHTML;
    offscreenContainer.remove();
@@ -1023,7 +1023,7 @@ transitions:
    - Use CSS classes for state highlighting (no re-render)
    **Impact:** Best performance, but requires tracking diagram versions
 
-**Recommended Solution:** #1 (Double-buffering) or #5 (CSS-only updates)  
+**Recommended Solution:** #1 (Double-buffering) or #5 (CSS-only updates)
 **Current Status:** Known issue, mitigated but not resolved
 
 ### 4. Multiple Machine Updates
@@ -1106,36 +1106,36 @@ Is diagram flickering during state changes?
 async renderDiagram(highlightState = null, transition = null) {
     const perfStart = performance.now();
     const markers = { start: perfStart };
-    
+
     if (!this.currentDiagram) return;
 
     try {
         let diagramCode = this.currentDiagram;
-        
+
         // ... diagram code preparation ...
         markers.prepComplete = performance.now();
-        
+
         this.container.classList.add('redrawing');
         await new Promise(resolve => setTimeout(resolve, 50));
         markers.fadeComplete = performance.now();
-        
+
         this.container.innerHTML = `<pre class="mermaid">${diagramCode}</pre>`;
         markers.domClear = performance.now();
-        
+
         const mermaidEl = this.container.querySelector('.mermaid');
         await window.mermaid.run({ nodes: [mermaidEl] });
         markers.mermaidComplete = performance.now();
-        
+
         this.container.classList.add('has-diagram');
         this.container.classList.remove('redrawing');
         markers.fadeInStart = performance.now();
-        
+
         this.attachCompositeClickHandlers();
         if (transition && transition.from && transition.to) {
             this.highlightTransitionArrowDirect(transition);
         }
         markers.postComplete = performance.now();
-        
+
         // Log performance breakdown
         const total = markers.postComplete - markers.start;
         const prep = markers.prepComplete - markers.start;
@@ -1143,19 +1143,19 @@ async renderDiagram(highlightState = null, transition = null) {
         const dom = markers.domClear - markers.fadeComplete;
         const mermaid = markers.mermaidComplete - markers.domClear;
         const post = markers.postComplete - markers.mermaidComplete;
-        
+
         console.log(`[Perf] Total render: ${total.toFixed(2)}ms`);
         console.log(`[Perf]   - Preparation: ${prep.toFixed(2)}ms`);
         console.log(`[Perf]   - Fade delay: ${fade.toFixed(2)}ms`);
         console.log(`[Perf]   - DOM clear: ${dom.toFixed(2)}ms`);
         console.log(`[Perf]   - Mermaid render: ${mermaid.toFixed(2)}ms ← BOTTLENECK`);
         console.log(`[Perf]   - Post-processing: ${post.toFixed(2)}ms`);
-        
+
         // Warn if render time exceeds threshold
         if (total > 200) {
             console.warn(`[Perf] ⚠️  Slow render (${total.toFixed(0)}ms) - consider simplifying diagram`);
         }
-        
+
     } catch (error) {
         console.error('Error rendering diagram:', error);
         this.logger.log('error', `Diagram rendering failed: ${error.message}`);
@@ -1190,19 +1190,19 @@ debugSvgElements(svg) {
 
 ### Common Issues
 
-**Issue:** Arrow not highlighting  
+**Issue:** Arrow not highlighting
 **Solution:** Check if event trigger matches label text in SVG
 
-**Issue:** State not highlighting  
+**Issue:** State not highlighting
 **Solution:** Verify state name matches Mermaid node ID
 
-**Issue:** Diagram not loading  
+**Issue:** Diagram not loading
 **Solution:** Check browser console for Mermaid render errors
 
-**Issue:** Visible flicker during state changes  
-**Root Cause:** Complete Mermaid diagram re-render on every state change  
-**Current Status:** Known issue - mitigated with fade effect but not eliminated  
-**Workaround:** Flicker duration ~80-150ms, partially masked by opacity transition  
+**Issue:** Visible flicker during state changes
+**Root Cause:** Complete Mermaid diagram re-render on every state change
+**Current Status:** Known issue - mitigated with fade effect but not eliminated
+**Workaround:** Flicker duration ~80-150ms, partially masked by opacity transition
 **Fix:** See "Future Enhancements > Diagram Flicker Elimination" for solutions
 
 **Measuring Flicker Impact:**
@@ -1219,7 +1219,7 @@ console.log(`[Perf] Diagram render took ${renderTime.toFixed(2)}ms`);
 // Log breakdown
 console.log(`[Perf] Breakdown:
   - Diagram preparation: ${(t2-t1).toFixed(2)}ms
-  - Fade delay: ${(t3-t2).toFixed(2)}ms  
+  - Fade delay: ${(t3-t2).toFixed(2)}ms
   - DOM destruction: ${(t4-t3).toFixed(2)}ms
   - Mermaid render: ${(t5-t4).toFixed(2)}ms
   - Post-processing: ${(t6-t5).toFixed(2)}ms
@@ -1228,7 +1228,7 @@ console.log(`[Perf] Breakdown:
 
 **Performance Benchmarks (Typical):**
 - Small diagram (<10 states): 80-100ms render, 50ms visible flicker
-- Medium diagram (10-30 states): 100-150ms render, 80ms visible flicker  
+- Medium diagram (10-30 states): 100-150ms render, 80ms visible flicker
 - Large diagram (30+ states): 150-300ms render, 120ms visible flicker
 
 **User Impact:**
@@ -1254,21 +1254,21 @@ updateRenderStats(renderTime) {
     this.renderStats.count++;
     this.renderStats.totalTime += renderTime;
     this.renderStats.lastRenderTimes.push(renderTime);
-    
+
     if (this.renderStats.lastRenderTimes.length > 10) {
         this.renderStats.lastRenderTimes.shift();
     }
-    
+
     if (renderTime > 200) {
         this.renderStats.slowRenders++;
     }
-    
+
     // Log stats every 20 renders
     if (this.renderStats.count % 20 === 0) {
         const avgTime = this.renderStats.totalTime / this.renderStats.count;
-        const recentAvg = this.renderStats.lastRenderTimes.reduce((a,b) => a+b, 0) / 
+        const recentAvg = this.renderStats.lastRenderTimes.reduce((a,b) => a+b, 0) /
                          this.renderStats.lastRenderTimes.length;
-        
+
         console.log(`[Render Stats] After ${this.renderStats.count} renders:`);
         console.log(`  - Average: ${avgTime.toFixed(2)}ms`);
         console.log(`  - Recent avg (last 10): ${recentAvg.toFixed(2)}ms`);
@@ -1284,7 +1284,7 @@ updateRenderStats(renderTime) {
 window.getDiagramStats = () => {
     const mgr = window.monitor?.diagramManager;
     if (!mgr) return 'Monitor not initialized';
-    
+
     return {
         totalRenders: mgr.renderStats.count,
         averageTime: (mgr.renderStats.totalTime / mgr.renderStats.count).toFixed(2) + 'ms',
@@ -1305,10 +1305,10 @@ window.getDiagramStats = () => {
 if (recentAvg > 200) {
     console.warn('⚠️  Render performance degraded! Recent average: ' + recentAvg.toFixed(0) + 'ms');
     console.warn('    Recommend: Simplify diagram or implement double-buffering');
-    
+
     // Optionally show user-facing warning
     if (this.renderStats.count > 20 && recentAvg > 250) {
-        this.logger.log('warning', 
+        this.logger.log('warning',
             'Diagram updates are slow. Consider simplifying your state machine.');
     }
 }
@@ -1355,7 +1355,7 @@ async renderDiagram(highlightState = null, transition = null) {
 
     try {
         let diagramCode = this.currentDiagram;
-        
+
         // Add state highlighting classes
         if (highlightState) {
             // ... existing logic ...
@@ -1419,13 +1419,13 @@ this.diagramCache = new Map(); // { 'machine_name:diagram_name': { svg: '...', v
 async renderDiagram(highlightState = null, transition = null) {
     const cacheKey = `${this.selectedMachine}:${this.currentDiagramName}`;
     const currentVersion = this.getDiagramVersion(); // Hash of diagram structure
-    
+
     // Check cache
     const cached = this.diagramCache.get(cacheKey);
     if (cached && cached.version === currentVersion) {
         // Diagram structure unchanged - CSS-only update (NO RE-RENDER)
         console.log('[DiagramManager] Using cached diagram - CSS update only');
-        
+
         // Just update CSS classes on existing SVG
         const svg = this.container.querySelector('svg');
         if (svg) {
@@ -1433,7 +1433,7 @@ async renderDiagram(highlightState = null, transition = null) {
             svg.querySelectorAll('.active, .activeComposite').forEach(el => {
                 el.classList.remove('active', 'activeComposite');
             });
-            
+
             // Add new active class
             if (highlightState) {
                 const stateNode = svg.querySelector(`[id*="${highlightState}"]`);
@@ -1441,20 +1441,20 @@ async renderDiagram(highlightState = null, transition = null) {
                     stateNode.classList.add('active');
                 }
             }
-            
+
             // Highlight arrow
             if (transition) {
                 this.highlightTransitionArrowDirect(transition);
             }
-            
+
             return; // DONE - no flicker, instant update
         }
     }
-    
+
     // Cache miss or diagram changed - full render
     console.log('[DiagramManager] Cache miss - full render');
     // ... existing render logic ...
-    
+
     // Store in cache
     this.diagramCache.set(cacheKey, {
         svg: this.container.innerHTML,
@@ -1505,6 +1505,6 @@ getDiagramVersion() {
 
 ---
 
-**Implementation Status:** ✅ Complete and Functional  
-**Last Updated:** 2025-10-26  
+**Implementation Status:** ✅ Complete and Functional
+**Last Updated:** 2025-10-26
 **Maintainer:** State Machine Engine Project

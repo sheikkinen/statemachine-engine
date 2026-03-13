@@ -8,6 +8,7 @@ Tests that the engine can:
 4. Survive subsequent events overwriting event_data
 """
 import pytest
+
 from statemachine_engine.core.engine import StateMachineEngine
 
 

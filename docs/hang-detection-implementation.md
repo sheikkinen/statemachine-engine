@@ -69,7 +69,7 @@ class PerformanceMonitor:
 
 **Wrapped operations**:
 1. `broadcast_event` - warns if >50ms
-2. `get_initial_state` - warns if >200ms  
+2. `get_initial_state` - warns if >200ms
 3. Unix socket receive - logs all stages with timing
 
 ### 4. Pipeline Stage Timing

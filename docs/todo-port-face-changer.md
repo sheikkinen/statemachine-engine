@@ -1,7 +1,7 @@
 # TODO: Port Face-Changer to Statemachine-Engine
 
-**Date:** October 7, 2025  
-**Status:** Planning Phase  
+**Date:** October 7, 2025
+**Status:** Planning Phase
 **Approach:** Full Reimplementation (Clean Slate)
 
 ---
@@ -22,8 +22,8 @@ Create a new face-changer implementation using `statemachine-engine` as a librar
 
 ### Database 1: Engine Database (`data/engine.db`)
 
-**Managed by:** `statemachine-engine` package  
-**Purpose:** Generic workflow orchestration  
+**Managed by:** `statemachine-engine` package
+**Purpose:** Generic workflow orchestration
 **Schema:** Built-in engine tables
 
 ```sql
@@ -45,8 +45,8 @@ job_model = get_job_model()
 
 ### Database 2: Face-Changer Database (`data/face_changer.db`)
 
-**Managed by:** Face-changer application  
-**Purpose:** Domain-specific metadata and results  
+**Managed by:** Face-changer application
+**Purpose:** Domain-specific metadata and results
 **Schema:** Custom application tables
 
 ```sql
@@ -338,7 +338,7 @@ CREATE TABLE IF NOT EXISTS pipeline_results (
     processing_time_ms INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
+
     UNIQUE(job_id, stage)
 );
 
@@ -397,7 +397,7 @@ CREATE TABLE IF NOT EXISTS ideation_results (
     metadata TEXT,                          -- JSON ideation data
     selected BOOLEAN DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
+
     UNIQUE(job_id, iteration)
 );
 
@@ -450,38 +450,38 @@ logger = logging.getLogger(__name__)
 class FaceChangerDatabase:
     """
     Domain-specific database for face-changer metadata and results.
-    
+
     Separate from engine database which handles:
     - jobs (job queue)
     - machine_events (inter-machine communication)
     - machine_state (workflow state)
     - realtime_events (UI updates)
     """
-    
+
     def __init__(self, db_path: str = "data/face_changer.db"):
         self.db_path = db_path
         self.conn = None
         self._initialize()
-    
+
     def _initialize(self):
         """Create database and apply schema"""
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        
+
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
-        
+
         # Apply schema
         schema_dir = Path(__file__).parent / "schema"
         for schema_file in sorted(schema_dir.glob("*.sql")):
             with open(schema_file) as f:
                 self.conn.executescript(f.read())
-        
+
         self.conn.commit()
         logger.info(f"Face-changer database initialized: {self.db_path}")
-    
+
     # ========== Pipeline Results ==========
-    
-    def create_pipeline_result(self, job_id: str, stage: str, 
+
+    def create_pipeline_result(self, job_id: str, stage: str,
                                input_data: Dict = None, status: str = "pending") -> int:
         """Create pipeline result entry"""
         cursor = self.conn.execute("""
@@ -490,14 +490,14 @@ class FaceChangerDatabase:
         """, (job_id, stage, status, json.dumps(input_data) if input_data else None))
         self.conn.commit()
         return cursor.lastrowid
-    
+
     def update_pipeline_result(self, job_id: str, stage: str,
                                status: str = None, output_data: Dict = None,
                                error_message: str = None, processing_time_ms: int = None):
         """Update pipeline result"""
         updates = []
         values = []
-        
+
         if status:
             updates.append("status = ?")
             values.append(status)
@@ -510,17 +510,17 @@ class FaceChangerDatabase:
         if processing_time_ms:
             updates.append("processing_time_ms = ?")
             values.append(processing_time_ms)
-        
+
         updates.append("updated_at = CURRENT_TIMESTAMP")
         values.extend([job_id, stage])
-        
+
         self.conn.execute(f"""
-            UPDATE pipeline_results 
+            UPDATE pipeline_results
             SET {', '.join(updates)}
             WHERE job_id = ? AND stage = ?
         """, values)
         self.conn.commit()
-    
+
     def get_pipeline_result(self, job_id: str, stage: str) -> Optional[Dict]:
         """Get pipeline result for specific stage"""
         cursor = self.conn.execute("""
@@ -528,9 +528,9 @@ class FaceChangerDatabase:
         """, (job_id, stage))
         row = cursor.fetchone()
         return dict(row) if row else None
-    
+
     # ========== Pipeline State ==========
-    
+
     def create_pipeline_state(self, job_id: str, current_stage: str) -> int:
         """Initialize pipeline state"""
         cursor = self.conn.execute("""
@@ -539,31 +539,31 @@ class FaceChangerDatabase:
         """, (job_id, current_stage))
         self.conn.commit()
         return cursor.lastrowid
-    
+
     def update_pipeline_state(self, job_id: str, **kwargs):
         """Update pipeline state fields"""
         updates = []
         values = []
-        
+
         for key, value in kwargs.items():
-            if key in ['current_stage', 'sdxl_job_id', 'face_job_id', 
+            if key in ['current_stage', 'sdxl_job_id', 'face_job_id',
                       'descriptor_job_id', 'final_image_path']:
                 updates.append(f"{key} = ?")
                 values.append(value)
             elif key in ['stages_completed', 'metadata']:
                 updates.append(f"{key} = ?")
                 values.append(json.dumps(value))
-        
+
         updates.append("updated_at = CURRENT_TIMESTAMP")
         values.append(job_id)
-        
+
         self.conn.execute(f"""
-            UPDATE pipeline_state 
+            UPDATE pipeline_state
             SET {', '.join(updates)}
             WHERE job_id = ?
         """, values)
         self.conn.commit()
-    
+
     def get_pipeline_state(self, job_id: str) -> Optional[Dict]:
         """Get pipeline state"""
         cursor = self.conn.execute("""
@@ -577,79 +577,79 @@ class FaceChangerDatabase:
                 state['metadata'] = json.loads(state['metadata'])
             return state
         return None
-    
+
     # ========== Controller Log ==========
-    
-    def log_controller_event(self, machine_name: str, event_type: str, 
-                            message: str, job_id: str = None, 
+
+    def log_controller_event(self, machine_name: str, event_type: str,
+                            message: str, job_id: str = None,
                             level: str = "info", metadata: Dict = None):
         """Log controller activity"""
         self.conn.execute("""
-            INSERT INTO controller_log 
+            INSERT INTO controller_log
             (machine_name, job_id, event_type, message, level, metadata)
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (machine_name, job_id, event_type, message, level, 
+        """, (machine_name, job_id, event_type, message, level,
               json.dumps(metadata) if metadata else None))
         self.conn.commit()
-    
+
     def get_controller_logs(self, job_id: str = None, limit: int = 100) -> List[Dict]:
         """Get controller logs"""
         if job_id:
             cursor = self.conn.execute("""
-                SELECT * FROM controller_log 
+                SELECT * FROM controller_log
                 WHERE job_id = ?
                 ORDER BY timestamp DESC LIMIT ?
             """, (job_id, limit))
         else:
             cursor = self.conn.execute("""
-                SELECT * FROM controller_log 
+                SELECT * FROM controller_log
                 ORDER BY timestamp DESC LIMIT ?
             """, (limit,))
-        
+
         return [dict(row) for row in cursor.fetchall()]
-    
+
     # ========== Ideation Results ==========
-    
-    def save_ideation_result(self, job_id: str, iteration: int, 
+
+    def save_ideation_result(self, job_id: str, iteration: int,
                             prompt: str, enhanced_prompt: str = None,
                             score: float = None, metadata: Dict = None) -> int:
         """Save prompt ideation result"""
         cursor = self.conn.execute("""
-            INSERT INTO ideation_results 
+            INSERT INTO ideation_results
             (job_id, iteration, prompt, enhanced_prompt, score, metadata)
             VALUES (?, ?, ?, ?, ?, ?)
         """, (job_id, iteration, prompt, enhanced_prompt, score,
               json.dumps(metadata) if metadata else None))
         self.conn.commit()
         return cursor.lastrowid
-    
+
     def get_ideation_results(self, job_id: str) -> List[Dict]:
         """Get all ideation results for job"""
         cursor = self.conn.execute("""
-            SELECT * FROM ideation_results 
-            WHERE job_id = ? 
+            SELECT * FROM ideation_results
+            WHERE job_id = ?
             ORDER BY iteration
         """, (job_id,))
         return [dict(row) for row in cursor.fetchall()]
-    
+
     def select_ideation_result(self, job_id: str, iteration: int):
         """Mark ideation result as selected"""
         self.conn.execute("""
-            UPDATE ideation_results SET selected = 1 
+            UPDATE ideation_results SET selected = 1
             WHERE job_id = ? AND iteration = ?
         """, (job_id, iteration))
         self.conn.commit()
-    
+
     # ========== Image Metadata ==========
-    
+
     def save_image_metadata(self, job_id: str, image_path: str, stage: str,
                            width: int = None, height: int = None,
                            face_count: int = None, face_coordinates: List = None,
                            **kwargs) -> int:
         """Save image metadata"""
         cursor = self.conn.execute("""
-            INSERT INTO image_metadata 
-            (job_id, image_path, stage, width, height, face_count, 
+            INSERT INTO image_metadata
+            (job_id, image_path, stage, width, height, face_count,
              face_coordinates, quality_score, metadata)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (job_id, image_path, stage, width, height, face_count,
@@ -658,22 +658,22 @@ class FaceChangerDatabase:
               json.dumps(kwargs.get('metadata', {}))))
         self.conn.commit()
         return cursor.lastrowid
-    
+
     def get_image_metadata(self, job_id: str, stage: str = None) -> List[Dict]:
         """Get image metadata"""
         if stage:
             cursor = self.conn.execute("""
-                SELECT * FROM image_metadata 
+                SELECT * FROM image_metadata
                 WHERE job_id = ? AND stage = ?
                 ORDER BY created_at
             """, (job_id, stage))
         else:
             cursor = self.conn.execute("""
-                SELECT * FROM image_metadata 
+                SELECT * FROM image_metadata
                 WHERE job_id = ?
                 ORDER BY created_at
             """, (job_id,))
-        
+
         results = []
         for row in cursor.fetchall():
             meta = dict(row)
@@ -683,7 +683,7 @@ class FaceChangerDatabase:
                 meta['metadata'] = json.loads(meta['metadata'])
             results.append(meta)
         return results
-    
+
     def close(self):
         """Close database connection"""
         if self.conn:
@@ -744,7 +744,7 @@ logger = logging.getLogger(__name__)
 class EnhancePromptAction(BaseAction):
     """
     Enhance prompt using Claude AI.
-    
+
     YAML Usage:
         actions:
           - type: enhance_prompt
@@ -754,26 +754,26 @@ class EnhancePromptAction(BaseAction):
               max_tokens: 1024
               success: prompt_enhanced
     """
-    
+
     async def execute(self, context: Dict[str, Any]) -> str:
         job_id = context.get('job_id', 'unknown')
         job_data = context.get('data', {})
-        
+
         # Get prompt from job data
         original_prompt = job_data.get('pony_prompt') or job_data.get('flux_prompt')
         if not original_prompt:
             logger.error(f"[{job_id}] No prompt found in job data")
             return 'error'
-        
+
         # Get config
         api_key = self.config.get('api_key')
         model = self.config.get('model', 'claude-3-5-sonnet-20241022')
         max_tokens = self.config.get('max_tokens', 1024)
-        
+
         if not api_key:
             logger.error(f"[{job_id}] ANTHROPIC_API_KEY not configured")
             return 'error'
-        
+
         try:
             # Call Claude
             client = Anthropic(api_key=api_key)
@@ -790,9 +790,9 @@ Original prompt: {original_prompt}
 Enhanced prompt:"""
                 }]
             )
-            
+
             enhanced_prompt = response.content[0].text.strip()
-            
+
             # Store in face_changer database
             db = get_face_changer_db()
             db.update_pipeline_result(
@@ -806,17 +806,17 @@ Enhanced prompt:"""
                     'tokens_used': response.usage.total_tokens
                 }
             )
-            
+
             # Update context for next action
             context['enhanced_prompt'] = enhanced_prompt
-            
+
             logger.info(f"[{job_id}] Prompt enhanced: {original_prompt[:50]}... → {enhanced_prompt[:50]}...")
-            
+
             return self.config.get('success', 'prompt_enhanced')
-            
+
         except Exception as e:
             logger.error(f"[{job_id}] Prompt enhancement failed: {e}")
-            
+
             db = get_face_changer_db()
             db.update_pipeline_result(
                 job_id=job_id,
@@ -824,7 +824,7 @@ Enhanced prompt:"""
                 status='failed',
                 error_message=str(e)
             )
-            
+
             return 'error'
 ```
 
@@ -848,7 +848,7 @@ logger = logging.getLogger(__name__)
 class InitializePipelineAction(BaseAction):
     """
     Initialize pipeline state for new job.
-    
+
     YAML Usage:
         actions:
           - type: initialize_pipeline
@@ -856,34 +856,34 @@ class InitializePipelineAction(BaseAction):
               stages: ['sdxl_generation', 'face_processing', 'description']
               success: pipeline_initialized
     """
-    
+
     async def execute(self, context: Dict[str, Any]) -> str:
         job_id = context.get('job_id', 'unknown')
         job_type = context.get('job_type', 'unknown')
-        
+
         try:
             db = get_face_changer_db()
-            
+
             # Create pipeline state
             db.create_pipeline_state(
                 job_id=job_id,
                 current_stage='initialization'
             )
-            
+
             # Create pipeline result entries for each stage
             stages = self.config.get('stages', [
                 'sdxl_generation',
                 'face_processing',
                 'description'
             ])
-            
+
             for stage in stages:
                 db.create_pipeline_result(
                     job_id=job_id,
                     stage=stage,
                     status='pending'
                 )
-            
+
             # Log initialization
             db.log_controller_event(
                 machine_name=context.get('machine_name', 'controller'),
@@ -892,11 +892,11 @@ class InitializePipelineAction(BaseAction):
                 message=f"Pipeline initialized for {job_type} job",
                 metadata={'stages': stages}
             )
-            
+
             logger.info(f"[{job_id}] Pipeline initialized with {len(stages)} stages")
-            
+
             return self.config.get('success', 'pipeline_initialized')
-            
+
         except Exception as e:
             logger.error(f"[{job_id}] Pipeline initialization failed: {e}")
             return 'error'
@@ -924,7 +924,7 @@ logger = logging.getLogger(__name__)
 class CreateJobAction(BaseAction):
     """
     Create sub-job in engine database.
-    
+
     YAML Usage:
         actions:
           - type: create_job
@@ -934,19 +934,19 @@ class CreateJobAction(BaseAction):
               data_fields: ["pony_prompt", "enhanced_prompt"]
               success: job_created
     """
-    
+
     async def execute(self, context: Dict[str, Any]) -> str:
         source_job_id = context.get('job_id', 'unknown')
-        
+
         try:
             # Get configuration
             job_type = self.config.get('job_type')
             data_fields = self.config.get('data_fields', [])
-            
+
             if not job_type:
                 logger.error(f"[{source_job_id}] job_type not specified in config")
                 return 'error'
-            
+
             # Build job data from context
             job_data = {}
             source_data = context.get('data', {})
@@ -955,7 +955,7 @@ class CreateJobAction(BaseAction):
                     job_data[field] = context[field]
                 elif field in source_data:
                     job_data[field] = source_data[field]
-            
+
             # Create job in engine database
             job_model = get_job_model()
             sub_job_id = job_model.create_job(
@@ -963,12 +963,12 @@ class CreateJobAction(BaseAction):
                 data=job_data,
                 source_job_id=source_job_id
             )
-            
+
             # Update face_changer database with reference
             fc_db = get_face_changer_db()
             update_data = {f"{job_type}_job_id": sub_job_id}
             fc_db.update_pipeline_state(source_job_id, **update_data)
-            
+
             # Log creation
             fc_db.log_controller_event(
                 machine_name=context.get('machine_name', 'controller'),
@@ -977,14 +977,14 @@ class CreateJobAction(BaseAction):
                 message=f"Created {job_type} job: {sub_job_id}",
                 metadata={'sub_job_id': sub_job_id, 'job_type': job_type}
             )
-            
+
             # Store in context for reference
             context[f'{job_type}_job_id'] = sub_job_id
-            
+
             logger.info(f"[{source_job_id}] Created sub-job {sub_job_id} ({job_type})")
-            
+
             return self.config.get('success', 'job_created')
-            
+
         except Exception as e:
             logger.error(f"[{source_job_id}] Job creation failed: {e}")
             return 'error'
@@ -1011,18 +1011,18 @@ metadata:
 states:
   # Monitoring loop
   - monitoring
-  
+
   # Pipeline initialization
   - initializing_pipeline
   - creating_sdxl_job
-  
+
   # Stage completion handling
   - handling_sdxl_completion
   - creating_face_job
   - handling_face_completion
   - creating_descriptor_job
   - handling_descriptor_completion
-  
+
   # Finalization
   - finalizing_pipeline
   - completed
@@ -1032,14 +1032,14 @@ events:
   - initialized
   - new_pony_flux_job
   - no_events
-  
+
   # Pipeline events
   - pipeline_initialized
   - sdxl_job_created
   - face_job_created
   - descriptor_job_created
   - pipeline_finalized
-  
+
   # Completion events (from workers)
   - sdxl_job_done_relay
   - face_job_completed
@@ -1050,47 +1050,47 @@ transitions:
   - from: monitoring
     to: monitoring
     event: no_events
-  
+
   - from: monitoring
     to: initializing_pipeline
     event: new_pony_flux_job
-  
+
   # === Pipeline Initialization ===
   - from: initializing_pipeline
     to: creating_sdxl_job
     event: pipeline_initialized
-  
+
   - from: creating_sdxl_job
     to: monitoring
     event: sdxl_job_created
-  
+
   # === SDXL Completion ===
   - from: monitoring
     to: handling_sdxl_completion
     event: sdxl_job_done_relay
-  
+
   - from: handling_sdxl_completion
     to: creating_face_job
     event: face_job_created
-  
+
   # === Face Processing Completion ===
   - from: monitoring
     to: handling_face_completion
     event: face_job_completed
-  
+
   - from: handling_face_completion
     to: creating_descriptor_job
     event: descriptor_job_created
-  
+
   # === Descriptor Completion ===
   - from: monitoring
     to: handling_descriptor_completion
     event: descriptor_job_done
-  
+
   - from: handling_descriptor_completion
     to: finalizing_pipeline
     event: pipeline_finalized
-  
+
   - from: finalizing_pipeline
     to: monitoring
     event: initialized
@@ -1106,11 +1106,11 @@ actions:
       machine_type: controller
     - type: check_events
       description: "Check for completion events"
-      event_types: 
+      event_types:
         - "sdxl_job_done_relay"
         - "face_job_completed"
         - "descriptor_job_done"
-  
+
   # === Pipeline Initialization ===
   initializing_pipeline:
     - type: log
@@ -1122,7 +1122,7 @@ actions:
         - face_processing
         - description
       success: pipeline_initialized
-  
+
   creating_sdxl_job:
     - type: log
       message: "Creating SDXL generation job..."
@@ -1133,7 +1133,7 @@ actions:
         - pony_prompt
         - flux_prompt
       success: sdxl_job_created
-  
+
   # === SDXL Completion Handling ===
   handling_sdxl_completion:
     - type: log
@@ -1144,7 +1144,7 @@ actions:
       data_fields:
         - generated_image_path
       success: face_job_created
-  
+
   # === Face Completion Handling ===
   handling_face_completion:
     - type: log
@@ -1155,14 +1155,14 @@ actions:
       data_fields:
         - final_image_path
       success: descriptor_job_created
-  
+
   # === Descriptor Completion Handling ===
   handling_descriptor_completion:
     - type: log
       message: "All stages completed, finalizing pipeline"
     - type: finalize_pipeline
       success: pipeline_finalized
-  
+
   # === Finalization ===
   finalizing_pipeline:
     - type: log
@@ -1212,34 +1212,34 @@ transitions:
   - from: initializing
     to: waiting
     event: initialized
-  
+
   # Job checking
   - from: waiting
     to: waiting
     event: no_jobs
-  
+
   - from: waiting
     to: enhancing_prompt
     event: new_job
-  
+
   # Processing
   - from: enhancing_prompt
     to: generating_image
     event: prompt_enhanced
-  
+
   - from: generating_image
     to: verifying_output
     event: image_generated
-  
+
   - from: verifying_output
     to: notifying_controller
     event: output_verified
-  
+
   # Completion
   - from: notifying_controller
     to: completed
     event: notification_sent
-  
+
   - from: completed
     to: waiting
     event: initialized
@@ -1251,21 +1251,21 @@ actions:
     - type: bash
       command: "mkdir -p data/images/0-generated"
       success: initialized
-  
+
   waiting:
     - type: log
       message: "Waiting for generation jobs..."
     - type: check_database_queue
       job_type: sdxl_generation
       machine_type: sdxl_generator
-  
+
   enhancing_prompt:
     - type: log
       message: "Enhancing prompt for job {job_id}"
     - type: enhance_prompt
       api_key: "${ANTHROPIC_API_KEY}"
       success: prompt_enhanced
-  
+
   generating_image:
     - type: log
       message: "Generating image: {enhanced_prompt}"
@@ -1273,14 +1273,14 @@ actions:
       command: "./scripts/generate_sdxl.sh {job_id} '{enhanced_prompt}'"
       timeout: 300
       success: image_generated
-  
+
   verifying_output:
     - type: log
       message: "Verifying generated image"
     - type: bash
       command: "./scripts/verify_image.sh {job_id}"
       success: output_verified
-  
+
   notifying_controller:
     - type: log
       message: "Notifying controller of completion"
@@ -1291,7 +1291,7 @@ actions:
         job_id: "{job_id}"
         image_path: "data/images/0-generated/{job_id}.png"
       success: notification_sent
-  
+
   completed:
     - type: log
       message: "Job {job_id} completed"
@@ -1341,39 +1341,39 @@ transitions:
   - from: initializing
     to: waiting
     event: initialized
-  
+
   - from: waiting
     to: waiting
     event: no_jobs
-  
+
   - from: waiting
     to: extracting_faces
     event: new_job
-  
+
   - from: extracting_faces
     to: verifying_portraits
     event: faces_extracted
-  
+
   - from: verifying_portraits
     to: creating_masks
     event: portraits_verified
-  
+
   - from: creating_masks
     to: merging_images
     event: masks_created
-  
+
   - from: merging_images
     to: resizing_output
     event: images_merged
-  
+
   - from: resizing_output
     to: notifying_controller
     event: output_resized
-  
+
   - from: notifying_controller
     to: completed
     event: notification_sent
-  
+
   - from: completed
     to: waiting
     event: initialized
@@ -1385,14 +1385,14 @@ actions:
     - type: bash
       command: "mkdir -p data/images/{1-portraits,2-verified,3-masks,4-results,5-resized,6-final}"
       success: initialized
-  
+
   waiting:
     - type: log
       message: "Waiting for face processing jobs..."
     - type: check_database_queue
       job_type: face_processing
       machine_type: face_processor
-  
+
   extracting_faces:
     - type: log
       message: "Extracting faces from {generated_image_path}"
@@ -1400,7 +1400,7 @@ actions:
       command: "./scripts/image/crop_face.sh {job_id}"
       timeout: 60
       success: faces_extracted
-  
+
   verifying_portraits:
     - type: log
       message: "Verifying portrait dimensions"
@@ -1408,7 +1408,7 @@ actions:
       command: "./scripts/image/verify_portrait.sh {job_id}"
       timeout: 30
       success: portraits_verified
-  
+
   creating_masks:
     - type: log
       message: "Creating face masks"
@@ -1416,7 +1416,7 @@ actions:
       command: "./scripts/image/create_mask.sh {job_id}"
       timeout: 60
       success: masks_created
-  
+
   merging_images:
     - type: log
       message: "Merging masked images"
@@ -1424,7 +1424,7 @@ actions:
       command: "./scripts/image/merge_images.sh {job_id}"
       timeout: 60
       success: images_merged
-  
+
   resizing_output:
     - type: log
       message: "Resizing final output"
@@ -1432,7 +1432,7 @@ actions:
       command: "./scripts/image/resize_output.sh {job_id}"
       timeout: 30
       success: output_resized
-  
+
   notifying_controller:
     - type: log
       message: "Notifying controller of completion"
@@ -1443,7 +1443,7 @@ actions:
         job_id: "{job_id}"
         final_image_path: "data/images/6-final/{job_id}.png"
       success: notification_sent
-  
+
   completed:
     - type: log
       message: "Job {job_id} face processing completed"
@@ -1487,27 +1487,27 @@ transitions:
   - from: initializing
     to: waiting
     event: initialized
-  
+
   - from: waiting
     to: waiting
     event: no_jobs
-  
+
   - from: waiting
     to: generating_description
     event: new_job
-  
+
   - from: generating_description
     to: saving_description
     event: description_generated
-  
+
   - from: saving_description
     to: notifying_controller
     event: description_saved
-  
+
   - from: notifying_controller
     to: completed
     event: notification_sent
-  
+
   - from: completed
     to: waiting
     event: initialized
@@ -1519,28 +1519,28 @@ actions:
     - type: bash
       command: "mkdir -p data/descriptions"
       success: initialized
-  
+
   waiting:
     - type: log
       message: "Waiting for description jobs..."
     - type: check_database_queue
       job_type: description
       machine_type: descriptor
-  
+
   generating_description:
     - type: log
       message: "Generating description for {final_image_path}"
     - type: generate_description
       api_key: "${ANTHROPIC_API_KEY}"
       success: description_generated
-  
+
   saving_description:
     - type: log
       message: "Saving description"
     - type: bash
       command: "echo '{description}' > data/descriptions/{job_id}.txt"
       success: description_saved
-  
+
   notifying_controller:
     - type: log
       message: "Notifying controller of completion"
@@ -1551,7 +1551,7 @@ actions:
         job_id: "{job_id}"
         description_path: "data/descriptions/{job_id}.txt"
       success: notification_sent
-  
+
   completed:
     - type: log
       message: "Job {job_id} description generated"
@@ -1734,31 +1734,31 @@ async def test_enhance_prompt_success(mocker):
     mock_response = Mock()
     mock_response.content = [Mock(text="Enhanced prompt here")]
     mock_response.usage.total_tokens = 100
-    
+
     mock_client = Mock()
     mock_client.messages.create.return_value = mock_response
-    
+
     mocker.patch('face_changer.actions.ai.enhance_prompt_action.Anthropic',
                  return_value=mock_client)
-    
+
     # Mock database
     mock_db = Mock()
     mocker.patch('face_changer.actions.ai.enhance_prompt_action.get_face_changer_db',
                  return_value=mock_db)
-    
+
     # Execute action
     action = EnhancePromptAction({
         'api_key': 'test-key',
         'success': 'prompt_enhanced'
     })
-    
+
     context = {
         'job_id': 'test_001',
         'data': {'pony_prompt': 'original prompt'}
     }
-    
+
     result = await action.execute(context)
-    
+
     assert result == 'prompt_enhanced'
     assert context['enhanced_prompt'] == 'Enhanced prompt here'
     mock_db.update_pipeline_result.assert_called_once()

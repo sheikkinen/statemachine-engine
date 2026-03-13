@@ -1,6 +1,6 @@
 /**
  * KanbanView Module
- * 
+ *
  * Displays FSM instances as cards in columns based on their current state.
  * Supports both flat state list and grouped state organization.
  */
@@ -24,10 +24,10 @@ export default class KanbanView {
     render() {
         // Add kanban-view class to container
         this.container.classList.add('kanban-view');
-        
+
         // Clear existing content
         this.container.innerHTML = '';
-        
+
         if (this.stateGroups && this.stateGroups.length > 0) {
             // Render with groups
             this._renderGrouped();
@@ -35,10 +35,10 @@ export default class KanbanView {
             // Render flat (original behavior)
             this._renderFlat();
         }
-        
+
         // Don't hide here - visibility is managed by app-modular.js
     }
-    
+
     /**
      * Render grouped columns (new feature)
      * Groups flow left-to-right, states top-to-bottom within each group
@@ -48,45 +48,45 @@ export default class KanbanView {
             const groupContainer = document.createElement('div');
             groupContainer.className = 'kanban-group';
             groupContainer.setAttribute('data-group', group.name);
-            
+
             // Group header
             const groupHeader = document.createElement('div');
             groupHeader.className = 'kanban-group-header';
             groupHeader.textContent = group.name;
             groupContainer.appendChild(groupHeader);
-            
+
             // States container for this group (vertical stack)
             const statesContainer = document.createElement('div');
             statesContainer.className = 'kanban-group-states';
-            
+
             // Create state section for each state in the group
             group.states.forEach(state => {
                 const stateSection = document.createElement('div');
                 stateSection.className = 'kanban-group-state';
                 stateSection.setAttribute('data-state', state);
-                
+
                 // State heading
                 const stateHeading = document.createElement('div');
                 stateHeading.className = 'kanban-state-heading';
                 stateHeading.textContent = state;
                 stateSection.appendChild(stateHeading);
-                
+
                 // Cards container for this state
                 const cardsContainer = document.createElement('div');
                 cardsContainer.className = 'kanban-state-cards';
                 stateSection.appendChild(cardsContainer);
-                
+
                 // Store reference to this state's container
                 this.columns[state] = stateSection;
-                
+
                 statesContainer.appendChild(stateSection);
             });
-            
+
             groupContainer.appendChild(statesContainer);
             this.container.appendChild(groupContainer);
         });
     }
-    
+
     /**
      * Render flat columns (original behavior)
      */
@@ -105,18 +105,18 @@ export default class KanbanView {
         const column = document.createElement('div');
         column.className = 'kanban-column';
         column.setAttribute('data-state', state);
-        
+
         // Column header
         const header = document.createElement('div');
         header.className = 'kanban-column-header';
         header.textContent = state;
         column.appendChild(header);
-        
+
         // Cards container
         const cardsContainer = document.createElement('div');
         cardsContainer.className = 'kanban-cards';
         column.appendChild(cardsContainer);
-        
+
         return column;
     }
 
@@ -130,7 +130,7 @@ export default class KanbanView {
             console.warn(`[KanbanView] Available states:`, this.states);
             return;
         }
-        
+
         // Validate column exists
         const column = this.columns[state];
         if (!column) {
@@ -139,13 +139,13 @@ export default class KanbanView {
             console.error(`[KanbanView] Template:`, this.templateName);
             return;
         }
-        
+
         // Create card element
         const card = document.createElement('div');
         card.className = 'kanban-card';
         card.setAttribute('data-machine', machineName);
         card.textContent = machineName;
-        
+
         // Add to column
         const cardsContainer = column.querySelector('.kanban-cards, .kanban-state-cards');
         if (!cardsContainer) {
@@ -153,7 +153,7 @@ export default class KanbanView {
             return;
         }
         cardsContainer.appendChild(card);
-        
+
         // Track card
         this.cards[machineName] = {
             element: card,
@@ -173,14 +173,14 @@ export default class KanbanView {
             }
             return;
         }
-        
+
         const cardInfo = this.cards[machineName];
-        
+
         // Skip if already in target state
         if (cardInfo.state === newState) {
             return;
         }
-        
+
         // Validate new state
         if (!this.states.includes(newState)) {
             console.error(`[KanbanView] Invalid state: ${newState} for ${machineName}`);
@@ -190,7 +190,7 @@ export default class KanbanView {
             }
             return;
         }
-        
+
         // Validate new column exists
         const newColumn = this.columns[newState];
         if (!newColumn) {
@@ -198,10 +198,10 @@ export default class KanbanView {
             console.error(`[KanbanView] Available columns:`, Object.keys(this.columns));
             return;
         }
-        
+
         // Remove from old column
         cardInfo.element.remove();
-        
+
         // Add to new column
         const cardsContainer = newColumn.querySelector('.kanban-cards, .kanban-state-cards');
         if (!cardsContainer) {
@@ -209,7 +209,7 @@ export default class KanbanView {
             return;
         }
         cardsContainer.appendChild(cardInfo.element);
-        
+
         // Update tracking
         cardInfo.state = newState;
     }
@@ -222,10 +222,10 @@ export default class KanbanView {
             this.logger.warn(`Card not found: ${machineName}`);
             return;
         }
-        
+
         // Remove element
         this.cards[machineName].element.remove();
-        
+
         // Remove from tracking
         delete this.cards[machineName];
     }

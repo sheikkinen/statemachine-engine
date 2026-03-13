@@ -1,8 +1,8 @@
 """Tests for LogAction (activity_log) - database-backed activity logging."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-import asyncio
-from unittest.mock import MagicMock, patch, AsyncMock
 
 
 @pytest.mark.asyncio
@@ -41,8 +41,9 @@ async def test_activity_log_basic_message():
 @pytest.mark.asyncio
 async def test_activity_log_different_levels():
     """Test logging messages with different severity levels."""
-    from statemachine_engine.actions.builtin import LogAction
     import json
+
+    from statemachine_engine.actions.builtin import LogAction
 
     levels = ['info', 'success', 'error']
     context = {
@@ -75,8 +76,9 @@ async def test_activity_log_different_levels():
 @pytest.mark.asyncio
 async def test_activity_log_placeholder_substitution():
     """Test placeholder substitution in activity log messages."""
-    from statemachine_engine.actions.builtin import LogAction
     import json
+
+    from statemachine_engine.actions.builtin import LogAction
 
     config = {
         'message': 'Processing job {job_id} on machine {machine_name}',
@@ -139,8 +141,9 @@ async def test_activity_log_without_job_id():
 @pytest.mark.asyncio
 async def test_activity_log_error_level():
     """Test logging error-level activities."""
-    from statemachine_engine.actions.builtin import LogAction
     import json
+
+    from statemachine_engine.actions.builtin import LogAction
 
     config = {
         'message': 'Failed to process image: {error_message}',
@@ -174,8 +177,9 @@ async def test_activity_log_error_level():
 @pytest.mark.asyncio
 async def test_activity_log_event_data_payload():
     """Test event_data.payload placeholder substitution."""
-    from statemachine_engine.actions.builtin import LogAction
     import json
+
+    from statemachine_engine.actions.builtin import LogAction
 
     config = {
         'message': 'Relaying completion for {event_data.payload.job_id}',

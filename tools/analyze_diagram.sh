@@ -59,7 +59,7 @@ initial_state = config.get('initial_state', 'START')
 final_states = config.get('final_states', [])
 
 # Detect composite states
-composites = {name: data for name, data in states.items() 
+composites = {name: data for name, data in states.items()
               if isinstance(data, dict) and data.get('type') == 'composite'}
 
 # Generate main diagram
@@ -73,13 +73,13 @@ for state_name in states.keys():
         sub_initial = composites[state_name].get('initial_state')
         if sub_initial:
             print(f"        [*] --> {sub_initial}")
-        
+
         for substate_name, substate_data in substates.items():
             if isinstance(substate_data, dict):
                 transitions = substate_data.get('on', {})
                 for event, target in transitions.items():
                     print(f"        {substate_name} --> {target} : {event}")
-        
+
         print(f"    }}")
     else:
         # Regular state
@@ -175,15 +175,15 @@ for elem in root.iter():
                 # Fallback to <text> element
                 elif child_tag == 'text' and child.text:
                     name = child.text.strip()
-            
+
             if name:
                 node_id = elem.get('id', '')
                 transform = elem.get('transform', '')
-                
+
                 # Extract coordinates from transform
                 coords = re.search(r'translate\(([\d.-]+),\s*([\d.-]+)\)', transform)
                 x, y = coords.groups() if coords else ('?', '?')
-                
+
                 state_nodes.append({
                     'name': name,
                     'id': node_id,
@@ -191,7 +191,7 @@ for elem in root.iter():
                     'x': x,
                     'y': y
                 })
-                
+
                 highlight = "👉 TARGET" if name == state_name else ""
                 print(f"  • {name:30} id={node_id:30} at ({x:>6}, {y:>6}) {highlight}")
 
@@ -216,7 +216,7 @@ for elem in root.iter():
                 parent_tag = parent.tag.replace(SVG_NS, '') if SVG_NS in parent.tag else parent.tag
                 if parent_tag == 'g':
                     parent_class = parent.get('class', '')
-            
+
             if parent_class == 'edgeLabels':
                 # Get event name from label
                 event = None
@@ -229,10 +229,10 @@ for elem in root.iter():
                         if text:
                             event = text
                             break
-                
+
                 if event:
                     data_id = elem.get('data-id', '')
-                    
+
                     # Find corresponding path
                     path_elem = None
                     for p in root.iter():
@@ -240,22 +240,22 @@ for elem in root.iter():
                         if p_tag == 'path' and p.get('data-id') == data_id:
                             path_elem = p
                             break
-                    
+
                     if path_elem is not None:
                         path_id = path_elem.get('id', '')
                         d_attr = path_elem.get('d', '')
-                        
+
                         # Extract start/end coordinates from path
                         coords = re.findall(r'M([\d.-]+),([\d.-]+)', d_attr)
                         start = coords[0] if coords else ('?', '?')
-                        
+
                         edges.append({
                             'event': event,
                             'data_id': data_id,
                             'path_id': path_id,
                             'start': start
                         })
-                        
+
                         highlight = "👉 TARGET" if event == event_name else ""
                         print(f"  • {event:30} data-id={data_id:20} path-id={path_id:20} {highlight}")
 
@@ -272,7 +272,7 @@ if target_state:
     print(f"  Class:   {target_state['class']}")
     print(f"  Position: ({target_state['x']}, {target_state['y']})")
     print()
-    
+
     # Check if it's in a composite
     parent = None
     for elem in root.iter():
@@ -286,7 +286,7 @@ if target_state:
                     if child.get('id') == target_state['id']:
                         found = True
                         break
-                
+
                 if found:
                     # Find cluster name
                     for text_elem in elem.iter():
@@ -308,7 +308,7 @@ else:
 if event_name:
     print("═══ Target Event Analysis ═══\n")
     target_event = next((e for e in edges if e['event'] == event_name), None)
-    
+
     if target_event:
         print(f"✓ Found event: {event_name}")
         print(f"  data-id: {target_event['data_id']}")

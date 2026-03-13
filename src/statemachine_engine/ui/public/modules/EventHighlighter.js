@@ -1,12 +1,12 @@
 /**
  * EventHighlighter - Handles state highlighting and transition animations
- * 
+ *
  * Responsibilities:
  * - CSS-only state highlighting (fast path)
  * - Transition arrow animations
  * - Edge finding and highlighting
  * - Composite state resolution
- * 
+ *
  * Version: v1.0.54
  */
 
@@ -20,7 +20,7 @@ export class EventHighlighter {
 
     /**
      * Update state highlight using CSS-only approach (FAST PATH)
-     * 
+     *
      * @param {string} stateName - State to highlight
      * @param {Object} stateHighlightMap - Pre-built highlight map
      * @param {Object} metadata - Diagram metadata
@@ -41,15 +41,15 @@ export class EventHighlighter {
         let entry = stateHighlightMap[stateName];
         if (!entry) {
             console.warn(`[CSS-only] State "${stateName}" not in map - checking if it's in a composite`);
-            
+
             // Check if this state is in any composite
             if (metadata?.diagrams) {
                 for (const [compositeName, compositeData] of Object.entries(metadata.diagrams)) {
                     if (compositeName === 'main') continue;
-                    
+
                     if (compositeData.states && compositeData.states.includes(stateName)) {
                         console.log(`[CSS-only] ✓ Found "${stateName}" in composite "${compositeName}"`);
-                        
+
                         if (currentDiagramName === 'main') {
                             entry = {
                                 type: 'composite',
@@ -70,20 +70,20 @@ export class EventHighlighter {
                                 return false;
                             }
                         }
-                        
+
                         // Cache for next time
                         stateHighlightMap[stateName] = entry;
                         break;
                     }
                 }
             }
-            
+
             if (!entry) {
                 console.warn(`[CSS-only] State "${stateName}" not found in any composite - fallback`);
                 return false;
             }
         }
-        
+
         console.log(`[CSS-only] Map lookup for "${stateName}":`, entry);
 
         // Remove old highlights
@@ -143,7 +143,7 @@ export class EventHighlighter {
     highlightTransitionArrow(transition) {
         const timestamp = Date.now();
         console.log(`[Arrow Highlight] ${timestamp} - Highlighting transition:`, transition);
-        
+
         const svg = this.container.querySelector('svg');
         if (!svg) return;
 
@@ -152,19 +152,19 @@ export class EventHighlighter {
         const eventTrigger = transition.event;
         const fromState = transition.from;
         const toState = transition.to;
-        
+
         console.log(`[Arrow Highlight] ${timestamp} - Event trigger: "${eventTrigger}" (${fromState} → ${toState})`);
-        
+
         if (eventTrigger && eventTrigger !== 'unknown') {
             const edge = this.findEdgeByLabel(svg, eventTrigger);
-            
+
             if (edge) {
                 console.log(`[Arrow Highlight] ${timestamp} - ✓ Found edge by label for "${eventTrigger}"`);
                 edge.classList.add('last-transition-arrow');
-                
+
                 this.currentHighlightedEdge = edge;
                 this.highlightTimestamp = timestamp;
-                
+
                 setTimeout(() => {
                     if (edge === this.currentHighlightedEdge && this.highlightTimestamp === timestamp) {
                         console.log(`[Arrow Highlight] ${timestamp} - Clearing highlight after timeout`);
@@ -182,7 +182,7 @@ export class EventHighlighter {
         } else {
             console.log(`[Arrow Highlight] ${timestamp} - No valid event trigger found`);
         }
-        
+
         console.log(`[Arrow Highlight] ${timestamp} - ✗ Skipping animation - no specific edge found`);
     }
 
@@ -200,7 +200,7 @@ export class EventHighlighter {
                 edge.classList.remove('last-transition-arrow');
             });
         }
-        
+
         this.currentHighlightedEdge = null;
         this.highlightTimestamp = null;
     }
@@ -213,20 +213,20 @@ export class EventHighlighter {
      */
     findEdgeByLabel(svg, eventTrigger) {
         const edgeLabels = svg.querySelectorAll('g.edgeLabels g.label');
-        
+
         for (const label of edgeLabels) {
             const labelText = label.textContent || '';
             if (labelText.includes(eventTrigger)) {
                 const dataId = label.getAttribute('data-id');
                 if (dataId) {
                     console.log(`[Arrow Highlight] Found label with event "${eventTrigger}", data-id: "${dataId}"`);
-                    
+
                     const correspondingPath = svg.querySelector(`path[data-id="${dataId}"]`);
                     if (correspondingPath) {
                         return correspondingPath;
                     }
-                    
-                    const pathById = svg.querySelector(`path[id="${dataId}"]`) || 
+
+                    const pathById = svg.querySelector(`path[id="${dataId}"]`) ||
                                    svg.querySelector(`#${dataId}`);
                     if (pathById) {
                         return pathById;
@@ -234,7 +234,7 @@ export class EventHighlighter {
                 }
             }
         }
-        
+
         return null;
     }
 
@@ -248,17 +248,17 @@ export class EventHighlighter {
         if (!metadata?.diagrams) {
             return null;
         }
-        
+
         for (const [compositeName, compositeData] of Object.entries(metadata.diagrams)) {
             if (compositeName === 'main') continue;
-            
+
             const compositeStates = compositeData.states || [];
             if (compositeStates.includes(stateName)) {
                 console.log(`[Composite Lookup] State "${stateName}" found in composite: ${compositeName}`);
                 return compositeName;
             }
         }
-        
+
         console.log(`[Composite Lookup] State "${stateName}" not found in any composite`);
         return null;
     }

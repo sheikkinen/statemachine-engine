@@ -1,12 +1,12 @@
 """
 Tests for transition-history and error-history CLI commands
 """
-import pytest
 import json
 import time
-from pathlib import Path
+
+import pytest
+
 from statemachine_engine.database.models.base import Database
-from statemachine_engine.database.models import get_realtime_event_model
 
 
 @pytest.fixture
@@ -97,7 +97,7 @@ def test_transition_history_all_machines(test_db, setup_transition_data):
     """Test querying all transitions"""
     from statemachine_engine.database.models.realtime_event import RealtimeEventModel
     model = RealtimeEventModel(test_db)
-    
+
     with test_db._get_connection() as conn:
         rows = conn.execute("""
             SELECT machine_name, payload
@@ -105,13 +105,13 @@ def test_transition_history_all_machines(test_db, setup_transition_data):
             WHERE event_type = 'state_change'
             ORDER BY created_at DESC
         """).fetchall()
-    
+
     assert len(rows) == 3
     # Order may vary, just check we have the expected machines
     machine_names = [row['machine_name'] for row in rows]
     assert 'worker1' in machine_names
     assert 'worker2' in machine_names
-    
+
     # Parse a payload and verify structure
     payload = json.loads(rows[0]['payload'])
     assert 'from_state' in payload
@@ -128,7 +128,7 @@ def test_transition_history_filter_by_machine(test_db, setup_transition_data):
             WHERE event_type = 'state_change' AND machine_name = ?
             ORDER BY created_at DESC
         """, ('worker1',)).fetchall()
-    
+
     assert len(rows) == 2
     for row in rows:
         assert row['machine_name'] == 'worker1'
@@ -143,7 +143,7 @@ def test_transition_history_limit(test_db, setup_transition_data):
             ORDER BY created_at DESC
             LIMIT 2
         """).fetchall()
-    
+
     assert len(rows) == 2
 
 
@@ -156,9 +156,9 @@ def test_error_history_all_machines(test_db, setup_error_data):
             WHERE event_type = 'error'
             ORDER BY created_at DESC
         """).fetchall()
-    
+
     assert len(rows) == 3
-    
+
     # Check first error
     payload = json.loads(rows[0]['payload'])
     assert 'error_message' in payload
@@ -173,7 +173,7 @@ def test_error_history_filter_by_machine(test_db, setup_error_data):
             WHERE event_type = 'error' AND machine_name = ?
             ORDER BY created_at DESC
         """, ('worker1',)).fetchall()
-    
+
     assert len(rows) == 2
     for row in rows:
         assert row['machine_name'] == 'worker1'
@@ -187,7 +187,7 @@ def test_error_history_payload_structure(test_db, setup_error_data):
             WHERE event_type = 'error'
             LIMIT 1
         """).fetchall()
-    
+
     payload = json.loads(rows[0]['payload'])
     assert 'error_message' in payload
     assert 'timestamp' in payload
@@ -202,7 +202,7 @@ def test_transition_history_time_filter(test_db, realtime_model):
         'state_change',
         {'from_state': 'a', 'to_state': 'b', 'event_trigger': 'e', 'timestamp': time.time()}
     )
-    
+
     # Update to be 25 hours old
     with test_db._get_connection() as conn:
         conn.execute("""
@@ -211,14 +211,14 @@ def test_transition_history_time_filter(test_db, realtime_model):
             WHERE id = ?
         """, (event_id,))
         conn.commit()
-    
+
     # Create recent transition
     realtime_model.log_event(
         'new_worker',
         'state_change',
         {'from_state': 'x', 'to_state': 'y', 'event_trigger': 'e', 'timestamp': time.time()}
     )
-    
+
     # Query last 24 hours
     with test_db._get_connection() as conn:
         rows = conn.execute("""
@@ -226,7 +226,7 @@ def test_transition_history_time_filter(test_db, realtime_model):
             WHERE event_type = 'state_change'
             AND created_at > strftime('%s', datetime('now', '-24 hours'))
         """).fetchall()
-    
+
     assert len(rows) == 1
     assert rows[0]['machine_name'] == 'new_worker'
 
@@ -238,7 +238,7 @@ def test_no_transitions_found(test_db):
             SELECT * FROM realtime_events
             WHERE event_type = 'state_change'
         """).fetchall()
-    
+
     assert len(rows) == 0
 
 
@@ -249,7 +249,7 @@ def test_no_errors_found(test_db):
             SELECT * FROM realtime_events
             WHERE event_type = 'error'
         """).fetchall()
-    
+
     assert len(rows) == 0
 
 
@@ -260,17 +260,17 @@ def test_mixed_event_types(test_db, realtime_model):
     realtime_model.log_event('m1', 'error', {'error_message': 'test', 'timestamp': time.time()})
     realtime_model.log_event('m1', 'job_started', {'job_id': '123', 'timestamp': time.time()})
     realtime_model.log_event('m1', 'state_change', {'from_state': 'b', 'to_state': 'c', 'event_trigger': 'e2', 'timestamp': time.time()})
-    
+
     # Query only state_change
     with test_db._get_connection() as conn:
         state_rows = conn.execute("""
             SELECT * FROM realtime_events WHERE event_type = 'state_change'
         """).fetchall()
-        
+
         error_rows = conn.execute("""
             SELECT * FROM realtime_events WHERE event_type = 'error'
         """).fetchall()
-    
+
     assert len(state_rows) == 2
     assert len(error_rows) == 1
 
@@ -279,7 +279,7 @@ def test_transition_with_invalid_payload_structure(test_db):
     """Test handling of malformed payload in transition query"""
     from statemachine_engine.database.models.realtime_event import RealtimeEventModel
     model = RealtimeEventModel(test_db)
-    
+
     # Insert event with incomplete payload
     with test_db._get_connection() as conn:
         conn.execute("""
@@ -287,7 +287,7 @@ def test_transition_with_invalid_payload_structure(test_db):
             VALUES (?, ?, ?)
         """, ('bad_machine', 'state_change', json.dumps({'incomplete': 'data'})))
         conn.commit()
-    
+
     # Should be retrievable, just with missing fields
     events = model.get_unconsumed_events()
     assert len(events) == 1

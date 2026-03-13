@@ -1,19 +1,19 @@
 # Change Request: Enhanced send_event Action with JSON Payload Parsing
 
-**Status:** Draft  
-**Priority:** High  
-**Type:** Enhancement  
-**Component:** statemachine-engine core  
-**Target Version:** 0.0.15  
-**Submitted:** 2025-10-09  
+**Status:** Draft
+**Priority:** High
+**Type:** Enhancement
+**Component:** statemachine-engine core
+**Target Version:** 0.0.15
+**Submitted:** 2025-10-09
 **Submitted By:** image-generator-fsm team
 
 ---
 
 ## User Story
 
-**As a** state machine developer building multi-machine orchestration architectures,  
-**I want** the `send_event` action to automatically parse JSON string payloads and support field extraction via templates,  
+**As a** state machine developer building multi-machine orchestration architectures,
+**I want** the `send_event` action to automatically parse JSON string payloads and support field extraction via templates,
 **So that** I can relay events between machines with dynamic data without writing custom bash actions or losing payload information.
 
 ---
@@ -96,7 +96,7 @@
 
 **Context:** Three-machine architecture for AI image generation
 - `sdxl_generator`: Creates base images
-- `face_processor`: Enhances faces in images  
+- `face_processor`: Enhances faces in images
 - `controller`: Orchestrates the pipeline
 
 **Current Workaround (Bash Action):**
@@ -189,11 +189,11 @@ Modify the event reception handler to parse JSON strings before queuing:
 
 async def _receive_event(self, event_data: dict) -> None:
     """Receive and prepare event for processing."""
-    
+
     # Parse JSON string payloads to dicts
     if 'payload' in event_data:
         payload = event_data['payload']
-        
+
         if isinstance(payload, str):
             try:
                 event_data['payload'] = json.loads(payload)
@@ -207,9 +207,9 @@ async def _receive_event(self, event_data: dict) -> None:
                     f"Using empty dict. Raw payload: {payload[:100]}..."
                 )
                 event_data['payload'] = {}
-        
+
         # Dict payloads pass through unchanged
-    
+
     await self._event_queue.put(event_data)
 ```
 
@@ -308,33 +308,33 @@ def test_nested_field_extraction_in_send_event():
 ```python
 async def test_three_machine_relay_pipeline():
     """Test controller relaying events between two workers."""
-    
+
     # Start three machines
     sdxl = await start_machine('sdxl_generator')
     face = await start_machine('face_processor')
     controller = await start_machine('controller')
-    
+
     # SDXL sends completion with payload
     await sdxl.send_event(
         target='controller',
         type='sdxl_job_done',
         payload={'base_image': 'test.png', 'face_job_id': 'f123'}
     )
-    
+
     # Controller should relay to face processor
     face_event = await face.wait_for_event('sdxl_job_done_relay', timeout=5)
-    
+
     # Verify payload fields were forwarded
     assert face_event['payload']['base_image'] == 'test.png'
     assert face_event['payload']['face_job_id'] == 'f123'
-    
+
     # Face processor completes and sends back
     await face.send_event(
         target='controller',
         type='face_job_done',
         payload={'final_image': 'result.png', 'original_job_id': 'j123'}
     )
-    
+
     # Controller relays to descriptor
     desc_event = await descriptor.wait_for_event('face_job_done_relay', timeout=5)
     assert desc_event['payload']['final_image'] == 'result.png'
@@ -350,13 +350,13 @@ def test_parsing_performance():
         '{"medium": "' + 'x'*1000 + '"}',  # 1KB
         '{"large": "' + 'x'*100000 + '"}'  # 100KB
     ]
-    
+
     for payload_str in payloads:
         start = time.perf_counter()
         event = {'payload': payload_str}
         machine._receive_event(event)
         elapsed = time.perf_counter() - start
-        
+
         assert elapsed < 0.001, f"Parsing took {elapsed*1000:.2f}ms"
 ```
 
@@ -386,8 +386,8 @@ Payloads can be provided in two formats:
    statemachine-db send-event --payload '{"key": "value", "number": 42}'
    ```
 
-**Automatic Parsing:** JSON string payloads are automatically parsed to 
-dictionaries when events are received. Your FSM actions always work with 
+**Automatic Parsing:** JSON string payloads are automatically parsed to
+dictionaries when events are received. Your FSM actions always work with
 dictionaries.
 
 ### Field Extraction
@@ -444,7 +444,7 @@ payload:
   image_path: "{event_data.payload.image}"
   user_id: "{event_data.payload.user.id}"
 
-# Mix templates and static values  
+# Mix templates and static values
 payload:
   input: "{event_data.payload.filename}"
   timestamp: "{context.current_time}"
@@ -481,16 +481,16 @@ relaying_completion:
 ## [0.0.15] - 2025-10-XX
 
 ### Added
-- **JSON Payload Auto-Parsing:** External event payloads sent as JSON strings 
+- **JSON Payload Auto-Parsing:** External event payloads sent as JSON strings
   are now automatically parsed to dictionaries before action execution.
-- **Enhanced send_event Templates:** Payload fields can be extracted using 
+- **Enhanced send_event Templates:** Payload fields can be extracted using
   template syntax: `{event_data.payload.field_name}`.
-- **Nested Field Access:** Support for nested payload access: 
+- **Nested Field Access:** Support for nested payload access:
   `{event_data.payload.user.id}`.
 
 ### Changed
 - Event reception now pre-processes JSON string payloads for all actions.
-- Invalid JSON payloads log warnings and fallback to empty dict instead of 
+- Invalid JSON payloads log warnings and fallback to empty dict instead of
   causing errors.
 
 ### Performance
@@ -499,7 +499,7 @@ relaying_completion:
 
 ### Migration
 - **No breaking changes:** All existing FSMs continue to work.
-- **Optional enhancement:** FSMs using bash workarounds for payload forwarding 
+- **Optional enhancement:** FSMs using bash workarounds for payload forwarding
   can be simplified using enhanced send_event syntax.
 
 ### Examples
@@ -646,9 +646,9 @@ Accept `payload: "{event_data.payload}"` (template string) in addition to dict.
 
 ## Contact
 
-**Submitted By:** image-generator-fsm development team  
-**Project:** https://github.com/user/image-generator-fsm  
-**Related Issues:** 
+**Submitted By:** image-generator-fsm development team
+**Project:** https://github.com/user/image-generator-fsm
+**Related Issues:**
 - image-generator-fsm#1: Controller relay payload forwarding
 - image-generator-fsm#2: Multi-machine orchestration patterns
 
@@ -712,7 +712,7 @@ relaying_to_face_processor:
 
 ---
 
-**Total Estimated Lines Changed:** ~50-100 lines  
-**Estimated Development Time:** 1-2 weeks  
-**Risk Level:** Low-Medium  
+**Total Estimated Lines Changed:** ~50-100 lines
+**Estimated Development Time:** 1-2 weeks
+**Risk Level:** Low-Medium
 **Value:** High

@@ -21,46 +21,46 @@ transitions:
   - from: checking_queue
     to: spawning_batch
     event: jobs_found
-  
+
   - from: checking_queue
     to: idling
     event: no_jobs
-  
+
   # Spawn workers in a loop - continue until all jobs spawned
   - from: spawning_batch
     to: spawning_batch
     event: worker_spawned  # Loop back after successfully spawning
-  
+
   - from: spawning_batch
     to: waiting_for_batch
     event: batch_complete  # All jobs spawned, start waiting
-  
+
   - from: spawning_batch
     to: error_handling
     event: spawn_failed
-  
+
   - from: spawning_batch
     to: spawning_batch
     event: job_taken  # Job was claimed by another controller - try next one
-  
+
   # Wait for ALL workers to complete - poll every 2 seconds
   - from: waiting_for_batch
     to: checking_queue
     event: all_jobs_complete
-  
+
   - from: waiting_for_batch
     to: waiting_for_batch
     event: timeout(2)
-  
+
   - from: waiting_for_batch
     to: error_handling
     event: check_timeout
-  
+
   # Idle when queue empty - check again after 10 seconds
   - from: idling
     to: checking_queue
     event: timeout(10)
-  
+
   # Error recovery - retry immediately
   - from: error_handling
     to: checking_queue
@@ -88,12 +88,12 @@ actions:
     - type: log
       message: "🔍 Checking queue for ALL pending patient_records jobs... (previously spawned: {spawned_jobs|length|default:0} jobs)"
       level: info
-    
+
     # Clear spawned jobs list from previous batch
     - type: set_context
       key: "spawned_jobs"
       value: []
-    
+
     # Get ALL pending jobs (no limit) - stores in pending_jobs list
     - type: get_pending_jobs
       job_type: patient_records
@@ -101,7 +101,7 @@ actions:
       store_as: "pending_jobs"
       success: jobs_found
       empty: no_jobs
-    
+
     - type: log
       message: "📋 Found {pending_jobs|length} pending jobs to process"
       level: info
@@ -113,29 +113,29 @@ actions:
       store_as: "current_job"
       success: has_job
       empty: batch_complete
-    
+
     # The following actions only run if has_job was returned:
-    
+
     - type: log
       message: "🔒 Claiming job: {current_job.job_id} ({pending_jobs|length} jobs remaining in batch)"
       level: info
-    
+
     # Claim the job (mark as processing) - prevents race conditions
     - type: claim_job
       job_id: "{current_job.job_id}"
       success: job_claimed
       already_claimed: job_taken
       error: spawn_failed
-    
+
     - type: log
       message: "🚀 Spawning worker for job: {current_job.job_id}"
       level: info
-    
+
     # Track this job ID before spawning
     - type: add_to_list
       list_key: "spawned_jobs"
       value: "{current_job.job_id}"
-    
+
     - type: start_fsm
       yaml_path: "examples/patient_records/config/patient-records.yaml"
       machine_name: "patient_record_{current_job.job_id}"
@@ -147,7 +147,7 @@ actions:
       success: worker_spawned
       error: spawn_failed
       store_pid: true
-    
+
     - type: log
       message: "✅ Worker spawned: patient_record_{current_job.job_id} (total spawned: {spawned_jobs|length})"
       level: success
@@ -156,14 +156,14 @@ actions:
     - type: log
       message: "⏳ Waiting for {spawned_jobs|length} spawned workers to complete..."
       level: info
-    
+
     - type: wait_for_jobs
       tracked_jobs_key: "spawned_jobs"
       poll_interval: 2
       timeout: 300
       success: all_jobs_complete
       timeout_event: check_timeout
-    
+
     - type: log
       message: "📊 Batch status - Completed: {completed_jobs|length}, Failed: {failed_jobs|length}, Pending: {pending_jobs|length}"
       level: info
@@ -177,7 +177,7 @@ actions:
     - type: log
       message: "❌ Error processing batch (current job: {current_job.job_id|default:'none'})"
       level: error
-    
+
     - type: bash
       command: "echo 'Batch processing error - retrying...'"
       success: retry

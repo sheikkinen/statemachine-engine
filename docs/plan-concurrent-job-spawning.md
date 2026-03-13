@@ -1,7 +1,7 @@
 # Plan: Fix Concurrent Job Spawning
 
-**Status**: ✅ **IMPLEMENTED** (2025-01-XX)  
-**Implementation Summary**: See `concurrent-spawning-implementation.md`  
+**Status**: ✅ **IMPLEMENTED** (2025-01-XX)
+**Implementation Summary**: See `concurrent-spawning-implementation.md`
 **Tests**: 27 passing (13 action tests + 14 database tests)
 
 ---
@@ -47,7 +47,7 @@ checking_queue (get ALL) → spawn ALL jobs → wait for ALL jobs → loop back
                 ┌───→│ spawning_batch  │
                 │    │ (spawn 1 job)   │
                 │    └────────┬────────┘
-                │             │ 
+                │             │
                 │      worker_started
                 │             │
                 │    ┌────────▼─────────┐
@@ -100,17 +100,17 @@ spawning_batch:
   actions:
     - type: log
       message: "📦 Batch spawning: {pending_jobs|length} jobs remaining"
-    
+
     - type: pop_from_list  # NEW ACTION NEEDED
       list_key: "pending_jobs"
       store_as: "current_job"
       success: has_job
       empty: batch_complete
-    
+
     - type: add_to_list
       list_key: "spawned_jobs"
       value: "{current_job.id}"
-    
+
     - type: start_fsm
       yaml_path: "examples/patient_records/config/patient-records.yaml"
       machine_name: "patient_record_{current_job.id}"
@@ -168,11 +168,11 @@ spawning_batch:
     - type: set_context
       key: "current_index"
       value: "{current_index|default:0 + 1}"
-    
+
     - type: set_context
       key: "current_job"
       value: "{jobs[current_index]}"
-    
+
     # ... spawn logic ...
 ```
 
@@ -209,18 +209,18 @@ Keep `check_more_jobs` as separate state.
        async def execute(self, context):
            list_key = self.config.get('list_key', 'items')
            store_as = self.config.get('store_as')
-           
+
            items = context.get(list_key, [])
            if not items:
                return self.config.get('empty', 'list_empty')
-           
+
            # Pop first item
            item = items.pop(0)
            context[list_key] = items  # Update list
-           
+
            if store_as:
                context[store_as] = item
-           
+
            return self.config.get('success', 'item_popped')
    ```
 
@@ -232,49 +232,49 @@ Keep `check_more_jobs` as separate state.
      - waiting_for_batch   # RENAMED
      - idling
      - error_handling
-   
+
    transitions:
      - from: checking_queue
        to: spawning_batch
        event: jobs_found
-     
+
      - from: checking_queue
        to: idling
        event: no_jobs
-     
+
      - from: spawning_batch
        to: spawning_batch
        event: worker_spawned   # Loop for next job
-     
+
      - from: spawning_batch
        to: waiting_for_batch
        event: batch_complete   # All spawned
-     
+
      - from: spawning_batch
        to: error_handling
        event: spawn_failed
-     
+
      - from: waiting_for_batch
        to: checking_queue
        event: all_jobs_complete
-     
+
      - from: waiting_for_batch
        to: waiting_for_batch
        event: timeout(2)
-   
+
    actions:
      checking_queue:
        - type: log
          message: "🔍 Checking queue for ALL pending jobs..."
-       
+
        - type: set_context
          key: "spawned_jobs"
          value: []
-       
+
        - type: set_context
          key: "pending_jobs"
          value: []
-       
+
        - type: check_database_queue
          status: pending
          # NO LIMIT - get all jobs
@@ -283,21 +283,21 @@ Keep `check_more_jobs` as separate state.
          store_as: pending_jobs    # Store in pending_jobs
          success: jobs_found
          empty: no_jobs
-     
+
      spawning_batch:
        - type: log
          message: "📦 Spawning batch: {pending_jobs|length} jobs remaining"
-       
+
        - type: pop_from_list
          list_key: "pending_jobs"
          store_as: "current_job"
          success: has_job
          empty: batch_complete
-       
+
        - type: add_to_list
          list_key: "spawned_jobs"
          value: "{current_job.id}"
-       
+
        - type: start_fsm
          yaml_path: "examples/patient_records/config/patient-records.yaml"
          machine_name: "patient_record_{current_job.id}"
@@ -308,20 +308,20 @@ Keep `check_more_jobs` as separate state.
            - summary_text
          success: worker_spawned
          error: spawn_failed
-       
+
        - type: log
          message: "✅ Worker spawned: patient_record_{current_job.id}"
-     
+
      waiting_for_batch:
        - type: log
          message: "⏳ Waiting for {spawned_jobs|length} workers to complete..."
-       
+
        - type: wait_for_jobs
          tracked_jobs_key: "spawned_jobs"
          timeout: 300
          success: all_jobs_complete
          timeout_event: check_timeout
-       
+
        - type: log
          message: "📊 Status - Completed: {completed_jobs|length}, Failed: {failed_jobs|length}, Pending: {pending_jobs|length}"
    ```

@@ -54,78 +54,78 @@ def nested_context():
 def test_interpolate_value_simple_variable(sample_context):
     """Test simple variable substitution like {job_id}"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     template = "Processing job {job_id} with status {status}"
     result = interpolate_value(template, sample_context)
-    
+
     assert result == "Processing job test_123 with status pending"
 
 
 def test_interpolate_value_nested_variable(nested_context):
     """Test nested variable substitution like {event_data.payload.job_id}"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     template = "Job {event_data.payload.job_id}: {event_data.payload.pony_prompt}"
     result = interpolate_value(template, nested_context)
-    
+
     assert result == "Job nested_job_789: A beautiful portrait"
 
 
 def test_interpolate_value_deeply_nested(nested_context):
     """Test deeply nested paths like {event_data.payload.settings.format}"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     template = "Format: {event_data.payload.settings.format}, Quality: {event_data.payload.settings.quality}"
     result = interpolate_value(template, nested_context)
-    
+
     assert result == "Format: png, Quality: 95"
 
 
 def test_interpolate_value_missing_variable_keeps_placeholder(sample_context):
     """Test that missing variables are left as placeholders"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     template = "Job {job_id} has {nonexistent_var}"
     result = interpolate_value(template, sample_context)
-    
+
     assert result == "Job test_123 has {nonexistent_var}"
 
 
 def test_interpolate_value_missing_nested_keeps_placeholder(nested_context):
     """Test that missing nested paths are left as placeholders"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     template = "Missing: {event_data.nonexistent.path}"
     result = interpolate_value(template, nested_context)
-    
+
     assert result == "Missing: {event_data.nonexistent.path}"
 
 
 def test_interpolate_value_partial_nested_keeps_placeholder(nested_context):
     """Test that partially valid nested paths keep placeholder"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     # event_data.payload exists, but settings.nonexistent does not
     template = "Value: {event_data.payload.settings.nonexistent}"
     result = interpolate_value(template, nested_context)
-    
+
     assert result == "Value: {event_data.payload.settings.nonexistent}"
 
 
 def test_interpolate_value_numeric_to_string(sample_context):
     """Test that numeric values in context are converted to strings when mixed with text"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     template = "Priority={priority}, Timeout={timeout}, Enabled={enabled}"
     result = interpolate_value(template, sample_context)
-    
+
     assert result == "Priority=5, Timeout=30.5, Enabled=True"
 
 
 def test_interpolate_value_only_placeholder():
     """Test string that is only a placeholder preserves original type"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     # When template is ONLY a placeholder, preserve original type
     assert interpolate_value("{job_id}", {'job_id': 'test_123'}) == 'test_123'
     assert interpolate_value("{count}", {'count': 42}) == 42
@@ -137,7 +137,7 @@ def test_interpolate_value_only_placeholder():
 def test_interpolate_value_type_preservation():
     """Test that single-placeholder templates preserve original types"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     context = {
         'count': 42,
         'percentage': 95.5,
@@ -147,23 +147,23 @@ def test_interpolate_value_type_preservation():
         'data': {'nested': 'value'},
         'none_val': None
     }
-    
+
     # Single placeholders preserve type
     assert interpolate_value("{count}", context) == 42
     assert isinstance(interpolate_value("{count}", context), int)
-    
+
     assert interpolate_value("{percentage}", context) == 95.5
     assert isinstance(interpolate_value("{percentage}", context), float)
-    
+
     assert interpolate_value("{enabled}", context) is True
     assert interpolate_value("{disabled}", context) is False
-    
+
     assert interpolate_value("{items}", context) == ['a', 'b', 'c']
     assert isinstance(interpolate_value("{items}", context), list)
-    
+
     assert interpolate_value("{data}", context) == {'nested': 'value'}
     assert isinstance(interpolate_value("{data}", context), dict)
-    
+
     # Mixed text converts to string
     assert interpolate_value("Count: {count}", context) == "Count: 42"
     assert isinstance(interpolate_value("Count: {count}", context), str)
@@ -172,7 +172,7 @@ def test_interpolate_value_type_preservation():
 def test_interpolate_value_nested_type_preservation():
     """Test that nested paths in single-placeholder templates preserve types"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     context = {
         'event_data': {
             'payload': {
@@ -185,16 +185,16 @@ def test_interpolate_value_nested_type_preservation():
             }
         }
     }
-    
+
     # Single nested placeholder preserves type
     assert interpolate_value("{event_data.payload.user.id}", context) == 123
     assert isinstance(interpolate_value("{event_data.payload.user.id}", context), int)
-    
+
     assert interpolate_value("{event_data.payload.items}", context) == ['item1', 'item2']
     assert isinstance(interpolate_value("{event_data.payload.items}", context), list)
-    
+
     assert interpolate_value("{event_data.payload.count}", context) == 42
-    
+
     # Mixed text converts to string
     assert interpolate_value("User {event_data.payload.user.id}", context) == "User 123"
     assert isinstance(interpolate_value("User {event_data.payload.user.id}", context), str)
@@ -203,34 +203,34 @@ def test_interpolate_value_nested_type_preservation():
 def test_interpolate_value_empty_context():
     """Test interpolation with empty context leaves placeholders"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     template = "Job {job_id} status {status}"
     result = interpolate_value(template, {})
-    
+
     assert result == "Job {job_id} status {status}"
 
 
 def test_interpolate_value_special_characters(sample_context):
     """Test that special characters in values are preserved"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     context = {
         'command': 'echo "Hello World"',
         'path': '/tmp/data with spaces/file.txt',
         'regex': r'\d+\.\d+',
         'json': '{"key": "value"}'
     }
-    
+
     template = "cmd={command}, path={path}, regex={regex}, json={json}"
     result = interpolate_value(template, context)
-    
+
     assert result == 'cmd=echo "Hello World", path=/tmp/data with spaces/file.txt, regex=\\d+\\.\\d+, json={"key": "value"}'
 
 
 def test_interpolate_value_nested_type_preservation():
     """Test that nested paths in single-placeholder templates preserve types"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     context = {
         'event_data': {
             'payload': {
@@ -243,16 +243,16 @@ def test_interpolate_value_nested_type_preservation():
             }
         }
     }
-    
+
     # Single nested placeholder preserves type
     assert interpolate_value("{event_data.payload.user.id}", context) == 123
     assert isinstance(interpolate_value("{event_data.payload.user.id}", context), int)
-    
+
     assert interpolate_value("{event_data.payload.items}", context) == ['item1', 'item2']
     assert isinstance(interpolate_value("{event_data.payload.items}", context), list)
-    
+
     assert interpolate_value("{event_data.payload.count}", context) == 42
-    
+
     # Mixed text converts to string
     assert interpolate_value("User {event_data.payload.user.id}", context) == "User 123"
     assert isinstance(interpolate_value("User {event_data.payload.user.id}", context), str)
@@ -261,17 +261,17 @@ def test_interpolate_value_nested_type_preservation():
 def test_interpolate_value_unicode_characters():
     """Test that unicode characters in context values are preserved"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     context = {
         'emoji': '🎨✨',
         'chinese': '你好',
         'arabic': 'مرحبا',
         'special': 'Ñoño'
     }
-    
+
     template = "Emoji: {emoji}, Chinese: {chinese}, Arabic: {arabic}, Special: {special}"
     result = interpolate_value(template, context)
-    
+
     assert result == "Emoji: 🎨✨, Chinese: 你好, Arabic: مرحبا, Special: Ñoño"
 
 
@@ -282,15 +282,15 @@ def test_interpolate_value_unicode_characters():
 def test_interpolate_config_flat_dict(sample_context):
     """Test interpolating flat dictionary"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     config = {
         'type': 'log',
         'message': 'Job {job_id} is {status}',
         'level': 'info'
     }
-    
+
     result = interpolate_config(config, sample_context)
-    
+
     assert result['message'] == 'Job test_123 is pending'
     assert result['level'] == 'info'
     assert result['type'] == 'log'
@@ -299,7 +299,7 @@ def test_interpolate_config_flat_dict(sample_context):
 def test_interpolate_config_nested_dict(sample_context):
     """Test interpolating nested dictionaries"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     config = {
         'type': 'bash',
         'command': 'process {job_id}',
@@ -309,9 +309,9 @@ def test_interpolate_config_nested_dict(sample_context):
             'priority': '{priority}'
         }
     }
-    
+
     result = interpolate_config(config, sample_context)
-    
+
     assert result['command'] == 'process test_123'
     assert result['params']['user'] == 'alice'
     assert result['params']['output'] == '/tmp/test_123.txt'
@@ -321,7 +321,7 @@ def test_interpolate_config_nested_dict(sample_context):
 def test_interpolate_config_list_values(sample_context):
     """Test interpolating string values in lists"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     config = {
         'type': 'multi_step',
         'steps': [
@@ -331,9 +331,9 @@ def test_interpolate_config_list_values(sample_context):
             'step4 {user}'
         ]
     }
-    
+
     result = interpolate_config(config, sample_context)
-    
+
     assert result['steps'][0] == 'step1 test_123'
     assert result['steps'][1] == 'step2 pending'
     assert result['steps'][2] == 'step3 literal'
@@ -343,7 +343,7 @@ def test_interpolate_config_list_values(sample_context):
 def test_interpolate_config_preserves_non_string_types(sample_context):
     """Test that non-string types are preserved unchanged"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     config = {
         'type': 'complex',
         'message': 'Job {job_id}',
@@ -354,9 +354,9 @@ def test_interpolate_config_preserves_non_string_types(sample_context):
         'count': 0,
         'enabled': False
     }
-    
+
     result = interpolate_config(config, sample_context)
-    
+
     assert result['message'] == 'Job test_123'
     assert result['timeout'] == 30
     assert result['retry'] is True
@@ -369,7 +369,7 @@ def test_interpolate_config_preserves_non_string_types(sample_context):
 def test_interpolate_config_deeply_nested_structures(sample_context):
     """Test interpolation in deeply nested structures"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     config = {
         'type': 'workflow',
         'steps': {
@@ -390,9 +390,9 @@ def test_interpolate_config_deeply_nested_structures(sample_context):
             }
         }
     }
-    
+
     result = interpolate_config(config, sample_context)
-    
+
     assert result['steps']['prepare']['actions'][0]['message'] == 'Preparing test_123'
     assert result['steps']['prepare']['actions'][1]['command'] == 'setup pending for alice'
     assert result['steps']['prepare']['actions'][1]['params']['priority'] == 5  # Type preserved
@@ -401,7 +401,7 @@ def test_interpolate_config_deeply_nested_structures(sample_context):
 def test_interpolate_config_list_of_dicts(sample_context):
     """Test interpolating list containing dictionaries"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     config = {
         'actions': [
             {'cmd': 'start {job_id}', 'user': '{user}'},
@@ -409,9 +409,9 @@ def test_interpolate_config_list_of_dicts(sample_context):
             {'cmd': 'literal command', 'value': 42}
         ]
     }
-    
+
     result = interpolate_config(config, sample_context)
-    
+
     assert result['actions'][0]['cmd'] == 'start test_123'
     assert result['actions'][0]['user'] == 'alice'
     assert result['actions'][1]['cmd'] == 'status test_123'
@@ -423,9 +423,9 @@ def test_interpolate_config_list_of_dicts(sample_context):
 def test_interpolate_config_mixed_nested_types():
     """Test mixed nesting of dicts, lists, and primitives"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     context = {'id': 'test', 'env': 'prod'}
-    
+
     config = {
         'name': '{id}',
         'settings': {
@@ -440,9 +440,9 @@ def test_interpolate_config_mixed_nested_types():
             'count': 5
         }
     }
-    
+
     result = interpolate_config(config, context)
-    
+
     assert result['name'] == 'test'
     assert result['settings']['environments'][0]['name'] == 'prod'
     assert result['settings']['environments'][0]['active'] is True
@@ -458,17 +458,17 @@ def test_interpolate_config_mixed_nested_types():
 def test_interpolate_config_empty_structures():
     """Test interpolation with empty dict/list structures"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     context = {'id': 'test'}
-    
+
     config = {
         'empty_dict': {},
         'empty_list': [],
         'normal': '{id}'
     }
-    
+
     result = interpolate_config(config, context)
-    
+
     assert result['empty_dict'] == {}
     assert result['empty_list'] == []
     assert result['normal'] == 'test'
@@ -477,7 +477,7 @@ def test_interpolate_config_empty_structures():
 def test_interpolate_config_with_nested_context(nested_context):
     """Test using nested context from event payload"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     config = {
         'type': 'bash',
         'command': 'process {job_id} --input {event_data.payload.input_image}',
@@ -485,9 +485,9 @@ def test_interpolate_config_with_nested_context(nested_context):
         'format': '{event_data.payload.settings.format}',
         'timestamp': '{metadata.timestamp}'
     }
-    
+
     result = interpolate_config(config, nested_context)
-    
+
     assert result['command'] == 'process nested_456 --input /path/to/image.jpg'
     assert result['description'] == 'Prompt: A beautiful portrait'
     assert result['format'] == 'png'
@@ -497,23 +497,23 @@ def test_interpolate_config_with_nested_context(nested_context):
 def test_interpolate_config_immutable_original():
     """Test that original config is not modified"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     context = {'id': 'test'}
     original = {
         'message': '{id}',
         'nested': {'value': '{id}'}
     }
-    
+
     # Make a copy to compare
     import copy
     original_copy = copy.deepcopy(original)
-    
+
     result = interpolate_config(original, context)
-    
+
     # Result should be interpolated
     assert result['message'] == 'test'
     assert result['nested']['value'] == 'test'
-    
+
     # Original should be unchanged
     assert original == original_copy
     assert original['message'] == '{id}'
@@ -523,14 +523,14 @@ def test_interpolate_config_immutable_original():
 def test_interpolate_config_empty_context():
     """Test interpolation with empty context leaves placeholders"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     config = {
         'type': 'log',
         'message': 'Job {job_id} status {status}'
     }
-    
+
     result = interpolate_config(config, {})
-    
+
     assert result['message'] == 'Job {job_id} status {status}'
 
 
@@ -541,10 +541,10 @@ def test_interpolate_config_empty_context():
 def test_interpolate_value_context_none():
     """Test interpolation with None context"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     template = "Job {job_id}"
     result = interpolate_value(template, None)
-    
+
     # Should handle gracefully, leaving placeholders
     assert result == "Job {job_id}"
 
@@ -552,10 +552,10 @@ def test_interpolate_value_context_none():
 def test_interpolate_config_config_none():
     """Test interpolation with None config"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     context = {'id': 'test'}
     result = interpolate_config(None, context)
-    
+
     # Should return None unchanged
     assert result is None
 
@@ -563,13 +563,13 @@ def test_interpolate_config_config_none():
 def test_interpolate_value_circular_reference_safe():
     """Test that circular references in context don't cause issues"""
     from statemachine_engine.utils.interpolation import interpolate_value
-    
+
     # Context values are just used for lookup, not traversed infinitely
     context = {'id': 'test', 'ref': '{id}'}
-    
+
     template = "Value: {id}, Ref: {ref}"
     result = interpolate_value(template, context)
-    
+
     # Should interpolate once, not recursively
     assert result == "Value: test, Ref: {id}"
 
@@ -577,22 +577,22 @@ def test_interpolate_value_circular_reference_safe():
 def test_interpolate_config_with_callable_values():
     """Test that callable values in context are handled"""
     from statemachine_engine.utils.interpolation import interpolate_config
-    
+
     def my_function():
         return "result"
-    
+
     context = {
         'id': 'test',
         'func': my_function
     }
-    
+
     config = {
         'message': 'ID: {id}',
         'data': '{func}'
     }
-    
+
     result = interpolate_config(config, context)
-    
+
     assert result['message'] == 'ID: test'
     # Function is returned as-is when it's a single placeholder (type preserved)
     assert result['data'] == my_function or callable(result['data'])

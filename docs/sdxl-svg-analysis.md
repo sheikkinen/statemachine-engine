@@ -38,4 +38,3 @@ Captured from production UI on 2025-10-26
 - Node IDs don't always match state names directly
 - Text content is in nested foreignObject > div > span > p structure
 - Some nodes have unexpected IDs (e.g., COMPLETIONPHASE instead of a single state)
-

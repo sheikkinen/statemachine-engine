@@ -21,7 +21,7 @@ State Machine → Unix Socket → WebSocket Server → Event Monitor → Termina
 
 ## Implementation
 
-**File**: `src/statemachine_engine/tools/event_monitor.py`  
+**File**: `src/statemachine_engine/tools/event_monitor.py`
 **Entry Point**: Added to pyproject.toml as `statemachine-events`
 
 ## Core Design
@@ -97,9 +97,9 @@ cd monitor-test
 
 ## Why This Approach
 
-**Non-invasive**: Observes broadcasts without affecting event delivery  
-**Simple**: WebSocket client connection, minimal code  
-**Complete**: Sees all events from all machines  
-**Reusable**: General debugging tool, not test-specific  
-**Remote-capable**: Can monitor state machines on remote servers via WebSocket  
+**Non-invasive**: Observes broadcasts without affecting event delivery
+**Simple**: WebSocket client connection, minimal code
+**Complete**: Sees all events from all machines
+**Reusable**: General debugging tool, not test-specific
+**Remote-capable**: Can monitor state machines on remote servers via WebSocket
 **Browser-compatible**: Same infrastructure as web UI

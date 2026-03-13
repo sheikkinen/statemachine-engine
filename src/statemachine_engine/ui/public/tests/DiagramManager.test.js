@@ -731,4 +731,3 @@ describe('Composite Click Handler Edge Cases', () => {
         expect(() => diagramManager.attachCompositeClickHandlers()).not.toThrow();
     });
 });
-

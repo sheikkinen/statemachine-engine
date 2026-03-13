@@ -125,10 +125,10 @@ class Watchdog(threading.Thread):
         self.timeout = timeout
         self.last_heartbeat = time.time()
         self.running = True
-    
+
     def heartbeat(self):
         self.last_heartbeat = time.time()
-    
+
     def run(self):
         while self.running:
             time.sleep(1)

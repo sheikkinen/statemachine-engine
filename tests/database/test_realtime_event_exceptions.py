@@ -1,12 +1,11 @@
 """
 Tests for RealtimeEventModel exception handling
 """
-import pytest
-import json
-import sqlite3
 from pathlib import Path
+
+import pytest
+
 from statemachine_engine.database.models.base import Database
-from statemachine_engine.database.models import get_realtime_event_model
 
 
 @pytest.fixture
@@ -53,7 +52,7 @@ def test_log_event_returns_none_on_db_error(realtime_model):
     """Test that log_event returns None on database error"""
     # Close the database connection to simulate error
     realtime_model.db.db_path = Path("/invalid/path/that/does/not/exist.db")
-    
+
     event_id = realtime_model.log_event('test_machine', 'error', {'msg': 'test'})
     assert event_id is None
 
@@ -63,7 +62,7 @@ def test_get_unconsumed_events_success(realtime_model):
     # Log some events
     realtime_model.log_event('machine1', 'state_change', {'state': 'running'})
     realtime_model.log_event('machine2', 'error', {'error': 'failed'})
-    
+
     events = realtime_model.get_unconsumed_events()
     assert len(events) == 2
     assert events[0]['event_type'] == 'state_change'
@@ -75,7 +74,7 @@ def test_get_unconsumed_events_with_limit(realtime_model):
     # Log 5 events
     for i in range(5):
         realtime_model.log_event(f'machine{i}', 'test', {'index': i})
-    
+
     events = realtime_model.get_unconsumed_events(limit=3)
     assert len(events) == 3
 
@@ -86,7 +85,7 @@ def test_get_unconsumed_events_since_id(realtime_model):
     id1 = realtime_model.log_event('machine1', 'test', {'num': 1})
     id2 = realtime_model.log_event('machine2', 'test', {'num': 2})
     id3 = realtime_model.log_event('machine3', 'test', {'num': 3})
-    
+
     # Get events since id1
     events = realtime_model.get_unconsumed_events(since_id=id1)
     assert len(events) == 2
@@ -103,10 +102,10 @@ def test_get_unconsumed_events_handles_invalid_json(realtime_model, test_db):
             VALUES (?, ?, ?)
         """, ('test_machine', 'test', 'INVALID_JSON{'))
         conn.commit()
-    
+
     # Log a valid event
     realtime_model.log_event('machine2', 'test', {'valid': True})
-    
+
     # Should return only the valid event
     events = realtime_model.get_unconsumed_events()
     assert len(events) == 1
@@ -116,7 +115,7 @@ def test_get_unconsumed_events_handles_invalid_json(realtime_model, test_db):
 def test_get_unconsumed_events_returns_empty_on_db_error(realtime_model):
     """Test that get_unconsumed_events returns empty list on database error"""
     realtime_model.db.db_path = Path("/invalid/path.db")
-    
+
     events = realtime_model.get_unconsumed_events()
     assert events == []
 
@@ -125,10 +124,10 @@ def test_mark_events_consumed_success(realtime_model):
     """Test marking events as consumed"""
     id1 = realtime_model.log_event('machine1', 'test', {'n': 1})
     id2 = realtime_model.log_event('machine2', 'test', {'n': 2})
-    
+
     result = realtime_model.mark_events_consumed([id1, id2])
     assert result is True
-    
+
     # Verify events are consumed
     unconsumed = realtime_model.get_unconsumed_events()
     assert len(unconsumed) == 0
@@ -143,10 +142,10 @@ def test_mark_events_consumed_empty_list(realtime_model):
 def test_mark_events_consumed_returns_false_on_error(realtime_model):
     """Test that mark_events_consumed returns False on database error"""
     id1 = realtime_model.log_event('machine1', 'test', {'n': 1})
-    
+
     # Break the database connection
     realtime_model.db.db_path = Path("/invalid/path.db")
-    
+
     result = realtime_model.mark_events_consumed([id1])
     assert result is False
 
@@ -156,7 +155,7 @@ def test_cleanup_old_events_success(realtime_model, test_db):
     # Log and consume events
     id1 = realtime_model.log_event('machine1', 'test', {'n': 1})
     realtime_model.mark_events_consumed([id1])
-    
+
     # Update consumed_at to be 25 hours ago
     with test_db._get_connection() as conn:
         conn.execute("""
@@ -165,7 +164,7 @@ def test_cleanup_old_events_success(realtime_model, test_db):
             WHERE id = ?
         """, (id1,))
         conn.commit()
-    
+
     # Cleanup events older than 24 hours
     deleted_count = realtime_model.cleanup_old_events(hours_old=24)
     assert deleted_count == 1
@@ -175,7 +174,7 @@ def test_cleanup_old_events_does_not_delete_recent(realtime_model):
     """Test that cleanup doesn't delete recent events"""
     id1 = realtime_model.log_event('machine1', 'test', {'n': 1})
     realtime_model.mark_events_consumed([id1])
-    
+
     # Try to cleanup (event is recent)
     deleted_count = realtime_model.cleanup_old_events(hours_old=24)
     assert deleted_count == 0
@@ -185,7 +184,7 @@ def test_cleanup_old_events_does_not_delete_unconsumed(realtime_model, test_db):
     """Test that cleanup only deletes consumed events"""
     # Log event but don't consume
     id1 = realtime_model.log_event('machine1', 'test', {'n': 1})
-    
+
     # Make it old
     with test_db._get_connection() as conn:
         conn.execute("""
@@ -194,7 +193,7 @@ def test_cleanup_old_events_does_not_delete_unconsumed(realtime_model, test_db):
             WHERE id = ?
         """, (id1,))
         conn.commit()
-    
+
     # Try cleanup
     deleted_count = realtime_model.cleanup_old_events(hours_old=24)
     assert deleted_count == 0  # Should not delete unconsumed
@@ -203,7 +202,7 @@ def test_cleanup_old_events_does_not_delete_unconsumed(realtime_model, test_db):
 def test_cleanup_old_events_returns_negative_on_error(realtime_model):
     """Test that cleanup returns -1 on database error"""
     realtime_model.db.db_path = Path("/invalid/path.db")
-    
+
     deleted_count = realtime_model.cleanup_old_events(hours_old=24)
     assert deleted_count == -1
 
@@ -220,7 +219,7 @@ def test_error_event_logging(realtime_model):
         }
     )
     assert error_id is not None
-    
+
     # Retrieve and verify
     events = realtime_model.get_unconsumed_events()
     assert len(events) == 1
@@ -242,7 +241,7 @@ def test_state_change_event_logging(realtime_model):
         }
     )
     assert event_id is not None
-    
+
     # Retrieve and verify
     events = realtime_model.get_unconsumed_events()
     assert len(events) == 1

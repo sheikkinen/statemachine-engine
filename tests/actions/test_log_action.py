@@ -1,10 +1,9 @@
 """
 Tests for LogAction - Activity log action
 """
-import pytest
-import asyncio
 import json
-from pathlib import Path
+
+import pytest
 
 from statemachine_engine.actions.builtin import LogAction
 from statemachine_engine.database.models import Database, get_machine_event_model

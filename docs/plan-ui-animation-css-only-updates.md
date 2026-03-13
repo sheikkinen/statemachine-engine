@@ -1,17 +1,17 @@
 # Plan: CSS-Only Updates - Lessons Learned & Next Approach
 
-**Document Type:** Implementation Plan (Updated with v1.0.33-40 Experience)  
-**Created:** 2025-10-26  
-**Updated:** 2025-10-26 (Post-Rollback Analysis)  
-**Status:** ⚠️ NEEDS REDESIGN - v1.0.33-40 rolled back to v1.0.30  
-**Priority:** Medium (Stability achieved, performance is secondary)  
-**Estimated Effort:** 8-12 hours (requires careful approach)  
+**Document Type:** Implementation Plan (Updated with v1.0.33-40 Experience)
+**Created:** 2025-10-26
+**Updated:** 2025-10-26 (Post-Rollback Analysis)
+**Status:** ⚠️ NEEDS REDESIGN - v1.0.33-40 rolled back to v1.0.30
+**Priority:** Medium (Stability achieved, performance is secondary)
+**Estimated Effort:** 8-12 hours (requires careful approach)
 
 ## Executive Summary
 
-**Attempted:** v1.0.33-40 implemented CSS-only updates for 100x performance improvement (150ms → 1ms)  
-**Result:** ❌ Rolled back to v1.0.30 due to composite state reliability issues  
-**Learning:** Performance gains don't justify stability loss for a monitoring tool  
+**Attempted:** v1.0.33-40 implemented CSS-only updates for 100x performance improvement (150ms → 1ms)
+**Result:** ❌ Rolled back to v1.0.30 due to composite state reliability issues
+**Learning:** Performance gains don't justify stability loss for a monitoring tool
 **Status:** v1.0.41 uses stable v1.0.30 approach (full Mermaid re-render)
 
 ## What Went Wrong: v1.0.33-40 Post-Mortem
@@ -123,7 +123,7 @@ window.clearDiagramCache()    // Reset state
 async findCompositeForState(stateName) {
     const response = await fetch(`/api/diagram/${this.selectedMachine}/metadata`);
     const metadata = await response.json();
-    
+
     for (const [compositeName, info] of Object.entries(metadata.diagrams)) {
         if (info.states && info.states.includes(stateName)) {
             return compositeName;
@@ -135,7 +135,7 @@ async findCompositeForState(stateName) {
 // 2. Modify Mermaid diagram code with CSS classes
 async renderDiagram(highlightState = null) {
     let diagramCode = this.currentDiagram;
-    
+
     if (this.currentDiagramName === 'main') {
         const composite = await this.findCompositeForState(highlightState);
         if (composite) {
@@ -146,7 +146,7 @@ async renderDiagram(highlightState = null) {
         diagramCode += `\n\n    classDef active fill:#90EE90,stroke:#006400,stroke-width:4px`;
         diagramCode += `\n    class ${highlightState} active`;
     }
-    
+
     // 3. Mermaid processes CSS classes natively
     await window.mermaid.run({ nodes: [mermaidEl] });
 }
@@ -179,25 +179,25 @@ async renderDiagram(highlightState = null) {
 ```mermaid
 flowchart TD
     A[State Change Event] --> B{Diagram Type?}
-    
+
     B -->|Subdiagram| C[Simple Case]
     B -->|Main Diagram| D[Complex Case]
-    
+
     C --> E{State in current diagram?}
     E -->|Yes| F[✅ CSS-only update]
     E -->|No| G[❌ Fall back to full render]
-    
+
     D --> H{State in metadata?}
     H -->|Yes| I{Composite exists in SVG?}
     I -->|Yes| J[✅ CSS-only composite highlight]
     I -->|No| K[❌ Fall back to full render]
     H -->|No| K
-    
+
     F --> L[~1ms update]
     J --> M[~1ms update]
     K --> N[v1.0.30 full render ~150ms]
     G --> N
-    
+
     style F fill:#90EE90,stroke:#006400
     style J fill:#90EE90,stroke:#006400
     style K fill:#FFD700,stroke:#FF8C00
@@ -218,15 +218,15 @@ flowchart TD
 ```javascript
 async renderDiagram(highlightState = null, transition = null) {
     // Check if we can use CSS-only (ONLY for subdiagrams)
-    if (this.currentDiagramName !== 'main' && 
-        this.container.dataset.enriched === 'true' && 
+    if (this.currentDiagramName !== 'main' &&
+        this.container.dataset.enriched === 'true' &&
         highlightState) {
-        
+
         // FAST PATH: Subdiagram CSS-only update
         this.updateStateHighlight(highlightState, transition?.event);
         return;
     }
-    
+
     // SLOW PATH: Full render (all main diagram updates + first subdiagram render)
     await this.fullMermaidRender(highlightState, transition);
 }
@@ -245,11 +245,11 @@ async renderDiagram(highlightState = null, transition = null) {
 // Only use CSS-only for standalone states on main diagram
 if (this.currentDiagramName === 'main') {
     const compositeList = this.diagramMetadata?.diagrams?.main?.composites || [];
-    
+
     // Is this state a standalone (not in any composite)?
-    const isStandalone = !compositeList.includes(highlightState) && 
+    const isStandalone = !compositeList.includes(highlightState) &&
                         !this.belongsToComposite(highlightState);
-    
+
     if (isStandalone && this.container.dataset.enriched === 'true') {
         // FAST PATH: Standalone state on main diagram
         this.updateStateHighlight(highlightState);
@@ -305,17 +305,17 @@ updateStateHighlight(stateName) {
 ```javascript
 enrichSvgWithDataAttributes() {
     const before = performance.now();
-    
+
     // ... enrichment logic
-    
+
     const enrichedNodes = svg.querySelectorAll('[data-state-id]').length;
     const after = performance.now();
-    
+
     if (enrichedNodes === 0) {
         console.error('[Enrich] FAILED: No nodes enriched');
         return false;
     }
-    
+
     console.log(`[Enrich] ✓ ${enrichedNodes} nodes in ${(after-before).toFixed(1)}ms`);
     return true;
 }
@@ -341,21 +341,21 @@ describe('CSS-Only Subdiagram Updates', () => {
     it('should use CSS-only for subdiagram state changes', async () => {
         // Setup subdiagram
         await diagramManager.loadDiagram('machine1', 'PROCESSING');
-        
+
         // First render (full)
         await diagramManager.updateState('generating');
         expect(fullRenderCalled).toBe(true);
-        
+
         // Second render (CSS-only)
         await diagramManager.updateState('inpainting');
         expect(cssOnlyCalled).toBe(true);
         expect(fullRenderCalled).toBe(false);
     });
-    
+
     it('should fallback to full render on enrichment failure', async () => {
         // Mock enrichment failure
         diagramManager.enrichSvgWithDataAttributes = () => false;
-        
+
         await diagramManager.updateState('waiting');
         expect(fullRenderCalled).toBe(true);
     });
@@ -430,7 +430,7 @@ class DiagramManager {
         this.enableCssOnlyStandalone = false;  // Phase 3
         this.enableCssOnlyComposites = false;  // Phase 4 (likely never)
     }
-    
+
     async renderDiagram(highlightState = null, transition = null) {
         // Attempt CSS-only update (safe cases only)
         if (this.canUseCssOnly(highlightState)) {
@@ -441,33 +441,33 @@ class DiagramManager {
             }
             console.warn('[Render] CSS-only failed, falling back to full render');
         }
-        
+
         // Full Mermaid render (v1.0.30 approach)
         await this.fullMermaidRender(highlightState, transition);
     }
-    
+
     canUseCssOnly(highlightState) {
         if (!highlightState) return false;
         if (this.container.dataset.enriched !== 'true') return false;
-        
+
         // Phase 2: Only subdiagrams
         if (this.enableCssOnlySubdiagrams && this.currentDiagramName !== 'main') {
             return true;
         }
-        
+
         // Phase 3: Standalone states on main (disabled by default)
         if (this.enableCssOnlyStandalone && this.currentDiagramName === 'main') {
             return this.isStandaloneState(highlightState);
         }
-        
+
         // Phase 4: Composites (disabled by default)
         if (this.enableCssOnlyComposites && this.currentDiagramName === 'main') {
             return true;  // Would need composite mapping logic
         }
-        
+
         return false;
     }
-    
+
     updateStateHighlight(stateName, eventName = null) {
         try {
             const svg = this.container.querySelector('svg');
@@ -475,12 +475,12 @@ class DiagramManager {
                 console.warn('[CSS-only] No SVG found');
                 return false;
             }
-            
+
             // Remove old highlights
             svg.querySelectorAll('.active, .activeComposite').forEach(el => {
                 el.classList.remove('active', 'activeComposite');
             });
-            
+
             // Find and highlight new state
             const node = this.findStateNode(svg, stateName);
             if (!node) {
@@ -488,15 +488,15 @@ class DiagramManager {
                 this.container.dataset.enriched = 'false';  // Force re-enrich
                 return false;
             }
-            
+
             node.classList.add('active');
             console.log(`[CSS-only] ✓ Highlighted: ${stateName} (~1ms)`);
-            
+
             // Highlight transition arrow
             if (eventName) {
                 this.highlightTransitionArrow(svg, eventName);
             }
-            
+
             return true;
         } catch (error) {
             console.error('[CSS-only] Error:', error);
@@ -504,29 +504,29 @@ class DiagramManager {
             return false;
         }
     }
-    
+
     findStateNode(svg, stateName) {
         // Try multiple selectors (most to least reliable)
         let node = svg.querySelector(`[data-state-id="${stateName}"]`);
         if (node) return node;
-        
+
         node = svg.querySelector(`[data-state-clean="${stateName}"]`);
         if (node) return node;
-        
+
         // Fallback: text content matching
         const textNodes = Array.from(svg.querySelectorAll('g.node text'));
         const matchingText = textNodes.find(t => t.textContent.trim() === stateName);
         if (matchingText) {
             return matchingText.closest('g.node');
         }
-        
+
         return null;
     }
-    
+
     async fullMermaidRender(highlightState = null, transition = null) {
         // v1.0.30 approach - proven stable
         let diagramCode = this.currentDiagram;
-        
+
         if (highlightState) {
             if (this.currentDiagramName === 'main') {
                 // Composite state handling
@@ -541,15 +541,15 @@ class DiagramManager {
                 diagramCode += `\n    class ${highlightState} active`;
             }
         }
-        
+
         // Render
         this.container.classList.add('redrawing');
         await new Promise(resolve => setTimeout(resolve, 50));
         this.container.innerHTML = `<pre class="mermaid">${diagramCode}</pre>`;
-        
+
         const mermaidEl = this.container.querySelector('.mermaid');
         await window.mermaid.run({ nodes: [mermaidEl] });
-        
+
         // Enrich for next CSS-only update
         if (this.enableCssOnlySubdiagrams || this.enableCssOnlyStandalone) {
             const enriched = this.enrichSvgWithDataAttributes();
@@ -557,10 +557,10 @@ class DiagramManager {
                 this.container.dataset.enriched = 'true';
             }
         }
-        
+
         this.container.classList.remove('redrawing');
         this.attachCompositeClickHandlers();
-        
+
         console.log('[Render] ✓ Full Mermaid render (~150ms)');
     }
 }
@@ -658,7 +658,7 @@ class DiagramManager {
 
 ---
 
-*Document updated: 2025-10-26 post v1.0.41 rollback*  
+*Document updated: 2025-10-26 post v1.0.41 rollback*
 *Next review: After 2 weeks of v1.0.41 stability testing*
 ```
 
@@ -793,30 +793,30 @@ enrichSvgWithDataAttributes() {
         console.warn('[Enrich] No SVG found');
         return;
     }
-    
+
     let enrichedCount = 0;
-    
+
     // 1. Enrich state nodes
     const stateNodes = svg.querySelectorAll('g.node');
     stateNodes.forEach(node => {
         // Extract state name from node ID or text
         const nodeId = node.id || '';
         const textEl = node.querySelector('text');
-        const stateName = textEl ? textEl.textContent.trim() : 
+        const stateName = textEl ? textEl.textContent.trim() :
                          nodeId.replace(/^flowchart-/, '').replace(/-\d+$/, '');
-        
+
         if (stateName) {
             node.dataset.stateId = stateName;
             enrichedCount++;
         }
     });
-    
+
     // 2. Enrich edge paths
     const edgeLabels = svg.querySelectorAll('g.edgeLabels g.label');
     edgeLabels.forEach(label => {
         const eventName = label.textContent.trim();
         const dataId = label.dataset.id;
-        
+
         if (eventName && dataId) {
             const path = svg.querySelector(`path[data-id="${dataId}"]`);
             if (path) {
@@ -825,7 +825,7 @@ enrichSvgWithDataAttributes() {
             }
         }
     });
-    
+
     // 3. Mark as enriched
     this.container.dataset.enriched = 'true';
     console.log(`[Enrich] Added data attributes to ${enrichedCount} elements`);
@@ -838,30 +838,30 @@ enrichSvgWithDataAttributes() {
 updateStateHighlight(stateName, eventName = null) {
     const svg = this.container.querySelector('svg');
     if (!svg) return;
-    
+
     // Remove old highlights
     svg.querySelectorAll('.active, .activeComposite').forEach(el => {
         el.classList.remove('active', 'activeComposite');
     });
-    
+
     // Add new highlight
     const stateNode = svg.querySelector(`[data-state-id="${stateName}"]`);
     if (stateNode) {
         stateNode.classList.add('active');
         console.log(`[CSS-only] Highlighted state: ${stateName}`);
     }
-    
+
     // Highlight transition arrow
     if (eventName) {
         // Clear old arrow highlights
         svg.querySelectorAll('.last-transition-arrow').forEach(el => {
             el.classList.remove('last-transition-arrow');
         });
-        
+
         const edge = svg.querySelector(`[data-edge-event="${eventName}"]`);
         if (edge) {
             edge.classList.add('last-transition-arrow');
-            
+
             // Auto-clear after 2 seconds
             setTimeout(() => {
                 edge.classList.remove('last-transition-arrow');
@@ -881,38 +881,38 @@ async renderDiagram(highlightState = null, transition = null) {
         this.updateStateHighlight(highlightState, eventName);
         return; // FAST PATH - done in ~1ms
     }
-    
+
     // SLOW PATH - full Mermaid render
     if (!this.currentDiagram) return;
-    
+
     try {
         let diagramCode = this.currentDiagram;
-        
+
         // ... existing fade effect logic ...
         this.container.classList.add('redrawing');
         await new Promise(resolve => setTimeout(resolve, 50));
-        
+
         // Render with Mermaid
         this.container.innerHTML = `<pre class="mermaid">${diagramCode}</pre>`;
         const mermaidEl = this.container.querySelector('.mermaid');
         await window.mermaid.run({ nodes: [mermaidEl] });
-        
+
         // ✨ NEW: Enrich SVG after render
         this.enrichSvgWithDataAttributes();
-        
+
         // Remove fade effect
         this.container.classList.remove('redrawing');
         this.container.classList.add('has-diagram');
-        
+
         // Attach handlers
         this.attachCompositeClickHandlers();
-        
+
         // Initial highlight
         if (highlightState) {
             const eventName = transition?.event;
             this.updateStateHighlight(highlightState, eventName);
         }
-        
+
     } catch (error) {
         console.error('Error rendering diagram:', error);
         this.container.dataset.enriched = 'false'; // Clear flag on error
@@ -959,19 +959,19 @@ async renderDiagram(highlightState = null, transition = null) {
 
 ### Removed Complexity
 
-❌ **No version hashing** - Was 20+ lines of hash logic  
-❌ **No cache Map** - Was managing Map entries, LRU eviction  
-❌ **No version comparison** - Was comparing hashes every update  
-❌ **No cache invalidation** - Was clearing cache on various events  
-❌ **No cache size limits** - Was tracking memory usage  
+❌ **No version hashing** - Was 20+ lines of hash logic
+❌ **No cache Map** - Was managing Map entries, LRU eviction
+❌ **No version comparison** - Was comparing hashes every update
+❌ **No cache invalidation** - Was clearing cache on various events
+❌ **No cache size limits** - Was tracking memory usage
 
 ### Added Simplicity
 
-✅ **Single enrichment flag** - Just `dataset.enriched === 'true'`  
-✅ **Data attributes** - Browser-native, debuggable in DevTools  
-✅ **Parse once** - Only after Mermaid renders  
-✅ **Simple selectors** - Direct `[data-state-id="X"]` queries  
-✅ **Natural invalidation** - New render = new enrichment  
+✅ **Single enrichment flag** - Just `dataset.enriched === 'true'`
+✅ **Data attributes** - Browser-native, debuggable in DevTools
+✅ **Parse once** - Only after Mermaid renders
+✅ **Simple selectors** - Direct `[data-state-id="X"]` queries
+✅ **Natural invalidation** - New render = new enrichment
 
 ### Code Comparison
 
@@ -1037,9 +1037,9 @@ async renderDiagram(highlightState = null, transition = null) {
 
 ## Timeline
 
-**Optimistic:** 3-4 hours  
-**Realistic:** 4-6 hours  
-**Pessimistic:** 6-8 hours  
+**Optimistic:** 3-4 hours
+**Realistic:** 4-6 hours
+**Pessimistic:** 6-8 hours
 
 **Single Session Approach:**
 1. Hour 1: Implement enrichment (Tasks 1.1-1.4)
@@ -1072,7 +1072,7 @@ if (!ENABLE_CSS_ONLY_UPDATES) {
 
 ---
 
-**Status:** 📋 Ready for implementation  
-**Complexity:** Low (simple DOM manipulation)  
-**Risk:** Low (graceful fallback to current behavior)  
+**Status:** 📋 Ready for implementation
+**Complexity:** Low (simple DOM manipulation)
+**Risk:** Low (graceful fallback to current behavior)
 **Last Updated:** 2025-10-26

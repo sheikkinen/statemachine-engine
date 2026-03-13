@@ -106,7 +106,7 @@ Start multiple machines that communicate:
 # Terminal 1
 statemachine controller.yaml --machine-name controller
 
-# Terminal 2  
+# Terminal 2
 statemachine worker.yaml --machine-name worker
 ```
 

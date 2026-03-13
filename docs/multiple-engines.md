@@ -42,7 +42,7 @@ python -m statemachine_engine.cli engine1_config.yaml \
     --control-socket-prefix /tmp/engine1-control
 ```
 
-### Terminal 2 - Engine 2  
+### Terminal 2 - Engine 2
 ```bash
 python -m statemachine_engine.cli engine2_config.yaml \
     --event-socket-path /tmp/engine2-events.sock \

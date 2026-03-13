@@ -1,7 +1,7 @@
 # Plan: Wait for Jobs Completion Action
 
-**Date**: November 13, 2025  
-**Context**: Current concurrent-controller spawns workers but doesn't wait for completion  
+**Date**: November 13, 2025
+**Context**: Current concurrent-controller spawns workers but doesn't wait for completion
 **Goal**: Add action to check all spawned jobs are completed before resuming polling
 
 ## Current Problem
@@ -94,31 +94,31 @@ Non-terminal states:
            self.tracked_jobs_key = config.get('tracked_jobs_key', 'spawned_jobs')
            self.poll_interval = config.get('poll_interval', 2)
            self.timeout = config.get('timeout', 300)
-       
+
        async def execute(self, context):
            # Get tracked job IDs from context
            job_ids = context.get(self.tracked_jobs_key, [])
-           
+
            if not job_ids:
                return 'no_jobs_tracked'
-           
+
            # Query database for job statuses
            statuses = self._get_job_statuses(job_ids)
-           
+
            # Categorize jobs
            completed = [j for j, s in statuses.items() if s == 'completed']
            failed = [j for j, s in statuses.items() if s == 'failed']
            pending = [j for j, s in statuses.items() if s in ('pending', 'processing')]
-           
+
            # Store in context
            context['completed_jobs'] = completed
            context['failed_jobs'] = failed
            context['pending_jobs'] = pending
-           
+
            # Check if all done
            if not pending:
                return 'all_jobs_complete'
-           
+
            # Still have pending jobs
            return 'jobs_pending'
    ```
@@ -153,12 +153,12 @@ Non-terminal states:
      - type: log
        message: "🚀 Spawning worker for job: {current_job.id}"
        level: info
-     
+
      # Track this job ID before spawning
      - type: bash
        command: "echo 'Tracking job {current_job.id}'"
        success: tracked
-     
+
      - type: start_fsm
        yaml_path: "examples/patient_records/config/patient-records.yaml"
        machine_name: "patient_record_{current_job.id}"
@@ -186,7 +186,7 @@ Non-terminal states:
      - type: log
        message: "⏳ Waiting for spawned jobs to complete..."
        level: info
-     
+
      - type: wait_for_jobs
        tracked_jobs_key: "spawned_jobs"
        poll_interval: 2
@@ -203,12 +203,12 @@ Non-terminal states:
      - from: waiting_for_completion
        to: checking_queue
        event: all_jobs_complete
-     
+
      # Keep waiting if jobs still pending
      - from: waiting_for_completion
        to: waiting_for_completion
        event: still_waiting
-     
+
      # Timeout handling
      - from: waiting_for_completion
        to: error_handling
@@ -242,16 +242,16 @@ Create `AddToListAction`:
 ```python
 class AddToListAction(BaseAction):
     """Add item to a list in context"""
-    
+
     async def execute(self, context):
         list_key = self.config.get('list_key', 'items')
         value = self.config.get('value')  # Supports interpolation
-        
+
         if list_key not in context:
             context[list_key] = []
-        
+
         context[list_key].append(value)
-        
+
         return 'success'
 ```
 
@@ -262,7 +262,7 @@ spawning_worker:
     list_key: "spawned_jobs"
     value: "{current_job.id}"
     success: tracked
-  
+
   - type: start_fsm
     # ... spawn worker
 ```
@@ -276,11 +276,11 @@ spawning_worker:
   - type: activity_log
     message: "Spawning worker for job {current_job.id}"
     level: info
-  
+
   - type: add_to_list
     list_key: "spawned_jobs"
     value: "{current_job.id}"
-  
+
   - type: start_fsm
     yaml_path: "examples/patient_records/config/patient-records.yaml"
     machine_name: "patient_record_{current_job.id}"
@@ -289,7 +289,7 @@ spawning_worker:
       - report_id
       - report_title
     success: worker_started
-  
+
   - type: activity_log
     message: "Worker spawned successfully"
     level: success
@@ -298,12 +298,12 @@ waiting_for_completion:
   - type: activity_log
     message: "Waiting for {spawned_jobs|length} jobs to complete"
     level: info
-  
+
   - type: wait_for_jobs
     tracked_jobs_key: "spawned_jobs"
     success: all_jobs_complete
     pending: still_waiting
-  
+
   - type: activity_log
     message: "Jobs status - Completed: {completed_jobs|length}, Failed: {failed_jobs|length}, Pending: {pending_jobs|length}"
     level: info
@@ -371,14 +371,14 @@ waiting_for_completion:
 
 ## Success Criteria
 
-✅ Controller tracks spawned job IDs  
-✅ Controller waits for all tracked jobs to complete  
-✅ Controller resumes polling only after batch completes  
-✅ Failed jobs are detected and logged  
-✅ No duplicate job spawns  
-✅ Timeout handling works correctly  
-✅ Activity logging shows clear workflow progression  
-✅ All tests pass  
+✅ Controller tracks spawned job IDs
+✅ Controller waits for all tracked jobs to complete
+✅ Controller resumes polling only after batch completes
+✅ Failed jobs are detected and logged
+✅ No duplicate job spawns
+✅ Timeout handling works correctly
+✅ Activity logging shows clear workflow progression
+✅ All tests pass
 
 ## Future Enhancements
 

@@ -33,7 +33,7 @@ statemachine-cli run config/timeout_worker.yaml
 ## What Happens
 
 1. **Initialization**: Worker starts and initializes
-2. **Waiting State**: 
+2. **Waiting State**:
    - Enters `waiting` state with 5-second timeout
    - Logs: "⏳ Waiting for work (5-second timeout active)..."
    - If you don't send an event within 5s → transitions to `timed_out`
@@ -75,7 +75,7 @@ transitions:
   - from: waiting
     to: short_timeout
     event: timeout(5)    # Short timeout path
-  
+
   - from: waiting
     to: long_timeout
     event: timeout(30)   # Long timeout path (won't fire if short fires first)

@@ -4,17 +4,16 @@ Standalone tester for check_machine_state_action
 
 Tests the state checking logic to debug why controller sees stale data.
 """
-import sys
-import os
-from pathlib import Path
-from datetime import datetime
 import sqlite3
+import sys
+from datetime import datetime
+from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
 
 from statemachine_engine.actions.builtin import CheckMachineStateAction
-from statemachine_engine.database.models import get_job_model
+
 
 def test_direct_db_query():
     """Test direct database query to see what data exists"""
@@ -68,13 +67,13 @@ def test_action_query():
 
     action = CheckMachineStateAction(config)
 
-    print(f"\nAction config:")
+    print("\nAction config:")
     print(f"  Target: {action.target_machine}")
     print(f"  Expected states: {action.expected_states}")
     print(f"  Timeout: {action.timeout_seconds}s")
 
     # Call internal method
-    print(f"\nCalling _get_current_state()...")
+    print("\nCalling _get_current_state()...")
     current_state = action._get_current_state('sdxl_generator')
 
     print(f"\nResult: {current_state}")
@@ -87,7 +86,7 @@ def test_action_query():
             print(f"⚠️ State '{current_state}' is NOT in expected states {action.expected_states}")
             return 'unexpected_state'
     else:
-        print(f"❌ No recent state data (stale or missing)")
+        print("❌ No recent state data (stale or missing)")
         return 'not_running'
 
 def test_timestamp_parsing():

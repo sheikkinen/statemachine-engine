@@ -1,12 +1,12 @@
 /**
  * MermaidRenderer - Handles Mermaid diagram rendering and SVG enrichment
- * 
+ *
  * Responsibilities:
  * - Render Mermaid code to SVG
  * - Build state highlight lookup maps
  * - Enrich SVG with data attributes for fast queries
  * - Attach composite click handlers
- * 
+ *
  * Version: v1.0.54
  */
 
@@ -74,7 +74,7 @@ export class MermaidRenderer {
 
         const currentDiagramName = metadata.currentDiagramName || 'main';
         const currentDiagram = metadata.diagrams[currentDiagramName];
-        
+
         if (!currentDiagram) {
             console.warn(`[Map] No metadata for ${currentDiagramName}`);
             return null;
@@ -84,7 +84,7 @@ export class MermaidRenderer {
         if (currentDiagramName === 'main') {
             console.log(`[Map] Building map for main diagram`);
             console.log(`[Map] Available diagrams:`, Object.keys(metadata.diagrams));
-            
+
             for (const [compositeName, compositeData] of Object.entries(metadata.diagrams)) {
                 if (compositeName === 'main') continue;
 
@@ -192,17 +192,17 @@ export class MermaidRenderer {
             console.log('[Composite] No SVG element found');
             return;
         }
-        
+
         const currentDiagram = metadata.diagrams?.[currentDiagramName];
         const composites = currentDiagram?.composites || [];
         console.log('[Composite] Looking for composites:', composites);
-        
+
         composites.forEach(compositeName => {
             const selectors = [
                 `[id*="${compositeName}"]`,
                 `g[id*="${compositeName}"]`,
             ];
-            
+
             let compositeNode = null;
             for (const selector of selectors) {
                 compositeNode = svgEl.querySelector(selector);
@@ -211,14 +211,14 @@ export class MermaidRenderer {
                     break;
                 }
             }
-            
+
             // Fallback: try finding by text content
             if (!compositeNode) {
                 const textNodes = Array.from(svgEl.querySelectorAll('text'));
-                const matchingText = textNodes.find(node => 
+                const matchingText = textNodes.find(node =>
                     node.textContent.trim() === compositeName
                 );
-                
+
                 if (matchingText) {
                     compositeNode = matchingText.closest('g.node');
                     if (compositeNode) {
@@ -226,7 +226,7 @@ export class MermaidRenderer {
                     }
                 }
             }
-            
+
             if (compositeNode) {
                 compositeNode.style.cursor = 'pointer';
                 compositeNode.addEventListener('click', (e) => {
@@ -234,7 +234,7 @@ export class MermaidRenderer {
                     e.stopPropagation();
                     onCompositeClick(compositeName);
                 });
-                
+
                 // Visual feedback
                 compositeNode.addEventListener('mouseenter', () => {
                     compositeNode.style.opacity = '0.8';

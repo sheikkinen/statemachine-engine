@@ -1,6 +1,6 @@
 # concurrent-controller
 
-**Description:** 
+**Description:**
 
 **Generated from:** `concurrent-controller.yaml`
 **Machine Name:** `unknown`

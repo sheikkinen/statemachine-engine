@@ -10,7 +10,7 @@ The patient records FSM implements a 4-state workflow:
 waiting_for_report → summarizing → fact_checking → ready
                           ↓             ↓
                     (retry loops for validation)
-                          ↓             ↓  
+                          ↓             ↓
                     waiting_for_report ←─────┘
                           ↓
                        failed
@@ -92,7 +92,7 @@ This enables the UI to show:
 ### Available Commands
 ```bash
 ./run-demo.sh start      # Start 10 machines + monitoring
-./run-demo.sh continuous # Dynamic event simulation  
+./run-demo.sh continuous # Dynamic event simulation
 ./run-demo.sh events     # Real-time event viewer
 ./run-demo.sh status     # Show machine status
 ./run-demo.sh cleanup    # Stop all machines
@@ -150,7 +150,7 @@ This enables the UI to show:
 
 ### Demo Scenarios
 - **Medical workflow automation** showcase
-- **Real-time monitoring** capabilities demonstration  
+- **Real-time monitoring** capabilities demonstration
 - **Scalability validation** with concurrent processing
 - **User interface innovation** with Kanban visualization
 
@@ -165,7 +165,7 @@ This enables the UI to show:
 When the Kanban feature is implemented:
 
 1. **Press 'K'** in the UI to open Kanban modal
-2. **See columns**: waiting_for_report | summarizing | fact_checking | ready | failed  
+2. **See columns**: waiting_for_report | summarizing | fact_checking | ready | failed
 3. **Watch cards move** automatically as timeouts trigger state changes
 4. **Click cards** to see individual FSM diagram details
 5. **Real-time updates** as continuous events simulate workflow activity

@@ -1,13 +1,13 @@
 /**
  * DiagramManager - Coordinates diagram loading and state updates
- * 
+ *
  * VERSION: v1.0.54 (Modular Architecture)
- * 
+ *
  * REFACTORED: Extracted rendering and highlighting to separate modules
  * - MermaidRenderer: Handles Mermaid rendering and SVG enrichment
  * - EventHighlighter: Handles state highlighting and transition animations
  * - DiagramManager: Slim coordinator that delegates to above modules
- * 
+ *
  * Responsibilities:
  * - Load diagram metadata and Mermaid code
  * - Coordinate rendering via MermaidRenderer
@@ -33,7 +33,7 @@ export class DiagramManager {
         this.diagramMetadata = null;
         this.selectedMachine = null;
         this.currentState = null;
-        
+
         // Store all config metadata for view routing
         this.configMetadata = new Map();
 
@@ -53,26 +53,26 @@ export class DiagramManager {
 
             // Try new format first
             let response = await fetch(`/api/diagram/${machineName}/${diagramName}`);
-            
+
             if (response.ok) {
                 // New format with metadata
                 const data = await response.json();
                 this.currentDiagram = data.mermaid_code;
                 this.currentDiagramName = diagramName;
                 this.diagramMetadata = data.metadata;
-                
+
                 // Store metadata in map for view routing
                 this.configMetadata.set(machineName, data.metadata);
-                
+
                 // Update state group manager with new metadata
                 this.stateGroupManager.setMetadata(data.metadata);
-                
+
                 this.updateBreadcrumb(machineName, diagramName);
-                
+
                 // Load persisted state for this machine
                 const persistedState = this.loadMachineState(machineName);
                 const persistedTransition = this.loadMachineTransition(machineName);
-                
+
                 await this.renderDiagram(persistedState, persistedTransition);
             } else {
                 // Fallback to old format
@@ -80,15 +80,15 @@ export class DiagramManager {
                 if (!response.ok) {
                     throw new Error(`Failed to load diagram: ${response.statusText}`);
                 }
-                
+
                 const data = await response.json();
                 this.currentDiagram = data.diagram;
                 this.currentDiagramName = 'main';
                 this.diagramMetadata = null;
-                
+
                 const persistedState = this.loadMachineState(machineName);
                 const persistedTransition = this.loadMachineTransition(machineName);
-                
+
                 await this.renderDiagram(persistedState, persistedTransition);
             }
 
@@ -103,7 +103,7 @@ export class DiagramManager {
             `;
         }
     }
-    
+
     loadMachineState(machineName) {
         try {
             const persistedStates = localStorage.getItem('machineStates');
@@ -120,7 +120,7 @@ export class DiagramManager {
         }
         return null;
     }
-    
+
     loadMachineTransition(machineName) {
         try {
             const persistedTransitions = localStorage.getItem('machineTransitions');
@@ -151,7 +151,7 @@ export class DiagramManager {
                 this.currentDiagramName,
                 transition?.event
             );
-            
+
             if (success) {
                 console.log('[Render] ✓ Fast path (~1ms)');
                 return;
@@ -204,13 +204,13 @@ export class DiagramManager {
         if (!this.breadcrumbNav) return;
 
         const breadcrumbItems = [];
-        
+
         breadcrumbItems.push({
             label: 'Overview',
             diagram: 'main',
             active: diagramName === 'main'
         });
-        
+
         if (diagramName !== 'main' && this.diagramMetadata) {
             breadcrumbItems.push({
                 label: this.diagramMetadata.title || diagramName,
@@ -218,14 +218,14 @@ export class DiagramManager {
                 active: true
             });
         }
-        
+
         this.breadcrumbNav.innerHTML = breadcrumbItems.map(item => `
-            <span class="breadcrumb-item ${item.active ? 'active' : ''}" 
+            <span class="breadcrumb-item ${item.active ? 'active' : ''}"
                   data-diagram="${item.diagram}">
                 ${item.label}
             </span>
         `).join(' › ');
-        
+
         this.breadcrumbNav.querySelectorAll('.breadcrumb-item').forEach(item => {
             item.addEventListener('click', () => {
                 const targetDiagram = item.dataset.diagram;
@@ -238,7 +238,7 @@ export class DiagramManager {
         console.log(`[DiagramManager] updateState called with:`);
         console.log(`  currentState: ${currentState}`);
         console.log(`  transition:`, transition);
-        
+
         if (this.currentState === currentState) {
             console.log(`[DiagramManager] State unchanged, but still processing transition`);
         }
@@ -246,11 +246,11 @@ export class DiagramManager {
         this.currentState = currentState;
         this.renderDiagram(currentState, transition);
     }
-    
+
     getStates() {
         return this.stateGroupManager.getStates(this.currentDiagramName);
     }
-    
+
     getStateGroups() {
         return this.stateGroupManager.getStateGroups(this.currentDiagramName);
     }
@@ -269,26 +269,26 @@ export class DiagramManager {
         try {
             console.log(`[DiagramManager] Fetching metadata for: ${configType}`);
             const response = await fetch(`/api/diagram/${configType}/metadata`);
-            
+
             if (!response.ok) {
                 console.warn(`[DiagramManager] Failed to fetch metadata for ${configType}: ${response.status}`);
                 return null;
             }
-            
+
             const metadata = await response.json();
-            
+
             // Store in map for view routing
             this.configMetadata.set(configType, metadata);
-            
+
             try {
                 localStorage.setItem(`diagram_metadata_${configType}`, JSON.stringify(metadata));
             } catch (error) {
                 console.warn(`[DiagramManager] Failed to cache metadata for ${configType}:`, error);
             }
-            
+
             console.log(`[DiagramManager] ✓ Fetched and cached metadata for ${configType}`);
             return metadata;
-            
+
         } catch (error) {
             console.error(`[DiagramManager] Error fetching metadata for ${configType}:`, error);
             return null;

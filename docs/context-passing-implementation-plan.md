@@ -1,7 +1,7 @@
 # Context Passing Implementation Plan
 
-**Date**: 2025-11-08  
-**Feature**: Pass job context from controller to spawned worker FSMs  
+**Date**: 2025-11-08
+**Feature**: Pass job context from controller to spawned worker FSMs
 **Approach**: Mix of Option 1 (auto-start) + Option 3 (context-based initialization)
 
 ## Problem Statement
@@ -37,17 +37,17 @@ Worker FSMs spawned by concurrent-controller are stuck in `waiting_for_report` i
 
 ### Rejected Alternatives
 
-1. **Environment variables**: 
+1. **Environment variables**:
    - ❌ Pollutes environment namespace
    - ❌ Inheritance issues with child processes
    - ❌ Limited size, awkward for nested data
 
-2. **Unix socket message after spawn**: 
+2. **Unix socket message after spawn**:
    - ❌ Race condition: FSM may start before message arrives
    - ❌ Complexity: Requires handshake protocol
    - ❌ Unreliable: Message could be lost
 
-3. **Temporary file**: 
+3. **Temporary file**:
    - ❌ Cleanup complexity
    - ❌ Race conditions on file access
    - ❌ Security concerns with temp files
@@ -126,7 +126,7 @@ statemachine examples/patient_records/config/patient-records.yaml \
 
 ```python
 # In async_main()
-parser.add_argument('--initial-context', 
+parser.add_argument('--initial-context',
                     help='JSON string with initial context variables',
                     default='{}')
 
@@ -172,7 +172,7 @@ def __init__(self, config: Dict[str, Any]):
 def _extract_context_vars(self, context: Dict[str, Any]) -> Dict[str, Any]:
     """Extract specified variables from context"""
     extracted = {}
-    
+
     for var_spec in self.context_vars:
         # Parse "source as target" or just "source"
         if ' as ' in var_spec:
@@ -181,52 +181,52 @@ def _extract_context_vars(self, context: Dict[str, Any]) -> Dict[str, Any]:
             target = target.strip()
         else:
             source = target = var_spec.strip()
-        
+
         # Extract value (supports dot notation)
         value = self._get_nested_value(context, source)
-        
+
         if value is not None:
             extracted[target] = value
         else:
             logger.warning(f"Context variable '{source}' not found, skipping")
-    
+
     return extracted
 
 def _get_nested_value(self, data: Dict[str, Any], path: str) -> Any:
     """Get value from nested dict using dot notation"""
     keys = path.split('.')
     value = data
-    
+
     for key in keys:
         if isinstance(value, dict) and key in value:
             value = value[key]
         else:
             return None
-    
+
     return value
 
 async def execute(self, context: Dict[str, Any]) -> str:
     # ... existing validation ...
-    
+
     # Extract context variables if specified
     if self.context_vars:
         context_data = self._extract_context_vars(context)
-        
+
         # Serialize to JSON
         try:
             context_json = json.dumps(context_data, separators=(',', ':'))
-            
+
             # Warn if too large (>4KB)
             if len(context_json) > 4096:
                 logger.warning(f"Context JSON is large ({len(context_json)} bytes)")
-            
+
             # Add to command
             command.extend(['--initial-context', context_json])
-            
+
         except (TypeError, ValueError) as e:
             logger.error(f"Failed to serialize context: {e}")
             return self.get_config_value('error', 'error')
-    
+
     # ... rest of existing code ...
 ```
 
@@ -267,7 +267,7 @@ transitions:
   - from: summarizing
     to: fact_checking
     event: timeout(10)
-  
+
   # ... rest unchanged ...
 
 actions:
@@ -298,7 +298,7 @@ spawning_worker:
   - type: log
     message: "🚀 Spawning worker for job: {current_job.id}"
     level: info
-  
+
   - type: start_fsm
     yaml_path: "examples/patient_records/config/patient-records.yaml"
     machine_name: "patient_record_{current_job.id}"
@@ -310,7 +310,7 @@ spawning_worker:
     success: worker_started
     error: spawn_failed
     store_pid: true
-  
+
   - type: log
     message: "✅ Worker spawned: patient_record_{current_job.id}"
     level: success
@@ -331,27 +331,27 @@ async def test_start_fsm_with_context_vars():
         'report_id': 'report_1',
         'report_title': 'Test Report'
     }
-    
+
     config = {
         'yaml_path': 'config/worker.yaml',
         'machine_name': 'worker_001',
         'context_vars': ['job_id', 'report_id', 'report_title']
     }
-    
+
     action = StartFsmAction(config)
-    
+
     with patch('subprocess.Popen') as mock_popen:
         mock_popen.return_value.pid = 12345
         result = await action.execute(context)
-        
+
         # Verify command includes --initial-context
         call_args = mock_popen.call_args[0][0]
         assert '--initial-context' in call_args
-        
+
         # Parse and verify JSON
         ctx_idx = call_args.index('--initial-context') + 1
         context_json = json.loads(call_args[ctx_idx])
-        
+
         assert context_json == {
             'job_id': 'job_001',
             'report_id': 'report_1',
@@ -370,23 +370,23 @@ async def test_start_fsm_with_nested_context_vars():
         },
         'report_id': 'report_1'
     }
-    
+
     config = {
         'yaml_path': 'config/worker.yaml',
         'machine_name': 'worker_001',
         'context_vars': ['current_job.id', 'current_job.type', 'report_id']
     }
-    
+
     action = StartFsmAction(config)
-    
+
     with patch('subprocess.Popen') as mock_popen:
         mock_popen.return_value.pid = 12345
         result = await action.execute(context)
-        
+
         call_args = mock_popen.call_args[0][0]
         ctx_idx = call_args.index('--initial-context') + 1
         context_json = json.loads(call_args[ctx_idx])
-        
+
         assert context_json == {
             'current_job.id': 'job_001',
             'current_job.type': 'patient_records',
@@ -401,7 +401,7 @@ async def test_start_fsm_with_renamed_context_vars():
         'current_job': {'id': 'job_001'},
         'long_variable_name': 'value'
     }
-    
+
     config = {
         'yaml_path': 'config/worker.yaml',
         'machine_name': 'worker_001',
@@ -410,17 +410,17 @@ async def test_start_fsm_with_renamed_context_vars():
             'long_variable_name as short'
         ]
     }
-    
+
     action = StartFsmAction(config)
-    
+
     with patch('subprocess.Popen') as mock_popen:
         mock_popen.return_value.pid = 12345
         result = await action.execute(context)
-        
+
         call_args = mock_popen.call_args[0][0]
         ctx_idx = call_args.index('--initial-context') + 1
         context_json = json.loads(call_args[ctx_idx])
-        
+
         # Verify renamed keys
         assert context_json == {
             'job_id': 'job_001',
@@ -434,24 +434,24 @@ async def test_start_fsm_missing_context_vars():
     context = {
         'existing_var': 'value'
     }
-    
+
     config = {
         'yaml_path': 'config/worker.yaml',
         'machine_name': 'worker_001',
         'context_vars': ['existing_var', 'missing_var', 'also.missing']
     }
-    
+
     action = StartFsmAction(config)
-    
+
     with patch('subprocess.Popen') as mock_popen:
         mock_popen.return_value.pid = 12345
         result = await action.execute(context)
-        
+
         # Should succeed with partial context
         call_args = mock_popen.call_args[0][0]
         ctx_idx = call_args.index('--initial-context') + 1
         context_json = json.loads(call_args[ctx_idx])
-        
+
         # Only existing var included
         assert context_json == {'existing_var': 'value'}
         assert result == 'success'
@@ -461,19 +461,19 @@ async def test_start_fsm_missing_context_vars():
 async def test_start_fsm_empty_context_vars():
     """Test with no context_vars specified"""
     context = {'some': 'data'}
-    
+
     config = {
         'yaml_path': 'config/worker.yaml',
         'machine_name': 'worker_001'
         # No context_vars
     }
-    
+
     action = StartFsmAction(config)
-    
+
     with patch('subprocess.Popen') as mock_popen:
         mock_popen.return_value.pid = 12345
         await action.execute(context)
-        
+
         # Verify no --initial-context arg
         call_args = mock_popen.call_args[0][0]
         assert '--initial-context' not in call_args
@@ -485,21 +485,21 @@ async def test_start_fsm_large_context_warning():
     context = {
         'large_data': 'x' * 5000  # >4KB
     }
-    
+
     config = {
         'yaml_path': 'config/worker.yaml',
         'machine_name': 'worker_001',
         'context_vars': ['large_data']
     }
-    
+
     action = StartFsmAction(config)
-    
+
     with patch('subprocess.Popen') as mock_popen:
         mock_popen.return_value.pid = 12345
-        
+
         with patch('logging.Logger.warning') as mock_warning:
             await action.execute(context)
-            
+
             # Verify warning was logged
             mock_warning.assert_called()
             warning_msg = str(mock_warning.call_args[0][0])
@@ -599,7 +599,7 @@ actions:
 ## Benefits
 
 1. **Auto-start workers**: No manual event trigger needed
-2. **Context isolation**: Each worker gets only its job data  
+2. **Context isolation**: Each worker gets only its job data
 3. **Debuggable**: Context visible in `ps aux` output
 4. **Flexible**: Controller decides what to pass
 5. **Type-safe**: JSON serialization validates data structure
@@ -677,7 +677,7 @@ Context Variables:
 --initial-context JSON
     JSON string with initial context variables. Used by controller
     FSMs to pass job data to spawned workers.
-    
+
     Example: '{"job_id":"job_001","report_id":"report_1"}'
 ```
 

@@ -1,8 +1,8 @@
 # Variable Interpolation Logic Refactoring Plan
 
-**Date**: 2025-11-10  
-**Status**: Planning  
-**Priority**: HIGH  
+**Date**: 2025-11-10
+**Status**: Planning
+**Priority**: HIGH
 **Approach**: TDD (Test-Driven Development)
 
 ---
@@ -17,7 +17,7 @@ Variable interpolation (`{variable}` substitution) is currently duplicated in **
 4. Migrate all usages to the shared module
 5. Remove duplicate implementations
 
-**Estimated Effort**: 3-4 hours  
+**Estimated Effort**: 3-4 hours
 **Risk Level**: LOW (pure refactor with existing test coverage)
 
 ---
@@ -28,8 +28,8 @@ Variable interpolation (`{variable}` substitution) is currently duplicated in **
 
 #### 1. **Engine** (`core/engine.py`) - MASTER IMPLEMENTATION ✅
 
-**Location**: Lines 637-683  
-**Methods**: 
+**Location**: Lines 637-683
+**Methods**:
 - `_substitute_variables(template, context)` - Main substitution
 - `_interpolate_config(config, context)` - Recursive dict/list processing
 
@@ -45,22 +45,22 @@ Variable interpolation (`{variable}` substitution) is currently duplicated in **
 ```python
 def _substitute_variables(self, template: str, context: Dict[str, Any]) -> str:
     """Substitute {variable} placeholders with context values.
-    
+
     Supports:
     - Simple variables: {job_id}, {id}, {status}
     - Nested keys with dot notation: {event_data.payload.job_id}
     - Leaves unknown placeholders unchanged
     """
     import re
-    
+
     if not isinstance(template, str):
         return template
-        
+
     pattern = r'\{([a-zA-Z_][a-zA-Z0-9_.]*)\}'
-    
+
     def replace_match(match):
         key = match.group(1)
-        
+
         # Handle nested keys (e.g., event_data.payload.job_id)
         if '.' in key:
             parts = key.split('.')
@@ -73,14 +73,14 @@ def _substitute_variables(self, template: str, context: Dict[str, Any]) -> str:
                 else:
                     return match.group(0)  # Keep placeholder
             return str(obj) if obj is not None else match.group(0)
-        
+
         # Handle simple keys
         value = context.get(key)
         if value is not None:
             return str(value)
-        
+
         return match.group(0)  # Keep placeholder if not found
-    
+
     return re.sub(pattern, replace_match, template)
 ```
 
@@ -88,7 +88,7 @@ def _substitute_variables(self, template: str, context: Dict[str, Any]) -> str:
 
 #### 2. **CompleteJobAction** (`actions/builtin/complete_job_action.py`)
 
-**Location**: Lines 68-78  
+**Location**: Lines 68-78
 **Method**: `_interpolate_variables(template, context)`
 
 **Features**:
@@ -102,12 +102,12 @@ def _substitute_variables(self, template: str, context: Dict[str, Any]) -> str:
 def _interpolate_variables(self, template: str, context: Dict[str, Any]) -> str:
     """Replace {var} placeholders with context values"""
     import re
-    
+
     def replace_var(match):
         var_name = match.group(1)
         value = context.get(var_name)
         return str(value) if value is not None else match.group(0)
-    
+
     return re.sub(r'\{(\w+)\}', replace_var, template)
 ```
 
@@ -120,7 +120,7 @@ def _interpolate_variables(self, template: str, context: Dict[str, Any]) -> str:
 
 #### 3. **StartFSMAction** (`actions/builtin/start_fsm_action.py`)
 
-**Location**: Lines 224-267  
+**Location**: Lines 224-267
 **Method**: `_interpolate_variables(template, context)`
 
 **Features**:
@@ -135,17 +135,17 @@ def _interpolate_variables(self, template: str, context: Dict[str, Any]) -> str:
 def _interpolate_variables(self, template: str, context: Dict[str, Any]) -> str:
     """
     Replace {variable} placeholders with values from context.
-    
+
     Supports simple and nested variable substitution:
     - {job_id} -> context['job_id']
     - {current_job.id} -> context['current_job']['id']
     """
     result = template
-    
+
     # Find all {variable} and {nested.variable} patterns
     pattern = r'\{([\w\.]+)\}'
     matches = re.findall(pattern, template)
-    
+
     # Replace each variable
     for var_path in matches:
         # Handle nested paths like current_job.id
@@ -164,7 +164,7 @@ def _interpolate_variables(self, template: str, context: Dict[str, Any]) -> str:
                 result = result.replace(f'{{{var_path}}}', str(context[var_path]))
             else:
                 logger.warning(f"StartFsmAction: Variable '{var_path}' not found in context")
-    
+
     return result
 ```
 
@@ -177,7 +177,7 @@ def _interpolate_variables(self, template: str, context: Dict[str, Any]) -> str:
 
 #### 4. **BashAction** (`actions/builtin/bash_action.py`)
 
-**Location**: Lines 75-160 (inline, not a method)  
+**Location**: Lines 75-160 (inline, not a method)
 **Method**: Inline string replacement logic
 
 **Features**:
@@ -207,7 +207,7 @@ if '"{prompt}"' in command or '"{output}"' in command:
 
 #### 5. **SendEventAction** (`actions/builtin/send_event_action.py`)
 
-**Location**: Line 196-200 (partial inline)  
+**Location**: Line 196-200 (partial inline)
 **Method**: Inline `string.replace()` for specific case
 
 **Pattern**:
@@ -268,26 +268,26 @@ from typing import Dict, Any
 def interpolate_string(template: str, context: Dict[str, Any]) -> str:
     """
     Replace {variable} placeholders with context values.
-    
+
     Supports:
     - Simple variables: {job_id}, {status}
     - Nested dot notation: {event_data.payload.job_id}
     - Preserves unknown placeholders unchanged
-    
+
     Args:
         template: String with {variable} placeholders
         context: Dictionary with variable values
-    
+
     Returns:
         String with variables replaced
-    
+
     Examples:
         >>> interpolate_string("Job {job_id}", {"job_id": "123"})
         'Job 123'
-        
+
         >>> interpolate_string("Status: {payload.status}", {"payload": {"status": "done"}})
         'Status: done'
-        
+
         >>> interpolate_string("Unknown {missing}", {})
         'Unknown {missing}'
     """
@@ -297,21 +297,21 @@ def interpolate_string(template: str, context: Dict[str, Any]) -> str:
 def interpolate_dict(config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     """
     Recursively interpolate variables in dict/list structures.
-    
+
     Processes all string values, replacing {variable} placeholders.
     Handles nested dicts and lists recursively.
-    
+
     Args:
         config: Dictionary or list with string values to interpolate
         context: Dictionary with variable values
-    
+
     Returns:
         New dict/list with variables replaced
-    
+
     Examples:
         >>> interpolate_dict({"msg": "Job {id}"}, {"id": "123"})
         {'msg': 'Job 123'}
-        
+
         >>> interpolate_dict({"cmd": ["run", "{file}"]}, {"file": "test.py"})
         {'cmd': ['run', 'test.py']}
     """
@@ -336,12 +336,12 @@ from statemachine_engine.utils.interpolation import interpolate_string, interpol
 
 class TestInterpolateString:
     """Test simple string interpolation"""
-    
+
     def test_simple_variable(self):
         """Replace {job_id} with context value"""
         result = interpolate_string("Job {job_id}", {"job_id": "123"})
         assert result == "Job 123"
-    
+
     def test_nested_variable(self):
         """Replace {event_data.payload.status} with nested value"""
         context = {
@@ -351,40 +351,40 @@ class TestInterpolateString:
         }
         result = interpolate_string("Status: {event_data.payload.status}", context)
         assert result == "Status: completed"
-    
+
     def test_missing_variable_preserved(self):
         """Keep {unknown} unchanged when not in context"""
         result = interpolate_string("Value: {unknown}", {})
         assert result == "Value: {unknown}"
-    
+
     def test_multiple_variables(self):
         """Replace multiple variables in one string"""
         context = {"job_id": "123", "status": "done"}
         result = interpolate_string("Job {job_id}: {status}", context)
         assert result == "Job 123: done"
-    
+
     def test_non_string_template(self):
         """Return non-strings unchanged"""
         assert interpolate_string(123, {}) == 123
         assert interpolate_string(None, {}) is None
-    
+
     def test_special_characters_in_value(self):
         """Handle special chars in values"""
         context = {"msg": "Hello! @#$%"}
         result = interpolate_string("Message: {msg}", context)
         assert result == "Message: Hello! @#$%"
-    
+
     def test_numeric_value_conversion(self):
         """Convert numeric values to strings"""
         context = {"count": 42, "price": 99.99}
         result = interpolate_string("Count: {count}, Price: {price}", context)
         assert result == "Count: 42, Price: 99.99"
-    
+
     def test_braces_in_non_variable_context(self):
         """Preserve braces that aren't variables"""
         result = interpolate_string("Set: {{1, 2, 3}}", {})
         assert result == "Set: {{1, 2, 3}}"
-    
+
     def test_deeply_nested_variable(self):
         """Handle deeply nested paths"""
         context = {
@@ -392,7 +392,7 @@ class TestInterpolateString:
         }
         result = interpolate_string("Deep: {a.b.c.d}", context)
         assert result == "Deep: value"
-    
+
     def test_nested_missing_intermediate(self):
         """Keep placeholder when intermediate key missing"""
         context = {"a": {"b": "value"}}
@@ -402,14 +402,14 @@ class TestInterpolateString:
 
 class TestInterpolateDict:
     """Test recursive dict/list interpolation"""
-    
+
     def test_simple_dict(self):
         """Interpolate string values in dict"""
         config = {"message": "Job {job_id}"}
         context = {"job_id": "123"}
         result = interpolate_dict(config, context)
         assert result == {"message": "Job 123"}
-    
+
     def test_nested_dict(self):
         """Recursively interpolate nested dicts"""
         config = {
@@ -421,7 +421,7 @@ class TestInterpolateDict:
         context = {"job_id": "456"}
         result = interpolate_dict(config, context)
         assert result["action"]["message"] == "Processing 456"
-    
+
     def test_list_values(self):
         """Interpolate strings in lists"""
         config = {
@@ -430,7 +430,7 @@ class TestInterpolateDict:
         context = {"file": "test.py", "dir": "/tmp"}
         result = interpolate_dict(config, context)
         assert result["commands"] == ["run test.py", "output /tmp"]
-    
+
     def test_mixed_types(self):
         """Preserve non-string types"""
         config = {
@@ -445,7 +445,7 @@ class TestInterpolateDict:
         assert result["int"] == 42
         assert result["bool"] is True
         assert result["none"] is None
-    
+
     def test_deeply_nested_structure(self):
         """Handle complex nested structures"""
         config = {
@@ -464,22 +464,22 @@ class TestInterpolateDict:
 
 class TestEdgeCases:
     """Test edge cases and error handling"""
-    
+
     def test_empty_context(self):
         """Handle empty context gracefully"""
         result = interpolate_string("Value: {x}", {})
         assert result == "Value: {x}"
-    
+
     def test_empty_template(self):
         """Handle empty string"""
         result = interpolate_string("", {"x": "y"})
         assert result == ""
-    
+
     def test_none_value_in_context(self):
         """Skip None values (keep placeholder)"""
         result = interpolate_string("Value: {x}", {"x": None})
         assert result == "Value: {x}"
-    
+
     def test_circular_reference_protection(self):
         """Don't infinite loop on self-referential context"""
         circular = {"a": "value"}
@@ -538,11 +538,11 @@ from ..utils.interpolation import interpolate_string, interpolate_dict
 
 class StateMachineEngine:
     # ... existing code ...
-    
+
     def _substitute_variables(self, template: str, context: Dict[str, Any]) -> str:
         """DEPRECATED: Use utils.interpolation.interpolate_string instead"""
         return interpolate_string(template, context)
-    
+
     def _interpolate_config(self, config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """DEPRECATED: Use utils.interpolation.interpolate_dict instead"""
         return interpolate_dict(config, context)
@@ -582,12 +582,12 @@ class CompleteJobAction(BaseAction):
     async def execute(self, context: Dict[str, Any]) -> str:
         # REPLACE:
         # job_id = self._interpolate_variables(self.job_id_template, context)
-        
+
         # WITH:
         job_id = interpolate_string(self.job_id_template, context)
-        
+
         # ... rest of code ...
-    
+
     # REMOVE method:
     # def _interpolate_variables(self, template: str, context: Dict[str, Any]) -> str:
     #     ... DELETE THIS METHOD ...
@@ -613,13 +613,13 @@ class StartFSMAction(BaseAction):
         # REPLACE:
         # yaml_path = self._interpolate_variables(self.yaml_path, context)
         # machine_name = self._interpolate_variables(self.machine_name, context)
-        
+
         # WITH:
         yaml_path = interpolate_string(self.yaml_path, context)
         machine_name = interpolate_string(self.machine_name, context)
-        
+
         # ... rest of code ...
-    
+
     # REMOVE methods:
     # def _interpolate_variables(self, template: str, context: Dict[str, Any]) -> str:
     #     ... DELETE THIS METHOD ...
@@ -649,11 +649,11 @@ class SendEventAction(BaseAction):
         # if isinstance(extracted_value, str) and '{id}' in extracted_value:
         #     substitute_id = event_job_id or job_id
         #     extracted_value = extracted_value.replace('{id}', substitute_id if substitute_id else '{id}')
-        
+
         # REPLACE WITH:
         if isinstance(extracted_value, str):
             extracted_value = interpolate_string(extracted_value, context)
-        
+
         # (More robust - handles all variables, not just {id})
 ```
 
@@ -814,7 +814,7 @@ Output: "Processing job 123 with status running"
 
 ### Risk 1: Breaking Existing Behavior
 
-**Probability**: LOW  
+**Probability**: LOW
 **Impact**: MEDIUM
 
 **Mitigation**:
@@ -825,7 +825,7 @@ Output: "Processing job 123 with status running"
 
 ### Risk 2: Missing Edge Cases
 
-**Probability**: LOW  
+**Probability**: LOW
 **Impact**: LOW
 
 **Mitigation**:
@@ -835,7 +835,7 @@ Output: "Processing job 123 with status running"
 
 ### Risk 3: Import Circular Dependencies
 
-**Probability**: VERY LOW  
+**Probability**: VERY LOW
 **Impact**: MEDIUM
 
 **Mitigation**:
@@ -847,10 +847,10 @@ Output: "Processing job 123 with status running"
 
 ## Success Criteria
 
-✅ **All tests pass** (235+ existing tests)  
-✅ **No duplicate interpolation methods** (except BashAction's unique logic)  
-✅ **100% coverage** for utils/interpolation.py  
-✅ **Documentation updated** (README, docstrings)  
+✅ **All tests pass** (235+ existing tests)
+✅ **No duplicate interpolation methods** (except BashAction's unique logic)
+✅ **100% coverage** for utils/interpolation.py
+✅ **Documentation updated** (README, docstrings)
 ✅ **Reduced LOC** (~80 lines removed)
 
 ---

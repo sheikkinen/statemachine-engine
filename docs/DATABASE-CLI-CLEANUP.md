@@ -10,12 +10,12 @@ Successfully removed 281 lines of obsolete and domain-specific code from `databa
 These commands operate on an old `pony_flux_jobs` table that should no longer exist:
 
 - `list-pony-flux` - List pony-flux jobs
-- `pony-flux-details` - Show pony-flux job details  
+- `pony-flux-details` - Show pony-flux job details
 - `cleanup-pony` - Clean up pony-flux jobs
 - `update-pony-flux-status` - Update pony-flux status
 - `get_pony_flux_status_counts()` - Query pony-flux table
 
-**Recommendation:** 
+**Recommendation:**
 - Mark these commands as DEPRECATED in v1.0.2
 - Remove in v1.1.0
 - Document migration path to unified `jobs` table
@@ -67,7 +67,7 @@ The `'legacy'` machine type is ambiguous. Should use explicit types or remove en
 
 ```python
 # Lines 906-915
-output_dirs = ['0-generated', '0-scaled', '1-portraits', '2-verified', 
+output_dirs = ['0-generated', '0-scaled', '1-portraits', '2-verified',
                '3-masks', '4-results', '5-resized', '6-final']
 ```
 
@@ -137,7 +137,7 @@ Removed all domain-specific functionality from database CLI, making it a truly g
 ### Removed Functions
 
 1. `get_pony_flux_status_counts()` - Domain-specific job counting
-2. `cmd_list_pony_flux_jobs()` - List pony flux jobs  
+2. `cmd_list_pony_flux_jobs()` - List pony flux jobs
 3. `cmd_pony_flux_details()` - Show pony flux job details
 4. `cmd_cleanup_pony()` - Clean up pony flux jobs
 5. `cmd_update_pony_flux_status()` - Update pony flux status

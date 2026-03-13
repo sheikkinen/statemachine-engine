@@ -4,9 +4,11 @@ Unit tests for WaitForJobsAction.
 Tests the database polling action that waits for tracked jobs to complete.
 """
 
-import pytest
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
+import pytest
+
 from statemachine_engine.actions.builtin import WaitForJobsAction
 
 
@@ -21,11 +23,11 @@ class TestWaitForJobsAction:
             'poll_interval': 0.1,
             'success': 'all_jobs_complete'
         })
-        
+
         context = {
             'spawned_jobs': ['1', '2', '3']
         }
-        
+
         # Mock _get_job_statuses to return all completed
         with patch.object(action, '_get_job_statuses', return_value={
             '1': 'completed',
@@ -33,7 +35,7 @@ class TestWaitForJobsAction:
             '3': 'completed'
         }):
             result = await action.execute(context)
-        
+
         assert result == 'all_jobs_complete'
         assert context['completed_jobs'] == ['1', '2', '3']
         assert context['failed_jobs'] == []
@@ -47,11 +49,11 @@ class TestWaitForJobsAction:
             'poll_interval': 0.1,
             'success': 'all_jobs_complete'
         })
-        
+
         context = {
             'spawned_jobs': ['1', '2', '3']
         }
-        
+
         # Mock _get_job_statuses to return mixed statuses
         with patch.object(action, '_get_job_statuses', return_value={
             '1': 'completed',
@@ -59,7 +61,7 @@ class TestWaitForJobsAction:
             '3': 'completed'
         }):
             result = await action.execute(context)
-        
+
         assert result == 'all_jobs_complete'
         assert context['completed_jobs'] == ['1', '3']
         assert context['failed_jobs'] == ['2']
@@ -73,11 +75,11 @@ class TestWaitForJobsAction:
             'poll_interval': 0.1,
             'pending': 'still_waiting'
         })
-        
+
         context = {
             'spawned_jobs': ['1', '2', '3']
         }
-        
+
         # Mock _get_job_statuses to return some pending
         with patch.object(action, '_get_job_statuses', return_value={
             '1': 'completed',
@@ -85,7 +87,7 @@ class TestWaitForJobsAction:
             '3': 'pending'
         }):
             result = await action.execute(context)
-        
+
         assert result == 'still_waiting'
         assert context['completed_jobs'] == ['1']
         assert context['failed_jobs'] == []
@@ -100,19 +102,19 @@ class TestWaitForJobsAction:
             'timeout': 0.2,  # Very short timeout
             'timeout_event': 'check_timeout'
         })
-        
+
         context = {
             'spawned_jobs': ['1', '2'],
             'wait_start_time': time.time() - 0.3  # Already exceeded timeout
         }
-        
+
         # Mock _get_job_statuses to return pending (shouldn't be called due to timeout)
         with patch.object(action, '_get_job_statuses', return_value={
             '1': 'processing',
             '2': 'processing'
         }) as mock_statuses:
             result = await action.execute(context)
-        
+
         # When timeout is exceeded with timeout_event, returns immediately
         assert result == 'check_timeout'
         # Job statuses are not queried or set when timeout_event is configured
@@ -126,13 +128,13 @@ class TestWaitForJobsAction:
             'poll_interval': 0.1,
             'success': 'all_jobs_complete'
         })
-        
+
         context = {
             'spawned_jobs': []
         }
-        
+
         result = await action.execute(context)
-        
+
         # Should return no_jobs_tracked for empty list
         assert result == 'no_jobs_tracked'
 
@@ -144,11 +146,11 @@ class TestWaitForJobsAction:
             'poll_interval': 0.1,
             'success': 'all_jobs_complete'
         })
-        
+
         context = {}
-        
+
         result = await action.execute(context)
-        
+
         # Should handle gracefully
         assert result == 'no_jobs_tracked'
 
@@ -159,7 +161,7 @@ class TestWaitForJobsAction:
             'tracked_jobs_key': 'spawned_jobs',
             'success': 'all_jobs_complete'
         })
-        
+
         assert action.poll_interval == 2
 
     @pytest.mark.asyncio
@@ -169,7 +171,7 @@ class TestWaitForJobsAction:
             'tracked_jobs_key': 'spawned_jobs',
             'success': 'all_jobs_complete'
         })
-        
+
         assert action.timeout == 300
 
     @pytest.mark.asyncio
@@ -180,15 +182,15 @@ class TestWaitForJobsAction:
             'poll_interval': 0.1,
             'success': 'all_jobs_complete'
         })
-        
+
         context = {
             'spawned_jobs': ['1']
         }
-        
+
         start_time = time.time()
         with patch.object(action, '_get_job_statuses', return_value={'1': 'completed'}):
             await action.execute(context)
-        
+
         # wait_start_time should have been set then deleted when all jobs complete
         assert 'wait_start_time' not in context  # Cleared after completion
 
@@ -200,15 +202,15 @@ class TestWaitForJobsAction:
             'poll_interval': 0.1,
             'pending': 'still_waiting'
         })
-        
+
         context = {
             'spawned_jobs': ['1']
         }
-        
+
         start_time = time.time()
         with patch.object(action, '_get_job_statuses', return_value={'1': 'processing'}):
             await action.execute(context)
-        
+
         assert 'wait_start_time' in context
         assert context['wait_start_time'] >= start_time
         assert context['wait_start_time'] <= time.time()
@@ -222,11 +224,11 @@ class TestWaitForJobsAction:
             'success': 'all_jobs_complete',
             'pending': 'still_waiting'
         })
-        
+
         context = {
             'spawned_jobs': ['1', '2', '3', '4', '5']
         }
-        
+
         # Mock _get_job_statuses with various statuses
         with patch.object(action, '_get_job_statuses', return_value={
             '1': 'completed',
@@ -236,7 +238,7 @@ class TestWaitForJobsAction:
             '5': 'completed'
         }):
             result = await action.execute(context)
-        
+
         # Some still pending, should return pending event
         assert result == 'still_waiting'
         assert set(context['completed_jobs']) == {'1', '5'}
@@ -253,15 +255,15 @@ class TestWaitForJobsAction:
             'pending': 'custom_pending',
             'timeout_event': 'custom_timeout'
         })
-        
+
         context = {
             'spawned_jobs': ['1']
         }
-        
+
         # Mock _get_job_statuses to return pending
         with patch.object(action, '_get_job_statuses', return_value={'1': 'processing'}):
             result = await action.execute(context)
-        
+
         assert result == 'custom_pending'
 
     @pytest.mark.asyncio
@@ -272,11 +274,11 @@ class TestWaitForJobsAction:
             'poll_interval': 0.1,
             'pending': 'still_waiting'
         })
-        
+
         context = {
             'spawned_jobs': ['1', '2', '3']
         }
-        
+
         # Mock _get_job_statuses - job '3' not in results (not found)
         with patch.object(action, '_get_job_statuses', return_value={
             '1': 'completed',
@@ -284,7 +286,7 @@ class TestWaitForJobsAction:
             # '3' missing - should be treated as pending
         }):
             result = await action.execute(context)
-        
+
         assert result == 'still_waiting'
         assert context['pending_jobs'] == ['3']  # Missing job treated as pending
 
@@ -298,14 +300,14 @@ class TestWaitForJobsAction:
             'pending': 'still_waiting'
             # No timeout_event configured
         })
-        
+
         context = {
             'spawned_jobs': ['1'],
             'wait_start_time': time.time() - 0.3  # Exceeded timeout
         }
-        
+
         with patch.object(action, '_get_job_statuses', return_value={'1': 'processing'}):
             result = await action.execute(context)
-        
+
         # Should return pending event since no timeout_event set
         assert result == 'still_waiting'

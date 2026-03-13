@@ -60,7 +60,7 @@ class ActionLoader:
             # Auto-detect: src/actions relative to this file
             this_file = Path(__file__)
             actions_root = str(this_file.parent.parent / 'actions')
-        
+
         self.actions_root = Path(actions_root)
         # ... discovery logic
 ```
@@ -207,6 +207,6 @@ statemachine sdxl_generator/config/sdxl_generator.yaml \
 
 ---
 
-*Created*: October 10, 2025  
-*Status*: Proposed  
+*Created*: October 10, 2025
+*Status*: Proposed
 *Target Version*: 1.1.0

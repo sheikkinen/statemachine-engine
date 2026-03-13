@@ -80,7 +80,7 @@ async def unix_socket_listener():
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     sock.bind(SOCKET_PATH)
     sock.setblocking(False)
-    
+
     while True:
         try:
             # Non-blocking receive with timeout
@@ -88,12 +88,12 @@ async def unix_socket_listener():
                 asyncio.get_event_loop().sock_recvfrom(sock, 4096),
                 timeout=1.0
             )
-            
+
             event = json.loads(data.decode('utf-8'))
-            
+
             # Broadcast to all connected WebSocket clients
             await broadcaster.broadcast(event)
-            
+
         except asyncio.TimeoutError:
             continue  # No data, keep listening
 ```
@@ -107,18 +107,18 @@ def send_event(event_type: str, machine_id: str, **kwargs):
     """Send event to WebSocket server via Unix socket"""
     try:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-        
+
         event = {
             'type': event_type,
             'machine_id': machine_id,
             'timestamp': time.time(),
             **kwargs
         }
-        
+
         message = json.dumps(event).encode('utf-8')
         sock.sendto(message, SOCKET_PATH)
         sock.close()
-        
+
     except Exception as e:
         # Fail silently - monitoring is optional
         logger.debug(f"Failed to send event: {e}")
@@ -147,28 +147,28 @@ The server maintains a set of connected WebSocket clients and broadcasts events 
 class Broadcaster:
     def __init__(self):
         self.connections: Set[WebSocket] = set()
-    
+
     async def connect(self, websocket: WebSocket):
         """Register new WebSocket client"""
         await websocket.accept()
         self.connections.add(websocket)
-    
+
     async def disconnect(self, websocket: WebSocket):
         """Unregister WebSocket client"""
         self.connections.discard(websocket)
-    
+
     async def broadcast(self, event: dict):
         """Send event to all connected clients"""
         # Pre-serialize JSON to avoid blocking (v1.0.26 fix)
         event_json, success = safe_json_dumps_compact(event)
-        
+
         if not success:
             logger.error("Failed to serialize broadcast event")
             return
-        
+
         # Send to all clients with timeout protection
         dead_connections = set()
-        
+
         for ws in self.connections:
             try:
                 # Use send_text() with pre-serialized JSON
@@ -180,7 +180,7 @@ class Broadcaster:
             except Exception as e:
                 logger.warning(f"Failed to send to client: {e}")
                 dead_connections.add(ws)
-        
+
         # Clean up failed connections
         self.connections -= dead_connections
 ```
@@ -239,25 +239,25 @@ Each WebSocket connection has a dedicated keepalive task:
 async def send_keepalive(websocket: WebSocket, client_id: int):
     """Send periodic pings to keep connection alive"""
     ping_interval = 10  # seconds
-    
+
     try:
         while True:
             await asyncio.sleep(ping_interval)
-            
+
             ping_data = {
                 'type': 'ping',
                 'timestamp': time.time()
             }
-            
+
             # Pre-serialize to avoid blocking (v1.0.26 fix)
             ping_json, success = safe_json_dumps_compact(ping_data)
-            
+
             if success:
                 await websocket.send_text(ping_json)
             else:
                 logger.error(f"Failed to serialize ping for client {client_id}")
                 break
-                
+
     except Exception as e:
         logger.warning(f"Keepalive failed for client {client_id}: {e}")
 ```
@@ -268,23 +268,23 @@ The keepalive task runs as a background task for each connection:
 @app.websocket("/ws/events")
 async def websocket_endpoint(websocket: WebSocket):
     client_id = id(websocket)
-    
+
     await broadcaster.connect(websocket)
-    
+
     # Start keepalive as background task
     keepalive_task = asyncio.create_task(
         send_keepalive(websocket, client_id)
     )
-    
+
     try:
         # Handle client messages...
         while True:
             data = await websocket.receive_text()
-            
+
             if data == 'pong':
                 logger.debug(f"Received pong from client {client_id}")
             # Handle other messages...
-            
+
     finally:
         # Clean up on disconnect
         keepalive_task.cancel()
@@ -300,7 +300,7 @@ const ws = new WebSocket('ws://localhost:3002/ws/events');
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  
+
   if (data.type === 'ping') {
     // Respond to keepalive ping
     ws.send(JSON.stringify({ type: 'pong' }));
@@ -602,27 +602,27 @@ const PING_TIMEOUT = 30000;    // ms
 ## Troubleshooting
 
 ### "WebSocket connection closed immediately"
-**Cause**: Server not running or CORS issue  
+**Cause**: Server not running or CORS issue
 **Fix**: Check server logs, verify CORS settings
 
 ### "Keepalive ping timeout; no close frame received"
-**Cause**: Event loop blocked, server frozen  
+**Cause**: Event loop blocked, server frozen
 **Fix**: Check for synchronous operations in async code, review watchdog logs
 
 ### "Unix socket permission denied"
-**Cause**: Socket file has wrong permissions  
+**Cause**: Socket file has wrong permissions
 **Fix**: `chmod 666 /tmp/statemachine-events.sock`
 
 ### "Events not reaching browser"
-**Cause**: State machine using wrong socket path, or broadcaster failed  
+**Cause**: State machine using wrong socket path, or broadcaster failed
 **Fix**: Check `SOCKET_PATH` matches on both sides, review broadcast logs
 
 ### "Server using 100% CPU"
-**Cause**: Tight loop without `await` yield points  
+**Cause**: Tight loop without `await` yield points
 **Fix**: Add `await asyncio.sleep(0)` in loops, use proper async patterns
 
 ### "Memory leak - server RAM growing"
-**Cause**: Dead WebSocket connections not cleaned up  
+**Cause**: Dead WebSocket connections not cleaned up
 **Fix**: Ensure `broadcaster.disconnect()` called in `finally` blocks
 
 ---

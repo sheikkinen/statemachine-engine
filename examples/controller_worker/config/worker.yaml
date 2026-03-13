@@ -14,12 +14,12 @@ metadata:
 states:
   # === INITIALIZATION STATES ===
   - initializing
-  
+
   # === MAIN PROCESSING STATES ===
   - waiting
   - processing
   - notifying
-  
+
   # === COMPLETION STATES ===
   - stopped
 

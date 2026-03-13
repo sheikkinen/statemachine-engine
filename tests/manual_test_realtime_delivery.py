@@ -4,9 +4,9 @@ Manual test for send-event real-time delivery
 Run this to verify that CLI events appear in the Web UI immediately
 """
 import subprocess
-import time
 import sys
 from pathlib import Path
+
 
 def run_command(cmd):
     """Run a command and return the output"""
@@ -23,7 +23,7 @@ def main():
     print("MANUAL TEST: send-event Real-time Delivery")
     print("=" * 70)
     print()
-    
+
     # Check if WebSocket server is running
     print("1. Checking if WebSocket server is running...")
     socket_path = Path('/tmp/statemachine-events.sock')
@@ -37,7 +37,7 @@ def main():
         if response.lower() != 'y':
             return 1
     print()
-    
+
     # Test 1: Send activity_log to UI
     print("2. Sending activity_log to UI...")
     cmd = (
@@ -50,13 +50,13 @@ def main():
     print(f"   Output:\n{stdout}")
     if stderr:
         print(f"   Errors:\n{stderr}")
-    
+
     if "Sent to WebSocket server" in stdout:
         print("   ✅ Real-time socket delivery confirmed")
     else:
         print("   ⚠️  No WebSocket socket delivery detected")
     print()
-    
+
     # Test 2: Send with custom source
     print("3. Sending activity_log with custom source...")
     cmd = (
@@ -70,7 +70,7 @@ def main():
     if stderr:
         print(f"   Errors:\n{stderr}")
     print()
-    
+
     # Test 3: Send to non-UI target
     print("4. Sending event to non-UI target (worker1)...")
     cmd = (
@@ -83,7 +83,7 @@ def main():
     print(f"   Output:\n{stdout}")
     if stderr:
         print(f"   Errors:\n{stderr}")
-    
+
     if "Sent to WebSocket server" in stdout and "Sent to worker1 control socket" in stdout:
         print("   ✅ Both sockets attempted (WebSocket + control)")
     elif "Sent to WebSocket server" in stdout:
@@ -91,7 +91,7 @@ def main():
     else:
         print("   ℹ️  Socket delivery status unclear")
     print()
-    
+
     # Test 4: Query recent events from database
     print("5. Querying recent events from database...")
     cmd = 'python -m statemachine_engine.database.cli list-events --target ui --limit 5'
@@ -101,7 +101,7 @@ def main():
     if stderr:
         print(f"   Errors:\n{stderr}")
     print()
-    
+
     print("=" * 70)
     print("MANUAL VERIFICATION STEPS:")
     print("=" * 70)
@@ -118,7 +118,7 @@ def main():
     print("If messages appear instantly → ✅ Real-time delivery working!")
     print("If messages require refresh → ❌ Real-time delivery not working")
     print()
-    
+
     return 0
 
 if __name__ == '__main__':

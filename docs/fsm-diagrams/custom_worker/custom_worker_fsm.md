@@ -1,6 +1,6 @@
 # State Machine
 
-**Description:** 
+**Description:**
 
 **Generated from:** `worker.yaml`
 **Machine Name:** `custom_worker`

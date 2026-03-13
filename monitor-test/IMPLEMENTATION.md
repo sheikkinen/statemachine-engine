@@ -22,8 +22,8 @@ Successfully implemented `statemachine-events` CLI tool for real-time monitoring
 ## Key Changes
 
 ### 1. Architecture Decision
-**Initial approach**: Direct Unix socket connection (DGRAM)  
-**Problem**: Only one process can bind to a DGRAM socket  
+**Initial approach**: Direct Unix socket connection (DGRAM)
+**Problem**: Only one process can bind to a DGRAM socket
 **Solution**: Connect as WebSocket client to existing WebSocket server
 
 ### 2. Implementation
@@ -116,6 +116,6 @@ Optional enhancements (not required):
 
 ---
 
-**Implementation Date**: October 9, 2025  
-**Test Status**: All tests passing  
+**Implementation Date**: October 9, 2025
+**Test Status**: All tests passing
 **Documentation**: Complete

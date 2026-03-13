@@ -1,8 +1,8 @@
 # Implementation Analysis: JSON Payload Auto-Parsing
 
-**Based on:** `docs/engine-change-request.md`  
-**Constraint:** No backward compatibility required (test team request)  
-**Target Version:** 0.0.15  
+**Based on:** `docs/engine-change-request.md`
+**Constraint:** No backward compatibility required (test team request)
+**Target Version:** 0.0.15
 **Analysis Date:** 2025-10-09
 
 ---
@@ -11,8 +11,8 @@
 
 The change request is **well-structured and implementable**. With no backward compatibility constraints, implementation is straightforward - approximately **50-100 lines of code** across 2-3 files.
 
-**Estimated Effort:** 1-2 days (including tests and documentation)  
-**Risk Level:** LOW  
+**Estimated Effort:** 1-2 days (including tests and documentation)
+**Risk Level:** LOW
 **Complexity:** LOW-MEDIUM
 
 ---
@@ -21,7 +21,7 @@ The change request is **well-structured and implementable**. With no backward co
 
 ### 1. Core Parsing Logic (engine.py)
 
-**Location:** `src/statemachine_engine/core/engine.py:160`  
+**Location:** `src/statemachine_engine/core/engine.py:160`
 **Function:** `_check_control_socket()`
 
 **Current Code:**
@@ -63,7 +63,7 @@ logger.info(f"[{self.machine_name}] 📥 Received event: {event_type}")
 logger.debug(f"[{self.machine_name}] 📥 Event payload: {event_payload}")
 ```
 
-**Lines Changed:** ~15 lines added  
+**Lines Changed:** ~15 lines added
 **Risk:** LOW - fail-safe with empty dict fallback
 
 ---
@@ -90,7 +90,7 @@ if value.startswith('{event_data.payload.') and value.endswith('}'):
 # Handle event_data.payload.* substitution (with nested support)
 if value.startswith('{event_data.payload.') and value.endswith('}'):
     payload_path = value[20:-1]  # Remove '{event_data.payload.' and '}'
-    
+
     # ✨ NEW: Support nested access via dot notation (e.g., user.id)
     extracted_value = event_payload
     for key_part in payload_path.split('.'):
@@ -103,16 +103,16 @@ if value.startswith('{event_data.payload.') and value.endswith('}'):
             )
             extracted_value = None
             break
-    
+
     # Recursively substitute placeholders in extracted value
     if isinstance(extracted_value, str) and '{id}' in extracted_value:
         substitute_id = event_job_id or job_id
         extracted_value = extracted_value.replace('{id}', substitute_id if substitute_id else '{id}')
-    
+
     processed[key] = extracted_value
 ```
 
-**Lines Changed:** ~20 lines (replaces existing ~10 lines)  
+**Lines Changed:** ~20 lines (replaces existing ~10 lines)
 **Risk:** LOW - preserves existing flat field access
 
 ---
@@ -136,13 +136,13 @@ def _process_payload(self, template: Dict[str, Any], context: Dict[str, Any]) ->
             event_data = context.get('event_data', {})
             return event_data.get('payload', {}) if event_data else {}
         # Could expand to other {context.var} whole-dict forwards in future
-    
+
     processed = {}
     current_job = context.get('current_job', {})
     # ... rest of existing code
 ```
 
-**Lines Changed:** ~10 lines added  
+**Lines Changed:** ~10 lines added
 **Risk:** VERY LOW - new feature, doesn't affect existing paths
 
 ---
@@ -163,9 +163,9 @@ def _process_payload(self, template: Dict[str, Any], context: Dict[str, Any]) ->
 
 These files already expect `event_payload` to be a dict:
 
-✅ `src/statemachine_engine/actions/builtin/bash_action.py` - Already handles dict payloads (line 91)  
-✅ `src/statemachine_engine/actions/builtin/log_action.py` - Already handles dict payloads (line 83)  
-✅ `src/statemachine_engine/tools/event_monitor.py` - Already expects dict payloads  
+✅ `src/statemachine_engine/actions/builtin/bash_action.py` - Already handles dict payloads (line 91)
+✅ `src/statemachine_engine/actions/builtin/log_action.py` - Already handles dict payloads (line 83)
+✅ `src/statemachine_engine/tools/event_monitor.py` - Already expects dict payloads
 
 **No breaking changes detected** - all existing code expects dicts and will work unchanged.
 
@@ -187,17 +187,17 @@ async def test_json_string_payload_auto_parsed():
     """JSON string payloads are automatically parsed to dict"""
     engine = StateMachineEngine('test_machine')
     await engine.load_config('tests/fixtures/minimal.yaml')
-    
+
     # Simulate receiving event with JSON string payload
     test_event = {
         'type': 'test_event',
         'payload': '{"key": "value", "number": 42}'
     }
-    
+
     # Mock socket receive
     engine.context['event_data'] = test_event
     # ... trigger parsing logic
-    
+
     # Verify payload was parsed to dict
     assert isinstance(test_event['payload'], dict)
     assert test_event['payload']['key'] == 'value'
@@ -256,7 +256,7 @@ async def test_nested_field_extraction():
             'image': '{event_data.payload.result.image_path}'
         }
     }
-    
+
     context = {
         'machine_name': 'controller',
         'event_data': {
@@ -272,10 +272,10 @@ async def test_nested_field_extraction():
             }
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     assert processed['user_id'] == 123
     assert processed['user_name'] == 'Alice'
     assert processed['image'] == '/path/to/image.png'
@@ -288,17 +288,17 @@ async def test_entire_payload_forwarding():
         'event_type': 'relay',
         'payload': '{event_data.payload}'  # String, not dict
     }
-    
+
     context = {
         'machine_name': 'controller',
         'event_data': {
             'payload': {'key1': 'value1', 'key2': 42}
         }
     }
-    
+
     action = SendEventAction(config)
     processed = action._process_payload(config['payload'], context)
-    
+
     assert processed == {'key1': 'value1', 'key2': 42}
 ```
 
@@ -314,35 +314,35 @@ from statemachine_engine.core.engine import StateMachineEngine
 @pytest.mark.asyncio
 async def test_controller_relay_pattern():
     """Test controller relaying events between two workers"""
-    
+
     # Start three machines
     sdxl = StateMachineEngine('sdxl_generator')
     face = StateMachineEngine('face_processor')
     controller = StateMachineEngine('controller')
-    
+
     await sdxl.load_config('tests/fixtures/sdxl.yaml')
     await face.load_config('tests/fixtures/face.yaml')
     await controller.load_config('tests/fixtures/controller.yaml')
-    
+
     # Start execution loops
     asyncio.create_task(sdxl.execute_state_machine())
     asyncio.create_task(face.execute_state_machine())
     asyncio.create_task(controller.execute_state_machine())
-    
+
     # SDXL sends completion with JSON payload
     from statemachine_engine.database.models import get_machine_event_model
     event_model = get_machine_event_model()
-    
+
     event_model.send_event(
         target_machine='controller',
         event_type='sdxl_job_done',
         job_id='test_job_123',
         payload='{"base_image": "test.png", "face_job_id": "f456"}'  # JSON string
     )
-    
+
     # Wait for controller to relay to face processor
     await asyncio.sleep(2)
-    
+
     # Verify face processor received the event with parsed payload
     face_event_data = face.context.get('event_data', {})
     assert face_event_data['type'] == 'sdxl_job_done_relay'
@@ -367,28 +367,28 @@ def test_parsing_latency():
         '{"medium": "' + 'x'*1000 + '"}',  # 1KB
         '{"large": "' + 'x'*100000 + '"}'  # 100KB
     ]
-    
+
     for payload_str in payloads:
         iterations = 1000
         start = time.perf_counter()
-        
+
         for _ in range(iterations):
             try:
                 parsed = json.loads(payload_str)
             except json.JSONDecodeError:
                 parsed = {}
-        
+
         elapsed = time.perf_counter() - start
         avg_latency = (elapsed / iterations) * 1000  # Convert to ms
-        
+
         assert avg_latency < 1.0, f"Parsing took {avg_latency:.2f}ms (target: <1ms)"
         print(f"✅ {len(payload_str)} bytes: {avg_latency:.3f}ms per parse")
 ```
 
 **Expected Results:**
-- Small (16B): ~0.001ms  
-- Medium (1KB): ~0.01ms  
-- Large (100KB): ~0.5ms  
+- Small (16B): ~0.001ms
+- Medium (1KB): ~0.01ms
+- Large (100KB): ~0.5ms
 
 ---
 
@@ -413,10 +413,10 @@ Since this is from the **test team** with **no backward compatibility required**
 
 ### Simplified Implementation
 
-✅ **No feature flags needed**  
-✅ **No gradual rollout**  
-✅ **No migration path**  
-✅ **Can assume all payloads parse correctly**  
+✅ **No feature flags needed**
+✅ **No gradual rollout**
+✅ **No migration path**
+✅ **Can assume all payloads parse correctly**
 
 ### Aggressive Assumptions
 
@@ -427,10 +427,10 @@ Since this is from the **test team** with **no backward compatibility required**
 
 ### Removed Complexity
 
-~~Option to disable parsing~~  
-~~Backward compat mode~~  
-~~Migration guide~~  
-~~Deprecation warnings~~  
+~~Option to disable parsing~~
+~~Backward compat mode~~
+~~Migration guide~~
+~~Deprecation warnings~~
 
 **Result:** Clean, simple implementation
 
@@ -570,12 +570,12 @@ Since this is from the **test team** with **no backward compatibility required**
 
 ## Conclusion
 
-✅ **Implementation is straightforward**  
-✅ **No blocking issues identified**  
-✅ **All required capabilities exist or are simple to add**  
-✅ **Test coverage plan is comprehensive**  
-✅ **No backward compatibility concerns (test team)**  
-✅ **Performance impact is minimal and beneficial**  
+✅ **Implementation is straightforward**
+✅ **No blocking issues identified**
+✅ **All required capabilities exist or are simple to add**
+✅ **Test coverage plan is comprehensive**
+✅ **No backward compatibility concerns (test team)**
+✅ **Performance impact is minimal and beneficial**
 
 **Recommendation:** **PROCEED with implementation** 🚀
 

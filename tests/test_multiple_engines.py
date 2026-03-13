@@ -2,14 +2,13 @@
 Tests for multiple state machine engines running simultaneously.
 Tests the configurable socket paths and ports to ensure multiple engines can coexist.
 """
-import tempfile
 import os
-import pytest
-import asyncio
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+import tempfile
+from unittest.mock import MagicMock, patch
 
-from statemachine_engine.core.engine import StateMachineEngine, EventSocketManager
+import pytest
+
+from statemachine_engine.core.engine import EventSocketManager, StateMachineEngine
 
 
 class TestMultipleEngines:
@@ -32,7 +31,7 @@ class TestMultipleEngines:
                     control_socket_prefix=control_prefix_1
                 )
                 engine2 = StateMachineEngine(
-                    machine_name="test_engine_2", 
+                    machine_name="test_engine_2",
                     event_socket_path=socket_path_2,
                     control_socket_prefix=control_prefix_2
                 )
@@ -56,7 +55,7 @@ class TestMultipleEngines:
         """Test EventSocketManager with custom socket path."""
         with tempfile.TemporaryDirectory() as temp_dir:
             custom_path = os.path.join(temp_dir, "custom-events.sock")
-            
+
             socket_manager = EventSocketManager(socket_path=custom_path)
             assert socket_manager.socket_path == custom_path
 
@@ -69,7 +68,7 @@ class TestMultipleEngines:
         """Test control socket path generation with custom prefix."""
         with tempfile.TemporaryDirectory() as temp_dir:
             control_prefix = os.path.join(temp_dir, "custom-control")
-            
+
             with patch('statemachine_engine.core.action_loader.ActionLoader'):
                 engine = StateMachineEngine(
                     machine_name="test_machine",
@@ -85,12 +84,12 @@ class TestMultipleEngines:
         """Test that multiple engines can be instantiated without conflicts."""
         with tempfile.TemporaryDirectory() as temp_dir:
             engines = []
-            
+
             # Create 3 engines with different socket configurations
             for i in range(3):
                 socket_path = os.path.join(temp_dir, f"engine{i}-events.sock")
                 control_prefix = os.path.join(temp_dir, f"engine{i}-control")
-                
+
                 with patch('statemachine_engine.core.action_loader.ActionLoader'):
                     engine = StateMachineEngine(
                         machine_name=f"test_engine_{i}",
@@ -102,7 +101,7 @@ class TestMultipleEngines:
             # Verify all engines have unique socket paths
             event_paths = [engine.event_socket.socket_path for engine in engines]
             control_prefixes = [engine.control_socket_prefix for engine in engines]
-            
+
             assert len(set(event_paths)) == 3, "Event socket paths should be unique"
             assert len(set(control_prefixes)) == 3, "Control socket prefixes should be unique"
 
@@ -127,7 +126,7 @@ class TestCLISocketConfiguration:
         """Test that CLI arguments are properly parsed for socket configuration."""
         # This would typically test the CLI argument parsing
         # For now, we'll test the underlying functionality
-        
+
         test_cases = [
             {
                 "event_socket_path": "/custom/events.sock",
@@ -195,7 +194,7 @@ class TestMultipleEnginesIntegration:
             # Setup paths for two engines
             engine1_event_sock = os.path.join(temp_dir, "engine1-events.sock")
             engine1_control_prefix = os.path.join(temp_dir, "engine1-control")
-            
+
             engine2_event_sock = os.path.join(temp_dir, "engine2-events.sock")
             engine2_control_prefix = os.path.join(temp_dir, "engine2-control")
 
@@ -206,9 +205,9 @@ class TestMultipleEnginesIntegration:
                     event_socket_path=engine1_event_sock,
                     control_socket_prefix=engine1_control_prefix
                 )
-                
+
                 engine2 = StateMachineEngine(
-                    machine_name="worker_2", 
+                    machine_name="worker_2",
                     event_socket_path=engine2_event_sock,
                     control_socket_prefix=engine2_control_prefix
                 )

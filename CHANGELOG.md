@@ -273,10 +273,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - **Cross-composite transition highlighting on subdiagrams**
-  - When viewing a composite diagram and state transitions to a different composite, 
+  - When viewing a composite diagram and state transitions to a different composite,
     the system now highlights the target composite node if it exists on the current diagram
   - Eliminates unnecessary navigation changes - users stay on current diagram view
-  - Example: On INPAINTING_PHASE diagram, transitioning to POST_PROCESSING highlights 
+  - Example: On INPAINTING_PHASE diagram, transitioning to POST_PROCESSING highlights
     the POST_PROCESSING composite node instead of switching to main diagram
   - Improved UX for hierarchical state machine visualization
 
@@ -505,7 +505,7 @@ All notable changes to this project will be documented in this file.
   - Changed from `diagramMetadata.composites` to `diagramMetadata.diagrams[name].composites`
   - Fixes regression from v1.0.47 where drill-down stopped working
   - Composite states now clickable again for detailed subdiagram view
-  
+
 - **Slow path fallback metadata access**
   - Fixed `renderDiagram()` slow path to use new metadata structure
   - Changed from `diagramMetadata.states` to `diagramMetadata.diagrams[currentDiagramName].states`
@@ -519,7 +519,7 @@ All notable changes to this project will be documented in this file.
   - Added 8 new tests for metadata structure migration
   - Added 3 new tests for composite click handler edge cases
   - Total: 43 tests passing (up from 30 passing, 5 failing)
-  
+
 - **CI workflow enhanced**
   - Added automated UI testing to GitHub Actions
   - New `ui-tests` job runs Jest tests on every push/PR
@@ -756,10 +756,10 @@ All notable changes to this project will be documented in this file.
   - Added smart 3-tier matching strategy for reliable state node lookup
 
 ### Changed
-- **Enhanced SVG Enrichment**: 
+- **Enhanced SVG Enrichment**:
   - Now stores `data-state-clean` attribute with state name without `state-` prefix
   - Logs enrichment details for debugging
-  
+
 - **Smart State Matching**:
   - Try exact match first: `[data-state-id="waiting"]`
   - Try with prefix: `[data-state-id="state-waiting"]`
@@ -773,17 +773,17 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - **UI CSS-only Updates**: Fixed two critical issues with diagram rendering
-  
+
   **Issue 1: "State node not found" error when switching diagrams**
   - Root cause: Enrichment flag remained `'true'` from previous diagram
   - Fix: Clear enrichment flag to `'false'` at start of `loadDiagram()`
   - Result: New diagrams now properly trigger full render + enrichment
-  
+
   **Issue 2: Composite states not highlighted**
   - Root cause: Composite states need `activeComposite` class, not `active`
   - Fix: Check `diagramMetadata.composites` to apply correct CSS class
   - Result: Composite states now highlight properly with CSS-only updates
-  
+
   **Enhancement: Auto-recovery from enrichment failures**
   - If state node not found, clear enrichment flag for next update
   - Ensures system falls back to full render when needed
@@ -1033,7 +1033,7 @@ All notable changes to this project will be documented in this file.
   - Events flow as JSON strings end-to-end, parsed only once for logging
   - **BEFORE**: dict → serialize → bytes → deserialize → dict → serialize → string → WebSocket
   - **AFTER**: dict → serialize → bytes → decode → string → WebSocket ✅
-  
+
 ### Changed
 - **engine.py**: Use `type` field instead of `event_type` for client compatibility
 - **websocket_server.py**: Keep events as JSON strings, no parse/re-serialize
@@ -1060,13 +1060,13 @@ All notable changes to this project will be documented in this file.
   - Fixed **keepalive ping** (line 378) - **MAJOR CULPRIT** blocked every 10 seconds!
   - Fixed pong response (line 402) - blocked on client pings
   - Fixed refresh state (line 411) - blocked on client refresh requests
-  
+
 ### Changed
 - **All WebSocket sends now use pre-serialization pattern**
   - `safe_json_dumps_compact()` → `websocket.send_text()`
   - Eliminates Starlette's synchronous `json.dumps()` before await
   - Consistent pattern across entire codebase
-  
+
 ### Analysis
 - Broadcast performance improved to ~2ms (was 15-40s)
 - But event loop still froze for 15s - **keepalive ping was the culprit**
@@ -1084,14 +1084,14 @@ All notable changes to this project will be documented in this file.
   - **ROOT CAUSE**: `ws.send_json()` calls `json.dumps()` BEFORE the `await`
   - The `asyncio.wait_for()` timeout didn't cover JSON serialization!
   - Serialization was blocking for 15+ seconds OUTSIDE the timeout
-  
+
 ### Changed
 - **Replaced `ws.send_json()` with `ws.send_text()` in broadcast()**
   - Pre-serialize JSON using safe function
   - Timeout now only covers network send, not serialization
   - Better error handling for serialization failures
-  
-### Added  
+
+### Added
 - **safe_json_dumps_compact()** - Compact JSON serialization with error handling
 - **Extensive timing logs** - Track every step: serialize → send → complete
 - Log timestamps at every critical point to identify exact blocking location
@@ -1108,7 +1108,7 @@ All notable changes to this project will be documented in this file.
   - **Root cause identified**: `json.dumps()` calls were blocking for 17+ seconds OUTSIDE the 2s timeout
   - `ws.send_json()` timeout was working, but logging before it was blocking
   - Hangs occurred when serializing event content before broadcast
-  
+
 ### Added
 - **`safe_json_dumps()` helper function**
   - Wraps all JSON serialization in try-except
@@ -1159,7 +1159,7 @@ All notable changes to this project will be documented in this file.
     - `get_initial_state`: Warns if >200ms
     - `unix_socket receive`: Logs all receive/parse/broadcast timing
   - **Stack trace dumps**: Automatic on hang detection showing exact blocking location
-  
+
 ### Changed
 - **WebSocket keepalive interval**: Reduced from 20s to 10s for better client compatibility
 - **Enhanced Unix socket logging**: Added timing for receive, JSON parse, and broadcast stages
@@ -1179,7 +1179,7 @@ All notable changes to this project will be documented in this file.
   - Prevented keepalive pings from being sent to ANY client
   - Both WebSocket clients timed out and disconnected
   - System appeared completely frozen from user perspective
-  
+
 ### Changed
 - Added 2-second timeout to WebSocket broadcast sends
   - `await asyncio.wait_for(ws.send_json(event), timeout=2.0)`
@@ -1201,7 +1201,7 @@ All notable changes to this project will be documented in this file.
   - Event #36 broadcast completed: 23:53:56.947 (39.603 seconds later!)
   - During block: No keepalive pings sent, 3 events queued
   - Result: Both clients disconnected due to ping timeout
-  
+
 - **The Problem**: Even though keepalive runs in separate async task, both tasks share same WebSocket connection. When broadcast blocked, entire connection blocked.
 
 - **The Solution**: Timeout prevents monopolization. Slow clients removed before affecting system.
@@ -1414,15 +1414,15 @@ All notable changes to this project will be documented in this file.
   - Changed `_get_connection()` to proper `@contextmanager` that explicitly calls `conn.close()`
   - Affects ALL database operations across the entire engine
   - **Bug Impact**: WebSocket server, CLI commands, state machines - all leaked connections
-  
-### Improved  
+
+### Improved
 - **websocket_server.py**: Better connection hygiene in async tasks
   - `database_fallback_poller()`: Create fresh model instance per poll cycle
   - `cleanup_old_events()`: Create fresh model instance per cleanup
   - Reduces pressure on connection pool even with proper closing
 
 ### Technical Details
-- Python docs: "When used as a context manager, [Connection] objects commit or rollback 
+- Python docs: "When used as a context manager, [Connection] objects commit or rollback
   transactions but do not close the connection."
 - https://docs.python.org/3/library/sqlite3.html#using-the-connection-as-a-context-manager
 - Fix: Wrap connection creation in `@contextmanager` with explicit `conn.close()` in finally block
@@ -1459,14 +1459,14 @@ All notable changes to this project will be documented in this file.
   - After several minutes/many reconnections, server stopped responding
   - Removed blocking `check_process_running()` that could hang event loop
   - Extracted `get_initial_state()` function with proper cleanup
-  
+
 ### Added
 - **test_websocket_server.py**: Comprehensive websocket connection tests (11 new tests)
   - Tests multiple reconnections without resource leaks (20 consecutive)
   - Verifies proper database connection cleanup
   - Tests refresh command and initial state delivery
   - `/initial` HTTP endpoint for debugging
-  
+
 ### Improved
 - WebSocket `refresh` command allows clients to request fresh state
 - Enhanced `/health` endpoint with socket activity tracking
@@ -1624,13 +1624,13 @@ add-job job123 --type face_processing --input-file photo.jpg --payload '{"prompt
   - Added staleness detection: machines inactive for >60 seconds marked as stale/stopped
   - Clear localStorage on fresh machine list update to prevent stale data
   - Only persist state when machines are actually running
-  
+
 ### Changed
 - **Process Detection**: More reliable machine status checking
   - `checkProcessRunning()` now validates actual PID from database
   - Validates process is actually a statemachine process, not just matching name
   - Added `stale` and `stale_seconds` fields to machine API response
-  
+
 ### Improved
 - Machine status display now shows staleness indicator when inactive
 - Better handling of crashed or killed machine processes
@@ -1666,7 +1666,7 @@ add-job job123 --type face_processing --input-file photo.jpg --payload '{"prompt
   - Variables added by one action are available to subsequent actions
   - No more repetitive `{event_data.payload.*}` references throughout YAML
   - Cleaner, more maintainable state machine configurations
-  
+
 - **Action Execution**: Engine now interpolates variables before passing config to actions
   - Consistent behavior across all action types
   - Individual actions no longer need to implement interpolation

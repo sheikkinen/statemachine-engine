@@ -65,7 +65,7 @@ enrichSvgWithDataAttributes() {
     stateNodes.forEach((node, index) => {
         const textEl = node.querySelector('text');
         const stateName = textEl ? textEl.textContent.trim() : '';
-        
+
         const nodeInfo = {
             index,
             id: node.id,
@@ -85,16 +85,16 @@ enrichSvgWithDataAttributes() {
 
     // Detailed reporting
     console.log(`✅ Enriched: ${enrichedCount}/${targets.size}`);
-    
+
     if (enrichedNodes.length > 0) {
         console.table(enrichedNodes);
     }
-    
+
     if (failedNodes.length > 0) {
         console.warn(`❌ Not enriched: ${failedNodes.length} nodes`);
         console.table(failedNodes);
     }
-    
+
     // Check for missing targets
     const enrichedTargets = new Set(enrichedNodes.map(n => n.textContent));
     const missingTargets = Array.from(targets).filter(t => !enrichedTargets.has(t));
@@ -103,7 +103,7 @@ enrichSvgWithDataAttributes() {
     }
 
     console.groupEnd();
-    
+
     return enrichedCount > 0;
 }
 ```
@@ -121,21 +121,21 @@ import { join } from 'path';
 
 describe('Real SDXL SVG from Production', () => {
     let manager, container;
-    
+
     beforeEach(() => {
         // Load REAL SVG from production
         const svgContent = readFileSync(
             join(__dirname, '../../docs/sdxlgenerationphase-svg.md'),
             'utf-8'
         );
-        
+
         container = document.createElement('div');
         container.innerHTML = svgContent;
-        
+
         const breadcrumb = document.createElement('nav');
         const logger = { log: () => {} };
         manager = new DiagramManager(container, breadcrumb, logger);
-        
+
         // Real metadata
         manager.diagramMetadata = {
             diagrams: {
@@ -154,14 +154,14 @@ describe('Real SDXL SVG from Production', () => {
         };
         manager.currentDiagramName = 'SDXLGENERATIONPHASE';
     });
-    
+
     it('should find all state nodes', () => {
         const svg = container.querySelector('svg');
         const nodes = svg.querySelectorAll('g.node, g.statediagram-state');
-        
+
         // We know from analysis there are 8 nodes
         expect(nodes.length).toBeGreaterThan(0);
-        
+
         // Log what we found
         nodes.forEach((node, i) => {
             console.log(`Node ${i}:`, {
@@ -171,30 +171,30 @@ describe('Real SDXL SVG from Production', () => {
             });
         });
     });
-    
+
     it('should enrich all SDXL states', () => {
         // Build map
         manager.stateHighlightMap = manager.buildStateHighlightMap();
         console.log('State map:', manager.stateHighlightMap);
-        
+
         // Enrich (with detailed logging)
         const enriched = manager.enrichSvgWithDataAttributes();
-        
+
         // Should have enriched something
         expect(enriched).toBe(true);
-        
+
         // Check each expected state
         const expectedStates = [
             'early_face_detection',
             'scaling_image',
             'generating_enhanced_image'
         ];
-        
+
         expectedStates.forEach(stateName => {
             const node = container.querySelector(`[data-state-id="${stateName}"]`);
             if (!node) {
                 console.error(`❌ Missing: ${stateName}`);
-                
+
                 // Try to find it by text
                 const allText = Array.from(container.querySelectorAll('text'))
                     .map(t => t.textContent.trim());
@@ -203,27 +203,27 @@ describe('Real SDXL SVG from Production', () => {
             expect(node).not.toBeNull();
         });
     });
-    
+
     it('should use fast path after enrichment', () => {
         // Setup
         manager.stateHighlightMap = manager.buildStateHighlightMap();
         manager.enrichSvgWithDataAttributes();
         container.dataset.enriched = 'true';
-        
+
         // Try fast path for scaling_image (the failing state)
         const success = manager.updateStateHighlight('scaling_image');
-        
+
         if (!success) {
             console.error('Fast path failed for scaling_image');
             console.log('Looking for node with data-state-id="scaling_image"');
-            
+
             const allEnriched = container.querySelectorAll('[data-state-id]');
             console.log('All enriched nodes:', Array.from(allEnriched).map(n => ({
                 id: n.id,
                 dataStateId: n.dataset.stateId
             })));
         }
-        
+
         expect(success).toBe(true);
     });
 });
@@ -335,12 +335,12 @@ export class SvgCapture {
     static captureCurrentDiagram() {
         const svg = document.querySelector('.diagram-container svg');
         if (!svg) return null;
-        
+
         const clone = svg.cloneNode(true);
-        
+
         // Strip coordinate noise but keep IDs and classes
         this.stripCoordinates(clone);
-        
+
         // Extract metadata
         const metadata = {
             nodeCount: clone.querySelectorAll('g.node, g.statediagram-state').length,
@@ -349,14 +349,14 @@ export class SvgCapture {
             ids: this.extractNodeIds(clone),
             mermaidVersion: this.detectMermaidVersion(clone)
         };
-        
+
         return {
             svg: clone.outerHTML,
             metadata,
             timestamp: new Date().toISOString()
         };
     }
-    
+
     /**
      * Strip verbose coordinate attributes
      */
@@ -370,20 +370,20 @@ export class SvgCapture {
                 el.setAttribute('transform', 'translate(X, Y)');
             }
         });
-        
+
         // Remove d attribute from paths (verbose coordinates)
         element.querySelectorAll('path[d]').forEach(path => {
             path.setAttribute('d', 'PATH_DATA');
         });
-        
+
         // Remove viewBox (keep width/height)
         if (element.hasAttribute('viewBox')) {
             element.setAttribute('viewBox', '0 0 W H');
         }
-        
+
         return element;
     }
-    
+
     /**
      * Extract all unique CSS classes used
      */
@@ -396,7 +396,7 @@ export class SvgCapture {
         });
         return Array.from(classes).sort();
     }
-    
+
     /**
      * Extract all node IDs and their patterns
      */
@@ -412,7 +412,7 @@ export class SvgCapture {
         });
         return ids;
     }
-    
+
     /**
      * Detect ID pattern: flowchart-X-N vs state-X-N vs X
      */
@@ -422,7 +422,7 @@ export class SvgCapture {
         if (id.match(/^.*-\d+$/)) return 'NAME-NUM';
         return 'OTHER';
     }
-    
+
     /**
      * Detect Mermaid version from SVG structure
      */
@@ -433,7 +433,7 @@ export class SvgCapture {
         if (svg.querySelector('.mermaid-v10')) return 'v10';
         return 'unknown';
     }
-    
+
     /**
      * Download fixture as JSON
      */
@@ -527,38 +527,38 @@ export class EnrichmentLogger {
         this.enabled = enabled;
         this.history = [];
     }
-    
+
     /**
      * Log enrichment attempt with full context
      */
     logEnrichment(container, stateHighlightMap) {
         if (!this.enabled) return;
-        
+
         const svg = container.querySelector('svg');
         if (!svg) {
             this.warn('No SVG found in container');
             return;
         }
-        
+
         const report = {
             timestamp: Date.now(),
             selector: 'g.node, g.statediagram-state',
-            
+
             // What we're looking for
             targetStates: Object.keys(stateHighlightMap),
-            
+
             // What we found in DOM
             allNodes: this.analyzeNodes(svg),
-            
+
             // Match results
             matches: [],
             misses: []
         };
-        
+
         // Analyze each target state
         Object.entries(stateHighlightMap).forEach(([stateName, entry]) => {
             const node = svg.querySelector(`[data-state-id="${entry.target}"]`);
-            
+
             if (node) {
                 report.matches.push({
                     state: stateName,
@@ -576,13 +576,13 @@ export class EnrichmentLogger {
                 });
             }
         });
-        
+
         this.history.push(report);
         this.printReport(report);
-        
+
         return report;
     }
-    
+
     /**
      * Analyze all nodes in SVG
      */
@@ -598,18 +598,18 @@ export class EnrichmentLogger {
             childCount: node.children.length
         }));
     }
-    
+
     /**
      * Find potential matching nodes for a missed state
      */
     findCandidates(svg, targetName) {
         const candidates = [];
         const nodes = svg.querySelectorAll('g.node, g.statediagram-state');
-        
+
         nodes.forEach(node => {
             const text = node.querySelector('text')?.textContent?.trim();
             const id = node.id;
-            
+
             // Check if ID contains target name
             if (id.includes(targetName)) {
                 candidates.push({
@@ -621,7 +621,7 @@ export class EnrichmentLogger {
                     }
                 });
             }
-            
+
             // Check if text matches
             if (text === targetName) {
                 candidates.push({
@@ -633,7 +633,7 @@ export class EnrichmentLogger {
                     }
                 });
             }
-            
+
             // Check partial match
             if (text && targetName.includes(text)) {
                 candidates.push({
@@ -646,25 +646,25 @@ export class EnrichmentLogger {
                 });
             }
         });
-        
+
         return candidates;
     }
-    
+
     /**
      * Print structured report
      */
     printReport(report) {
         console.group(`[Enrichment] ${report.matches.length}/${report.targetStates.length} matched`);
-        
+
         console.log('🎯 Targets:', report.targetStates);
         console.log('🔍 Found nodes:', report.allNodes.length);
-        
+
         if (report.matches.length > 0) {
             console.group('✅ Matches:');
             console.table(report.matches);
             console.groupEnd();
         }
-        
+
         if (report.misses.length > 0) {
             console.group('❌ Misses:');
             report.misses.forEach(miss => {
@@ -678,10 +678,10 @@ export class EnrichmentLogger {
             });
             console.groupEnd();
         }
-        
+
         console.groupEnd();
     }
-    
+
     /**
      * Export history for debugging
      */
@@ -691,7 +691,7 @@ export class EnrichmentLogger {
             history: this.history
         };
     }
-    
+
     warn(message) {
         console.warn(`[EnrichmentLogger] ${message}`);
     }
@@ -706,13 +706,13 @@ this.enrichmentLogger = new EnrichmentLogger(true);
 // In enrichSvgWithDataAttributes()
 enrichSvgWithDataAttributes() {
     // ... existing code ...
-    
+
     // Log with full analysis
     const report = this.enrichmentLogger.logEnrichment(
-        this.container, 
+        this.container,
         this.stateHighlightMap
     );
-    
+
     // Determine success
     return report.matches.length > 0;
 }
@@ -732,7 +732,7 @@ export class DiagramTestHarness {
         const response = await fetch(`/tests/fixtures/${name}.json`);
         return await response.json();
     }
-    
+
     /**
      * Create container with real SVG
      */
@@ -741,7 +741,7 @@ export class DiagramTestHarness {
         container.innerHTML = fixture.svg;
         return container;
     }
-    
+
     /**
      * Create DiagramManager with fixture
      */
@@ -749,14 +749,14 @@ export class DiagramTestHarness {
         const container = this.createContainerWithFixture(fixture);
         const breadcrumb = document.createElement('nav');
         const logger = { log: () => {} };
-        
+
         const manager = new DiagramManager(container, breadcrumb, logger);
         manager.diagramMetadata = fixture.diagramMetadata;
         manager.currentDiagramName = Object.keys(fixture.diagramMetadata.diagrams)[0];
-        
+
         return { manager, container };
     }
-    
+
     /**
      * Assert enrichment worked correctly
      */
@@ -767,7 +767,7 @@ export class DiagramTestHarness {
             found: [],
             missing: []
         };
-        
+
         expectedStates.forEach(stateName => {
             const node = svg.querySelector(`[data-state-id="${stateName}"]`);
             if (node) {
@@ -780,17 +780,17 @@ export class DiagramTestHarness {
                 results.missing.push(stateName);
             }
         });
-        
+
         return results;
     }
-    
+
     /**
      * Diff two SVG structures (for debugging)
      */
     static diffSvg(actualSvg, expectedSvg) {
         const actual = this.extractStructure(actualSvg);
         const expected = this.extractStructure(expectedSvg);
-        
+
         return {
             nodesAdded: expected.nodes.filter(n => !actual.nodes.includes(n)),
             nodesRemoved: actual.nodes.filter(n => !expected.nodes.includes(n)),
@@ -798,7 +798,7 @@ export class DiagramTestHarness {
             classesRemoved: actual.classes.filter(c => !expected.classes.includes(c))
         };
     }
-    
+
     static extractStructure(svg) {
         return {
             nodes: Array.from(svg.querySelectorAll('g')).map(g => g.id),
@@ -816,85 +816,85 @@ import { DiagramManager } from '../modules/DiagramManager.js';
 import { DiagramTestHarness } from './harness/DiagramTestHarness.js';
 
 describe('DiagramManager - Real SVG Fixtures', () => {
-    
+
     describe('SDXL Generation Phase (statediagram)', () => {
         let fixture, manager, container;
-        
+
         beforeAll(async () => {
             fixture = await DiagramTestHarness.loadFixture('statediagram-sdxl-generation');
         });
-        
+
         beforeEach(() => {
             const setup = DiagramTestHarness.createDiagramManagerWithFixture(fixture);
             manager = setup.manager;
             container = setup.container;
         });
-        
+
         it('should match fixture metadata', () => {
             const svg = container.querySelector('svg');
             const nodes = svg.querySelectorAll('g.node, g.statediagram-state');
-            
+
             expect(nodes.length).toBe(fixture.metadata.nodeCount);
             expect(fixture.metadata.classes).toContain('statediagram-state');
         });
-        
+
         it('should enrich all states from fixture', () => {
             // Build map
             manager.stateHighlightMap = manager.buildStateHighlightMap();
-            
+
             // Enrich
             const enriched = manager.enrichSvgWithDataAttributes();
             expect(enriched).toBe(true);
-            
+
             // Verify all states enriched
             const expectedStates = fixture.diagramMetadata.diagrams.SDXLGENERATIONPHASE.states;
             const results = DiagramTestHarness.assertEnrichment(container, expectedStates);
-            
+
             expect(results.found.length).toBe(expectedStates.length);
             expect(results.missing).toEqual([]);
-            
+
             // Log details for debugging
             if (results.missing.length > 0) {
                 console.error('Missing enrichment for:', results.missing);
                 console.log('Found:', results.found);
             }
         });
-        
+
         it('should use fast path for state changes', () => {
             // Setup
             manager.stateHighlightMap = manager.buildStateHighlightMap();
             manager.enrichSvgWithDataAttributes();
             container.dataset.enriched = 'true';
-            
+
             // Test each state from fixture
             const states = fixture.diagramMetadata.diagrams.SDXLGENERATIONPHASE.states;
             states.forEach(stateName => {
                 const success = manager.updateStateHighlight(stateName);
                 expect(success).toBe(true);
-                
+
                 const node = container.querySelector(`[data-state-id="${stateName}"]`);
                 expect(node).not.toBeNull();
                 expect(node.classList.contains('active')).toBe(true);
             });
         });
     });
-    
+
     describe('Flowchart vs Statediagram differences', () => {
         it('should handle both diagram types', async () => {
             const flowchartFixture = await DiagramTestHarness.loadFixture('flowchart-main-composite');
             const statediagramFixture = await DiagramTestHarness.loadFixture('statediagram-sdxl-generation');
-            
+
             // Flowchart should have 'node' class
             expect(flowchartFixture.metadata.classes).toContain('node');
-            
+
             // Statediagram should have 'statediagram-state' class
             expect(statediagramFixture.metadata.classes).toContain('statediagram-state');
-            
+
             // Both should enrich successfully
             const fc = DiagramTestHarness.createDiagramManagerWithFixture(flowchartFixture);
             fc.manager.stateHighlightMap = fc.manager.buildStateHighlightMap();
             expect(fc.manager.enrichSvgWithDataAttributes()).toBe(true);
-            
+
             const sd = DiagramTestHarness.createDiagramManagerWithFixture(statediagramFixture);
             sd.manager.stateHighlightMap = sd.manager.buildStateHighlightMap();
             expect(sd.manager.enrichSvgWithDataAttributes()).toBe(true);

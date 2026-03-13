@@ -1,7 +1,7 @@
 # Plan: Auto-Switch Kanban/Diagram Views by Machine Type
 
-**Date:** 2025-11-09  
-**Type:** Simple Navigation Change  
+**Date:** 2025-11-09
+**Type:** Simple Navigation Change
 **Estimate:** 2-3 hours
 
 ## Goal
@@ -10,7 +10,7 @@ Remove toggle button. Show Kanban for templated machines, Diagram for unique FSM
 
 ## Current vs Proposed
 
-**Current:** Manual toggle button switches between Kanban ⟷ Diagram  
+**Current:** Manual toggle button switches between Kanban ⟷ Diagram
 **Proposed:** Automatic - tab selection determines view
 
 ## Implementation Checklist
@@ -33,7 +33,7 @@ Remove toggle button. Show Kanban for templated machines, Diagram for unique FSM
   ```javascript
   // Old:
   this.diagramManager.loadDiagram(config_type);
-  
+
   // New:
   if (this.isKanbanMachine(config_type)) {
       this.showKanban();
@@ -51,7 +51,7 @@ Remove toggle button. Show Kanban for templated machines, Diagram for unique FSM
       this.kanbanContainer.style.display = 'block';
       this.diagramContainer.style.display = 'none';
   }
-  
+
   showDiagram() {
       this.diagramContainer.style.display = 'block';
       this.kanbanContainer.style.display = 'none';
@@ -84,8 +84,8 @@ src/statemachine_engine/ui/public/app-modular.js  (~30 lines)
 
 ---
 
-**Total Time:** ~2-3 hours  
-**Complexity:** Low - Just navigation logic  
+**Total Time:** ~2-3 hours
+**Complexity:** Low - Just navigation logic
 **Risk:** Very low - Simple conditional rendering
 
 

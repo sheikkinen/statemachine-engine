@@ -1,6 +1,6 @@
 #!/bin/bash
 # Production State Machine System Startup Script
-# 
+#
 # This is a production-ready template for starting a complete state machine system.
 # Copy this script to your project and customize for your specific needs.
 #
@@ -48,26 +48,26 @@ echo ""
 cleanup() {
     echo ""
     echo "🛑 Shutting down all services..."
-    
+
     # Stop WebSocket server
     if [ ! -z "$WS_PID" ]; then
         kill $WS_PID 2>/dev/null || true
         echo "✓ WebSocket server stopped"
     fi
-    
+
     # Stop Web UI
     if [ ! -z "$UI_PID" ]; then
         kill $UI_PID 2>/dev/null || true
         echo "✓ Web UI stopped"
     fi
-    
+
     # Stop state machines gracefully
     for config_machine in "${MACHINE_CONFIGS[@]}"; do
         machine_name="${config_machine#*:}"
         pkill -f "statemachine.*$machine_name" 2>/dev/null || true
     done
     echo "✓ State machines stopped"
-    
+
     echo "🏁 All services stopped"
     exit 0
 }
@@ -146,7 +146,7 @@ echo "🌐 Starting WebSocket monitoring server..."
 if command -v statemachine-ui >/dev/null 2>&1; then
     python -m statemachine_engine.monitoring.websocket_server --port $WEBSOCKET_PORT > logs/websocket-server.log 2>&1 &
     WS_PID=$!
-    
+
     # Wait for WebSocket server to be ready
     echo "⏳ Waiting for WebSocket server to start..."
     for i in {1..10}; do
@@ -174,7 +174,7 @@ echo "🤖 Starting state machines..."
 for config_machine in "${MACHINE_CONFIGS[@]}"; do
     config_file="${config_machine%:*}"
     machine_name="${config_machine#*:}"
-    
+
     if [ -f "$config_file" ]; then
         echo "  📊 Starting $machine_name from $config_file..."
         statemachine "$config_file" --machine-name "$machine_name" > "logs/${machine_name}.log" 2>&1 &

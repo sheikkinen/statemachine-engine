@@ -32,7 +32,7 @@ class ClearEventsAction(BaseAction):
     Action to clear pending events of specific types from the event queue
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         # event_types can be a single string or list of strings
         event_types = config.get("event_types", [])
@@ -41,7 +41,7 @@ class ClearEventsAction(BaseAction):
         self.event_types = event_types
         self.target_machine = config.get("target_machine")
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Clear pending events of specified types"""
         try:
             machine_name = self.get_machine_name(context)

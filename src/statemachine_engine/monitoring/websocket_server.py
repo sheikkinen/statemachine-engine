@@ -17,7 +17,7 @@ import sys
 import threading
 import time
 import traceback
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Set
 
@@ -309,7 +309,7 @@ class EventBroadcaster:
     """Manages WebSocket connections and broadcasts events"""
 
     def __init__(self):
-        self.connections: Set[WebSocket] = set()
+        self.connections: set[WebSocket] = set()
         self.last_event_time = time.time()
 
     async def connect(self, websocket: WebSocket):
@@ -512,10 +512,8 @@ async def websocket_endpoint(websocket: WebSocket):
         finally:
             # Cancel keepalive task on disconnect
             keepalive_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await keepalive_task
-            except asyncio.CancelledError:
-                pass
 
     except WebSocketDisconnect:
         logger.info(f"Client {client_id} disconnected normally")

@@ -64,12 +64,12 @@ class PopFromListAction(BaseAction):
           empty: done
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.list_key = config.get("list_key", "items")
         self.store_as = config.get("store_as")
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Pop first item from list"""
         machine_name = context.get("machine_name", "unknown")
 

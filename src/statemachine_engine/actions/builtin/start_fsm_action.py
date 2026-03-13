@@ -67,7 +67,7 @@ class StartFsmAction(BaseAction):
         # Context vars are extracted and passed to spawned worker
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.yaml_path = config.get("yaml_path")
         self.machine_name = config.get("machine_name")
@@ -75,7 +75,7 @@ class StartFsmAction(BaseAction):
         self.additional_args = config.get("additional_args", [])
         self.context_vars = config.get("context_vars", [])
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """
         Spawn a new FSM instance as a subprocess.
 
@@ -162,7 +162,7 @@ class StartFsmAction(BaseAction):
             logger.error(f"StartFsmAction: Failed to spawn FSM - {e}")
             return self.get_config_value("error", "error")
 
-    def _extract_context_vars(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_context_vars(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         Extract specified variables from context.
 
@@ -200,7 +200,7 @@ class StartFsmAction(BaseAction):
 
         return extracted
 
-    def _get_nested_value(self, data: Dict[str, Any], path: str) -> Optional[Any]:
+    def _get_nested_value(self, data: dict[str, Any], path: str) -> Optional[Any]:
         """
         Get value from nested dict using dot notation.
 
@@ -224,7 +224,7 @@ class StartFsmAction(BaseAction):
         except (KeyError, TypeError):
             return None
 
-    def _interpolate_variables(self, template: str, context: Dict[str, Any]) -> str:
+    def _interpolate_variables(self, template: str, context: dict[str, Any]) -> str:
         """
         Replace {variable} placeholders with values from context.
 

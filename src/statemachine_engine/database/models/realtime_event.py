@@ -23,7 +23,7 @@ class RealtimeEventModel:
         self.db = db
 
     def log_event(
-        self, machine_name: str, event_type: str, payload: Dict[str, Any]
+        self, machine_name: str, event_type: str, payload: dict[str, Any]
     ) -> Optional[int]:
         """Log a real-time event to the database
 
@@ -52,7 +52,7 @@ class RealtimeEventModel:
 
     def get_unconsumed_events(
         self, since_id: int = 0, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get unconsumed events since the given ID
 
         Returns:
@@ -87,7 +87,7 @@ class RealtimeEventModel:
             logger.error(f"Failed to get unconsumed events: {e}")
             return []
 
-    def mark_events_consumed(self, event_ids: List[int]) -> bool:
+    def mark_events_consumed(self, event_ids: list[int]) -> bool:
         """Mark events as consumed
 
         Returns:

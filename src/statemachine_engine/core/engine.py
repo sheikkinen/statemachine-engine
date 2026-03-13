@@ -138,11 +138,11 @@ class StateMachineEngine:
         )
         self.is_running = True
         self.propagation_count = 0  # Track frequency of job context propagation
-        self.timeout_tasks: Dict[
+        self.timeout_tasks: dict[
             str, asyncio.Task
         ] = {}  # Track active timeout tasks per state
-        self._context_map_index: Dict[
-            str, Dict[str, str]
+        self._context_map_index: dict[
+            str, dict[str, str]
         ] = {}  # NC-120: event → {ctx_key: payload_path}
 
     async def load_config(self, yaml_path: str) -> None:
@@ -190,7 +190,7 @@ class StateMachineEngine:
         # Actions are loaded dynamically via ActionLoader when needed
         pass
 
-    def _build_context_map_index(self) -> Dict[str, Dict[str, str]]:
+    def _build_context_map_index(self) -> dict[str, dict[str, str]]:
         """Build event_name → {ctx_key: payload_path} index from YAML events config.
 
         Supports two YAML formats:
@@ -205,7 +205,7 @@ class StateMachineEngine:
             speak_done: {}            # no promotion
         """
         raw_events = self.config.get("events", [])
-        index: Dict[str, Dict[str, str]] = {}
+        index: dict[str, dict[str, str]] = {}
 
         if isinstance(raw_events, list):
             # Flat list — no context_map for any event (backward compat)
@@ -337,7 +337,7 @@ class StateMachineEngine:
             logger.debug(f"[{self.machine_name}] Control socket error: {e}")
 
     async def execute_state_machine(
-        self, initial_context: Dict[str, Any] = None
+        self, initial_context: dict[str, Any] = None
     ) -> None:
         """Execute the state machine with given initial context"""
         if not self.config:
@@ -398,7 +398,7 @@ class StateMachineEngine:
         # Remove machine from database when terminating
         self._delete_machine_state()
 
-    async def process_event(self, event: str, context: Dict[str, Any] = None) -> bool:
+    async def process_event(self, event: str, context: dict[str, Any] = None) -> bool:
         """Process an event and potentially transition to a new state"""
         if context:
             self.context.update(context)
@@ -712,7 +712,7 @@ class StateMachineEngine:
 
         return None
 
-    def _get_timeout_transitions(self, state: str) -> List[Dict[str, Any]]:
+    def _get_timeout_transitions(self, state: str) -> list[dict[str, Any]]:
         """Get all timeout transitions for a given state
 
         Returns list of dicts with keys: 'to_state', 'duration', 'event_name'
@@ -785,7 +785,7 @@ class StateMachineEngine:
 
     def _cancel_timeout_tasks(self) -> None:
         """Cancel all active timeout tasks"""
-        for event_name, task in self.timeout_tasks.items():
+        for _event_name, task in self.timeout_tasks.items():
             if not task.done():
                 task.cancel()
         self.timeout_tasks.clear()
@@ -832,7 +832,7 @@ class StateMachineEngine:
             # After each action, check if current_job was added to context and propagate job data
             self._propagate_job_context()
 
-    def _substitute_variables(self, template: str, context: Dict[str, Any]) -> str:
+    def _substitute_variables(self, template: str, context: dict[str, Any]) -> str:
         """Substitute {variable} placeholders with context values.
 
         Delegates to shared interpolation utility.
@@ -844,8 +844,8 @@ class StateMachineEngine:
         return interpolate_value(template, context)
 
     def _interpolate_config(
-        self, config: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, config: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Recursively interpolate variables in action config.
 
         Delegates to shared interpolation utility.
@@ -856,7 +856,7 @@ class StateMachineEngine:
         """
         return interpolate_config(config, context)
 
-    async def _execute_action(self, action_config: Dict[str, Any]) -> None:
+    async def _execute_action(self, action_config: dict[str, Any]) -> None:
         """Execute a single action"""
         # Interpolate variables BEFORE processing action
         # This ensures all {variable} placeholders are resolved at engine level
@@ -912,7 +912,7 @@ class StateMachineEngine:
             await self._execute_pluggable_action(action_type, interpolated_config)
 
     async def _execute_pluggable_action(
-        self, action_type: str, action_config: Dict[str, Any]
+        self, action_type: str, action_config: dict[str, Any]
     ) -> None:
         """Execute pluggable action from actions module using ActionLoader"""
         try:

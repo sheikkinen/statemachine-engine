@@ -41,7 +41,7 @@ class ClaimJobAction(BaseAction):
         Event name based on claim result
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.job_model = get_job_model()
         self.job_id_template = config.get("job_id")
@@ -52,7 +52,7 @@ class ClaimJobAction(BaseAction):
         if not self.job_id_template:
             raise ValueError("claim_job action requires 'job_id' parameter")
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Claim the specified job"""
         try:
             # Get job_id (might be a template)

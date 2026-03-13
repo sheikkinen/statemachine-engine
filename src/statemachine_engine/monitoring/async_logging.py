@@ -109,7 +109,7 @@ def setup_async_logging(
     logger_name: Optional[str] = None,
     queue_size: int = -1,
     include_console: bool = True,
-) -> Tuple[logging.Logger, logging.handlers.QueueListener]:
+) -> tuple[logging.Logger, logging.handlers.QueueListener]:
     """
     Configure non-blocking logging for async applications.
 

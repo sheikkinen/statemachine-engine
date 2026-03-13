@@ -31,8 +31,8 @@ class JobModel:
         machine_type: str = None,
         source_job_id: str = None,
         priority: int = 5,
-        data: Dict[str, Any] = None,
-        metadata: Dict[str, Any] = None,
+        data: dict[str, Any] = None,
+        metadata: dict[str, Any] = None,
     ) -> int:
         """
         Create a new job with JSON-based data storage.
@@ -74,7 +74,7 @@ class JobModel:
 
     def get_next_job(
         self, job_type: str = None, machine_type: str = None
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Get next pending job with priority support and JSON parsing.
 
@@ -154,7 +154,7 @@ class JobModel:
 
     def get_pending_jobs(
         self, job_type: str = None, machine_type: str = None, limit: int = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get all pending jobs (without marking as processing).
 
@@ -222,7 +222,7 @@ class JobModel:
 
             return jobs
 
-    def get_latest_job_by_type(self, job_type: str) -> Optional[Dict[str, Any]]:
+    def get_latest_job_by_type(self, job_type: str) -> Optional[dict[str, Any]]:
         """Get the most recent job of given type (for event validation)"""
         with self.db._get_connection() as conn:
             row = conn.execute(
@@ -285,7 +285,7 @@ class JobModel:
             )
             conn.commit()
 
-    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def get_job(self, job_id: str) -> Optional[dict[str, Any]]:
         """Get job by ID with JSON parsing"""
         with self.db._get_connection() as conn:
             row = conn.execute(
@@ -326,7 +326,7 @@ class JobModel:
         job_type: Optional[str] = None,
         machine_type: Optional[str] = None,
         limit: int = 50,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """List jobs with optional status, job_type, and machine_type filters (parses JSON fields)"""
         with self.db._get_connection() as conn:
             query = "SELECT * FROM jobs WHERE 1=1"
@@ -423,7 +423,7 @@ class JobModel:
 
     def get_processing_jobs_with_missing_files(
         self, machine_type: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Find processing jobs that reference non-existent input files (checks data.input_image_path)"""
         with self.db._get_connection() as conn:
             query = "SELECT * FROM jobs WHERE status = 'processing'"

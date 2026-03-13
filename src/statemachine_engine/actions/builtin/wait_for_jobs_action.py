@@ -55,14 +55,14 @@ class WaitForJobsAction(BaseAction):
         - no_jobs_tracked: Empty or missing job list
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.tracked_jobs_key = config.get("tracked_jobs_key", "spawned_jobs")
         self.poll_interval = config.get("poll_interval", 2)
         self.timeout = config.get("timeout", 300)
         self.job_model = get_job_model()
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Check status of all tracked jobs"""
         machine_name = context.get("machine_name", "unknown")
 
@@ -147,7 +147,7 @@ class WaitForJobsAction(BaseAction):
         # This allows timeout(N) transition to pace the polling
         return None
 
-    def _get_job_statuses(self, job_ids: List[str]) -> Dict[str, str]:
+    def _get_job_statuses(self, job_ids: list[str]) -> dict[str, str]:
         """
         Query database for status of all tracked jobs.
 

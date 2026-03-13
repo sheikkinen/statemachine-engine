@@ -48,7 +48,7 @@ class BashAction(BaseAction):
       "2": "invalid_image"      # Exit code 2 → invalid_image event
     """
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """
         Execute bash command and return event based on exit code.
 

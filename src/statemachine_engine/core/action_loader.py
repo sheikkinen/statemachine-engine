@@ -62,11 +62,11 @@ class ActionLoader:
         this_file = Path(__file__)
         self.builtin_actions_root = this_file.parent.parent / "actions"
 
-        self._action_map: Dict[str, str] = {}  # action_type -> module_path or file_path
-        self._class_cache: Dict[str, Type] = {}  # action_type -> loaded class
+        self._action_map: dict[str, str] = {}  # action_type -> module_path or file_path
+        self._class_cache: dict[str, type] = {}  # action_type -> loaded class
 
         # Action type aliases (for backward compatibility)
-        self._aliases: Dict[str, str] = {
+        self._aliases: dict[str, str] = {
             "activity_log": "log",  # activity_log maps to log_action.py
         }
 
@@ -181,7 +181,7 @@ class ActionLoader:
         pascal_case = "".join(word.capitalize() for word in words)
         return f"{pascal_case}Action"
 
-    def load_action_class(self, action_type: str) -> Optional[Type]:
+    def load_action_class(self, action_type: str) -> Optional[type]:
         """
         Load action class by action type.
 
@@ -285,7 +285,7 @@ def get_action_loader() -> ActionLoader:
     return _loader_instance
 
 
-def load_action_class(action_type: str) -> Optional[Type]:
+def load_action_class(action_type: str) -> Optional[type]:
     """
     Convenience function to load an action class.
 

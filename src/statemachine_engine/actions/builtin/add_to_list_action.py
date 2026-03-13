@@ -53,12 +53,12 @@ class AddToListAction(BaseAction):
         - success event: Item added successfully
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.list_key = config.get("list_key", "items")
         self.value_template = config.get("value")
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Add item to list in context"""
         machine_name = context.get("machine_name", "unknown")
 

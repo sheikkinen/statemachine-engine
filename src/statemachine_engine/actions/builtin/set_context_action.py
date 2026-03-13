@@ -64,7 +64,7 @@ class SetContextAction(BaseAction):
           value: 0
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.key = config.get("key")
         self.value = config.get("value")
@@ -74,7 +74,7 @@ class SetContextAction(BaseAction):
         if "value" not in config:
             raise ValueError("SetContextAction requires 'value' parameter")
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Set the context value"""
         machine_name = context.get("machine_name", "unknown")
 

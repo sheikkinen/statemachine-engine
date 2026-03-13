@@ -41,7 +41,7 @@ class MachineEventModel:
             conn.commit()
             return cursor.lastrowid
 
-    def get_pending_events(self, machine_name: str) -> List[Dict[str, Any]]:
+    def get_pending_events(self, machine_name: str) -> list[dict[str, Any]]:
         """Get pending events for a specific machine"""
         with self.db._get_connection() as conn:
             rows = conn.execute(
@@ -69,7 +69,7 @@ class MachineEventModel:
 
     def list_events(
         self, target_machine: str = None, status: str = None, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """List events with optional filters"""
         with self.db._get_connection() as conn:
             query = "SELECT * FROM machine_events WHERE 1=1"

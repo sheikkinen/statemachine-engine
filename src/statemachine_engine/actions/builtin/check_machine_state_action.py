@@ -29,14 +29,14 @@ class CheckMachineStateAction(BaseAction):
         - not_running: Machine process not found or state data stale
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.target_machine = config.get("target_machine", "unknown")
         self.expected_states = config.get("expected_states", [])
         self.timeout_seconds = config.get("timeout_seconds", 60)
         self.job_model = get_job_model()
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Check target machine state and validate"""
         try:
             # 1. Check if machine process is running

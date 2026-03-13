@@ -27,7 +27,7 @@ class CheckDatabaseQueueAction(BaseAction):
     Supports both face_processing and pony_flux job types
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.job_model = get_job_model()
         # Get job type from config, default to face_processing for backward compatibility
@@ -35,7 +35,7 @@ class CheckDatabaseQueueAction(BaseAction):
         # Get machine type for concurrent architecture
         self.machine_type = config.get("machine_type")
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Check database queue for next job of specified type"""
         try:
             # First, fail any processing jobs with missing input files (for face_processing only)

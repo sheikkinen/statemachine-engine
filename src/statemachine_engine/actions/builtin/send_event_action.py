@@ -26,13 +26,13 @@ class SendEventAction(BaseAction):
     Action to send events to other machines for coordination
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.target_machine = config.get("target_machine", "unknown")
         self.event_type = config.get("event_type", "generic_event")
         self.payload_template = config.get("payload", {})
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Send event to target machine via Unix socket (with database fallback)"""
         try:
             # Get job information from context - support both formats
@@ -105,7 +105,7 @@ class SendEventAction(BaseAction):
             return False
 
     def _send_via_socket(
-        self, payload: Dict[str, Any], job_id: str = None, machine_name: str = "unknown"
+        self, payload: dict[str, Any], job_id: str = None, machine_name: str = "unknown"
     ) -> bool:
         """Send event via Unix socket. Returns True if successful."""
         try:
@@ -143,8 +143,8 @@ class SendEventAction(BaseAction):
             return False
 
     def _process_payload(
-        self, template: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, template: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Process payload template with context substitution"""
         if not template:
             return {}

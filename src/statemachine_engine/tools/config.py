@@ -37,7 +37,7 @@ from typing import Any, Dict, List
 import yaml
 
 
-def load_yaml(file_path: str) -> Dict[str, Any]:
+def load_yaml(file_path: str) -> dict[str, Any]:
     """Load YAML configuration file."""
     try:
         with open(file_path) as f:
@@ -47,7 +47,7 @@ def load_yaml(file_path: str) -> Dict[str, Any]:
         sys.exit(1)
 
 
-def parse_state_groups(yaml_path: str) -> Dict[str, List[str]]:
+def parse_state_groups(yaml_path: str) -> dict[str, list[str]]:
     """Parse state groups from YAML file comments."""
     state_groups = {}
     current_group = None

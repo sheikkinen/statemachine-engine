@@ -27,7 +27,7 @@ from typing import Any, Dict
 class BaseAction(ABC):
     """Base class for all state machine actions."""
 
-    def __init__(self, action_config: Dict[str, Any]):
+    def __init__(self, action_config: dict[str, Any]):
         """
         Initialize action with configuration.
 
@@ -40,7 +40,7 @@ class BaseAction(ABC):
         )
 
     @abstractmethod
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """
         Execute the action.
 
@@ -60,6 +60,6 @@ class BaseAction(ABC):
         """Get configuration value with optional default."""
         return self.config.get(key, default)
 
-    def get_machine_name(self, context: Dict[str, Any]) -> str:
+    def get_machine_name(self, context: dict[str, Any]) -> str:
         """Get machine name from context for logging."""
         return context.get("machine_name", "unknown")

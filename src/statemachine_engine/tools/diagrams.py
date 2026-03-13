@@ -69,7 +69,7 @@ from typing import Any, Dict, List
 import yaml
 
 
-def load_yaml(file_path: str) -> Dict[str, Any]:
+def load_yaml(file_path: str) -> dict[str, Any]:
     """Load YAML configuration file."""
     try:
         with open(file_path) as f:
@@ -79,7 +79,7 @@ def load_yaml(file_path: str) -> Dict[str, Any]:
         sys.exit(1)
 
 
-def generate_error_handling_diagram(config: Dict[str, Any]) -> str:
+def generate_error_handling_diagram(config: dict[str, Any]) -> str:
     """Generate Mermaid diagram focused on error handling flows."""
 
     states = config.get("states", [])
@@ -151,7 +151,7 @@ def generate_error_handling_diagram(config: Dict[str, Any]) -> str:
     return "\n".join(mermaid)
 
 
-def generate_stop_handling_diagram(config: Dict[str, Any]) -> str:
+def generate_stop_handling_diagram(config: dict[str, Any]) -> str:
     """Generate Mermaid diagram focused on stop/shutdown flows."""
 
     states = config.get("states", [])
@@ -219,7 +219,7 @@ def generate_stop_handling_diagram(config: Dict[str, Any]) -> str:
     return "\n".join(mermaid)
 
 
-def parse_state_groups(yaml_path: str) -> Dict[str, List[str]]:
+def parse_state_groups(yaml_path: str) -> dict[str, list[str]]:
     """Parse state groups from YAML file comments."""
     state_groups = {}
     current_group = None
@@ -260,7 +260,7 @@ def parse_state_groups(yaml_path: str) -> Dict[str, List[str]]:
     return state_groups
 
 
-def generate_mermaid_diagram(config: Dict[str, Any], yaml_path: str = None) -> str:
+def generate_mermaid_diagram(config: dict[str, Any], yaml_path: str = None) -> str:
     """Generate Mermaid state diagram from FSM configuration with composite states."""
 
     # Extract basic info
@@ -401,7 +401,7 @@ def generate_mermaid_diagram(config: Dict[str, Any], yaml_path: str = None) -> s
     return "\n".join(mermaid)
 
 
-def generate_states_table(config: Dict[str, Any]) -> str:
+def generate_states_table(config: dict[str, Any]) -> str:
     """Generate table of states with their actions."""
     states = config.get("states", [])
     actions = config.get("actions", {})
@@ -446,7 +446,7 @@ def generate_states_table(config: Dict[str, Any]) -> str:
     return "\n".join(table)
 
 
-def generate_events_table(config: Dict[str, Any]) -> str:
+def generate_events_table(config: dict[str, Any]) -> str:
     """Generate table of events."""
     events = config.get("events", [])
 
@@ -479,7 +479,7 @@ def generate_events_table(config: Dict[str, Any]) -> str:
     return "\n".join(table)
 
 
-def generate_markdown(config: Dict[str, Any], yaml_path: str) -> str:
+def generate_markdown(config: dict[str, Any], yaml_path: str) -> str:
     """Generate complete Markdown documentation."""
 
     name = config.get("name", "State Machine")
@@ -556,7 +556,7 @@ def generate_markdown(config: Dict[str, Any], yaml_path: str) -> str:
     return "\n".join(md_content)
 
 
-def get_composite_for_state(state: str, state_groups: Dict[str, List[str]]) -> str:
+def get_composite_for_state(state: str, state_groups: dict[str, list[str]]) -> str:
     """Find which composite state contains a given state."""
     for group_name, group_states in state_groups.items():
         if state in group_states:
@@ -565,8 +565,8 @@ def get_composite_for_state(state: str, state_groups: Dict[str, List[str]]) -> s
 
 
 def get_internal_transitions(
-    config: Dict[str, Any], group_states: List[str]
-) -> List[Dict[str, Any]]:
+    config: dict[str, Any], group_states: list[str]
+) -> list[dict[str, Any]]:
     """Get transitions that are internal to a group of states."""
     transitions = config.get("transitions", [])
     internal = []
@@ -587,8 +587,8 @@ def get_internal_transitions(
 
 
 def get_external_transitions(
-    config: Dict[str, Any], state_groups: Dict[str, List[str]]
-) -> List[Dict[str, Any]]:
+    config: dict[str, Any], state_groups: dict[str, list[str]]
+) -> list[dict[str, Any]]:
     """Get transitions between different composite states."""
     transitions = config.get("transitions", [])
     external = []
@@ -619,8 +619,8 @@ def get_external_transitions(
 
 
 def get_exit_transitions(
-    config: Dict[str, Any], group_states: List[str], all_groups: Dict[str, List[str]]
-) -> List[Dict[str, Any]]:
+    config: dict[str, Any], group_states: list[str], all_groups: dict[str, list[str]]
+) -> list[dict[str, Any]]:
     """Get transitions that exit from a group to other groups."""
     transitions = config.get("transitions", [])
     exits = []
@@ -641,7 +641,7 @@ def get_exit_transitions(
 
 
 def generate_main_overview(
-    config: Dict[str, Any], state_groups: Dict[str, List[str]]
+    config: dict[str, Any], state_groups: dict[str, list[str]]
 ) -> str:
     """Generate top-level diagram showing only composite state boundaries."""
     lines = ["stateDiagram-v2"]
@@ -709,10 +709,10 @@ def generate_main_overview(
 
 
 def generate_composite_subdiagram(
-    config: Dict[str, Any],
+    config: dict[str, Any],
     group_name: str,
-    group_states: List[str],
-    all_groups: Dict[str, List[str]],
+    group_states: list[str],
+    all_groups: dict[str, list[str]],
 ) -> str:
     """Generate detailed diagram for ONE composite state."""
     composite_name = group_name.replace(" ", "").replace("STATES", "").strip()
@@ -798,10 +798,10 @@ def generate_composite_subdiagram(
 
 
 def generate_metadata(
-    config: Dict[str, Any],
-    state_groups: Dict[str, List[str]],
-    composite_files: Dict[str, str],
-) -> Dict[str, Any]:
+    config: dict[str, Any],
+    state_groups: dict[str, list[str]],
+    composite_files: dict[str, str],
+) -> dict[str, Any]:
     """Generate metadata.json with diagram relationships."""
     machine_name = config.get("metadata", {}).get(
         "machine_name", config.get("name", "unknown")
@@ -854,7 +854,7 @@ def generate_metadata(
 
 
 def generate_diagram_files(
-    config: Dict[str, Any], yaml_path: str, output_dir: str = "docs/fsm-diagrams"
+    config: dict[str, Any], yaml_path: str, output_dir: str = "docs/fsm-diagrams"
 ):
     """
     Generate separate Mermaid files for main diagram and each composite state.

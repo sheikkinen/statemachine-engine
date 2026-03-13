@@ -22,12 +22,12 @@ class LogAction(BaseAction):
     Action to log messages that appear in the web UI activity log
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.message_template = config.get("message", "Log message")
         self.level = config.get("level", "info")  # info, error, success
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Log message to activity log"""
         try:
             event_model = get_machine_event_model()
@@ -46,7 +46,7 @@ class LogAction(BaseAction):
             payload = {"message": message, "level": self.level, "machine": machine_name}
 
             # Send event to UI - using target_machine 'ui' with event_type 'activity_log'
-            event_id = event_model.send_event(
+            event_model.send_event(
                 target_machine="ui",
                 event_type="activity_log",
                 job_id=job_id,
@@ -66,7 +66,7 @@ class LogAction(BaseAction):
             logger.error(f"Error logging to activity log: {e}")
             return self.get_config_value("error", "error")
 
-    def _process_message(self, template: str, context: Dict[str, Any]) -> str:
+    def _process_message(self, template: str, context: dict[str, Any]) -> str:
         """Process message template with context substitution"""
         message = template
 

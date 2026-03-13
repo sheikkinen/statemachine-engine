@@ -34,7 +34,7 @@ def find_ui_server():
 def check_node():
     """Check if Node.js is available."""
     try:
-        result = subprocess.run(
+        subprocess.run(
             ["node", "--version"], capture_output=True, text=True, check=True
         )
         return True

@@ -22,7 +22,7 @@ class MachineStateModel:
     def __init__(self, db: Database):
         self.db = db
 
-    def get_all_machines(self) -> List[Dict[str, Any]]:
+    def get_all_machines(self) -> list[dict[str, Any]]:
         """Get all machines with their current state"""
         with self.db._get_connection() as conn:
             rows = conn.execute("""
@@ -31,7 +31,7 @@ class MachineStateModel:
             """).fetchall()
             return [dict(row) for row in rows]
 
-    def get_machine_state(self, machine_name: str) -> Optional[Dict[str, Any]]:
+    def get_machine_state(self, machine_name: str) -> Optional[dict[str, Any]]:
         """Get state for a specific machine"""
         with self.db._get_connection() as conn:
             row = conn.execute(
@@ -49,7 +49,7 @@ class MachineStateModel:
         self,
         machine_name: str,
         current_state: str,
-        metadata: Dict[str, Any] = None,
+        metadata: dict[str, Any] = None,
         config_type: str = None,
     ):
         """Update or insert machine state"""
@@ -73,7 +73,7 @@ class MachineStateModel:
             )
             conn.commit()
 
-    def get_recent_state_changes(self, hours: int = 1) -> List[Dict[str, Any]]:
+    def get_recent_state_changes(self, hours: int = 1) -> list[dict[str, Any]]:
         """Get recent state changes (from pipeline_results)"""
         with self.db._get_connection() as conn:
             rows = conn.execute(

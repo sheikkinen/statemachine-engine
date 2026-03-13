@@ -529,7 +529,7 @@ def cmd_machine_status(args):
 
     import psutil
 
-    job_model = get_job_model()
+    get_job_model()
 
     print("=== Concurrent Machine Status ===")
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -989,20 +989,6 @@ def cmd_list_errors(args):
             """
 
             # Query error-related controller log entries
-            controller_errors_query = """
-                SELECT
-                    'controller_error' as type,
-                    event_type as event_name,
-                    'controller' as machine,
-                    job_id,
-                    details as payload,
-                    created_at as timestamp
-                FROM controller_log
-                WHERE event_type IN ('sdxl_error', 'face_error')
-                   OR action LIKE '%error%'
-                ORDER BY created_at DESC
-                LIMIT ?
-            """
 
             # Combine all error sources
             all_errors = []
@@ -1260,7 +1246,7 @@ def main():
     )
 
     # Machine health command
-    machine_health_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "machine-health", help="Check concurrent machine health"
     )
 

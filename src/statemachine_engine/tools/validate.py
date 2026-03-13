@@ -61,8 +61,8 @@ class ValidationResult:
 
     config_path: str
     passed: bool = True
-    errors: List[ValidationIssue] = field(default_factory=list)
-    warnings: List[ValidationIssue] = field(default_factory=list)
+    errors: list[ValidationIssue] = field(default_factory=list)
+    warnings: list[ValidationIssue] = field(default_factory=list)
 
     def add_error(self, issue: ValidationIssue):
         issue.severity = "error"
@@ -120,7 +120,7 @@ class StateMachineValidator:
         transitions = config.get("transitions", [])
         actions = config.get("actions", {})
         initial_state = config.get("initial_state", "waiting")
-        machine_name = config.get("metadata", {}).get("machine_name", "unknown")
+        config.get("metadata", {}).get("machine_name", "unknown")
 
         # Run validation checks
         self._check_event_coverage(events, transitions, result)
@@ -135,7 +135,7 @@ class StateMachineValidator:
         return result
 
     def _check_event_coverage(
-        self, events: Set[str], transitions: List[Dict], result: ValidationResult
+        self, events: set[str], transitions: list[dict], result: ValidationResult
     ) -> None:
         """Check that all declared events have at least one transition"""
         events_with_transitions = set()
@@ -163,9 +163,9 @@ class StateMachineValidator:
 
     def _check_action_emissions(
         self,
-        actions: Dict,
-        transitions: List[Dict],
-        events: Set[str],
+        actions: dict,
+        transitions: list[dict],
+        events: set[str],
         result: ValidationResult,
     ) -> None:
         """Check that actions emitting events have corresponding transitions"""
@@ -204,7 +204,7 @@ class StateMachineValidator:
                         )
 
     def _check_standard_patterns(
-        self, actions: Dict, transitions: List[Dict], result: ValidationResult
+        self, actions: dict, transitions: list[dict], result: ValidationResult
     ) -> None:
         """Check for standard action patterns requiring specific transitions"""
         for state_name, state_actions in actions.items():
@@ -248,8 +248,8 @@ class StateMachineValidator:
 
     def _check_orphaned_states(
         self,
-        states: Set[str],
-        transitions: List[Dict],
+        states: set[str],
+        transitions: list[dict],
         initial_state: str,
         result: ValidationResult,
     ) -> None:
@@ -277,8 +277,8 @@ class StateMachineValidator:
 
     def _check_unreachable_states(
         self,
-        states: Set[str],
-        transitions: List[Dict],
+        states: set[str],
+        transitions: list[dict],
         initial_state: str,
         result: ValidationResult,
     ) -> None:
@@ -322,7 +322,7 @@ class StateMachineValidator:
                 )
 
     def _check_missing_events(
-        self, events: Set[str], transitions: List[Dict], result: ValidationResult
+        self, events: set[str], transitions: list[dict], result: ValidationResult
     ) -> None:
         """Check for events used in transitions but not declared"""
         used_events = set()
@@ -345,7 +345,7 @@ class StateMachineValidator:
             )
 
     def _check_wildcard_transitions(
-        self, transitions: List[Dict], states: Set[str], result: ValidationResult
+        self, transitions: list[dict], states: set[str], result: ValidationResult
     ) -> None:
         """Check wildcard transitions for potential issues"""
         wildcard_transitions = [t for t in transitions if t.get("from") == "*"]
@@ -360,7 +360,7 @@ class StateMachineValidator:
             )
 
     def _check_initial_state(
-        self, initial_state: str, states: Set[str], result: ValidationResult
+        self, initial_state: str, states: set[str], result: ValidationResult
     ) -> None:
         """Check that initial state is valid"""
         if initial_state not in states:
@@ -375,8 +375,8 @@ class StateMachineValidator:
 
 
 def print_results(
-    results: List[ValidationResult], quiet: bool = False, use_color: bool = True
-) -> Tuple[int, int]:
+    results: list[ValidationResult], quiet: bool = False, use_color: bool = True
+) -> tuple[int, int]:
     """Print validation results and return (error_count, warning_count)"""
 
     # ANSI color codes

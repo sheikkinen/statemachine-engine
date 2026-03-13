@@ -33,7 +33,7 @@ import re
 from typing import Any, Dict, List, Optional, Union
 
 
-def interpolate_value(template: Any, context: Optional[Dict[str, Any]]) -> Any:
+def interpolate_value(template: Any, context: Optional[dict[str, Any]]) -> Any:
     """
     Interpolate variables in a single value (typically a string).
 
@@ -139,8 +139,8 @@ def interpolate_value(template: Any, context: Optional[Dict[str, Any]]) -> Any:
 
 
 def interpolate_config(
-    config: Union[Dict[str, Any], List[Any], Any], context: Optional[Dict[str, Any]]
-) -> Union[Dict[str, Any], List[Any], Any]:
+    config: Union[dict[str, Any], list[Any], Any], context: Optional[dict[str, Any]]
+) -> Union[dict[str, Any], list[Any], Any]:
     """
     Recursively interpolate variables in a configuration structure.
 

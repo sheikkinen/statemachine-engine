@@ -38,12 +38,12 @@ class CompleteJobAction(BaseAction):
               error: completion_failed
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.job_id_template = config.get("job_id", "{job_id}")
         self.job_model = get_job_model()
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Mark job as completed in database"""
         try:
             # Interpolate job_id from context using shared utility

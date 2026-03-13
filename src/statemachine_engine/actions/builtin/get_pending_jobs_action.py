@@ -47,7 +47,7 @@ class GetPendingJobsAction(BaseAction):
         Event name based on whether jobs were found
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.job_model = get_job_model()
         self.job_type = config.get("job_type")
@@ -57,7 +57,7 @@ class GetPendingJobsAction(BaseAction):
         self.success_event = config.get("success", "jobs_found")
         self.empty_event = config.get("empty", "no_jobs")
 
-    async def execute(self, context: Dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str:
         """Retrieve pending jobs and store in context"""
         try:
             jobs = self.job_model.get_pending_jobs(

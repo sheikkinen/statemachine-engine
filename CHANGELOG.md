@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.76] - 2026-03-13
+
+### Added
+- **FR-186 Pre-commit quality gates**
+  - `.pre-commit-config.yaml` with 14 hooks: ruff lint+format, trailing-whitespace,
+    end-of-file-fixer, check-yaml/toml/ast/merge-conflict, debug-statements,
+    detect-private-key, file-size-gate (450 max), forbid-terms, pytest, conventional-commits
+  - `[tool.ruff]` and `[tool.pytest.ini_options]` added to `pyproject.toml`
+  - `ruff>=0.1.0` and `pre-commit>=3.0.0` added to dev dependencies
+  - README.md "Development Setup" section
+
+### Fixed
+- 1,400 ruff violations resolved across 6 phases:
+  - Phase 1: `ruff format` whitespace normalization (36 files)
+  - Phase 2: safe auto-fixes — imports, f-strings, trivia (100 fixes)
+  - Phase 3: unsafe fixes — modernized type annotations, unused vars
+  - Phase 4: manual fixes — undefined names (F821), bare excepts, SQL whitespace
+  - Phase 5: purged 6 forbidden "backward compat" terms
+  - Phase 6: 150 files trailing-whitespace + EOF fixes from hooks
+
 ## [1.0.75] - 2026-03-12
 
 ### Fixed

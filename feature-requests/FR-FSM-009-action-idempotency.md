@@ -2,7 +2,7 @@
 
 **Priority:** HIGH
 **Type:** Bug
-**Status:** Amended ✅
+**Status:** Enforced ✅
 **Effort:** 1 day
 **Requested:** 2026-03-16
 **Judged:** 2026-03-16

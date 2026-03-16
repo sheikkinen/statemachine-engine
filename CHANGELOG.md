@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.78] - 2026-03-16
+
+### Fixed
+- **FR-FSM-009 Action Idempotency Guard** — `_execute_state_actions()` now guards
+  against repeated execution of transition-triggering actions
+  - Mid-sequence abort: loop breaks when an action triggers a state transition,
+    preventing remaining captured actions from executing in the wrong state
+  - Runtime one-shot detection: actions that caused `_state_entry_gen` to change
+    are marked completed and skipped on subsequent ticks
+  - Self-loop preservation: `_completed_action_indices` is NOT reset on self-loops,
+    preventing infinite alternation
+  - Different-state transitions reset the completed set for fresh execution
+  - 7 new unit tests (397 total, 0 regressions)
+
+### Added
+- Feature requests FR-FSM-002 through FR-FSM-008 (roadmap for linter improvements,
+  config fixes, and file splits)
+
 ## [1.0.77] - 2026-03-13
 
 ### Added

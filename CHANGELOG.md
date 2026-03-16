@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.79] - 2026-03-16
+
+### Fixed
+- **Python 3.9 compatibility**: Added `from __future__ import annotations` to
+  `tools/linter/models.py` and `core/engine.py` — fixes `str | None` and
+  `set[int]` union syntax that caused `TypeError` on Python 3.9 CI, blocking
+  PyPI publish since v1.0.77
+
 ## [1.0.78] - 2026-03-16
 
 ### Fixed

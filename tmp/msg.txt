@@ -1,0 +1,14 @@
+feat(linter): FR-FSM-001 GREEN — implement 25-check FSM graph linter
+
+Implementation:
+- tools/linter/ package: 4 check modules, core orchestrator, CLI, data model
+- checks_structural.py: E001–E005 (initial_state, transitions, events, duplicates)
+- checks_reachability.py: E006–E007, W001–W003 (terminal reach, dead-ends, orphans)
+- checks_actions.py: E008–E011, W004–W006 (types, emissions, required fields, shell)
+- checks_semantic.py: E012–E015, W007–W010 (interpolation, context_map, unused events)
+- CLI: statemachine-lint with --strict, --format json, --select flags
+- actions_root discovery for custom action types (E008)
+- Pydantic LintIssue/LintResult models
+- 67 unit tests (all passing)
+- Pre-commit hook added
+- pyproject.toml entry point registered

@@ -25,6 +25,8 @@ KEY FUNCTIONS:
 - _execute_pluggable_action(type, config) - Load and execute pluggable action class via ActionLoader
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -32,7 +34,7 @@ import re
 import socket
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -48,7 +50,7 @@ class EventSocketManager:
 
     def __init__(self, socket_path: str = None):
         self.socket_path = socket_path or "/tmp/statemachine-events.sock"
-        self.sock: Optional[socket.socket] = None
+        self.sock: socket.socket | None = None
         self.logger = logging.getLogger(__name__)
         self._last_connect_attempt = 0.0
         self._connect()
@@ -133,7 +135,7 @@ class StateMachineEngine:
         self.event_socket = EventSocketManager(
             socket_path=event_socket_path
         )  # NEW: Unix socket for real-time events
-        self.control_socket: Optional[socket.socket] = (
+        self.control_socket: socket.socket | None = (
             None  # Control socket for receiving events
         )
         self.is_running = True
@@ -707,7 +709,7 @@ class StateMachineEngine:
             },
         )
 
-    async def _find_transition(self, current_state: str, event: str) -> Optional[str]:
+    async def _find_transition(self, current_state: str, event: str) -> str | None:
         """Find valid transition for current state and event"""
         transitions = self.config.get("transitions", [])
 

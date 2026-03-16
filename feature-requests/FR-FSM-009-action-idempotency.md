@@ -2,16 +2,18 @@
 
 **Priority:** HIGH
 **Type:** Bug
-**Status:** Judged ✅ (with amendments)
+**Status:** Amended ✅
 **Effort:** 1 day
 **Requested:** 2026-03-16
 **Judged:** 2026-03-16
 
 ## Summary
 
-Guard `_execute_state_actions()` so that side-effecting actions (those with
-`success`/`failure` emission fields) run exactly once per state entry, while
-polling actions (no emission fields) continue to run every tick.
+Guard `_execute_state_actions()` so that actions which trigger state
+transitions run exactly once per state entry, while polling actions
+(those that don't trigger transitions) continue to run every tick.
+Detection is runtime-based: if an action caused `_state_entry_gen` to
+change, it is marked completed and skipped on subsequent ticks.
 
 ## Value Statement
 
@@ -61,107 +63,99 @@ double-complete.
 
 ## Proposed Solution
 
-### Design: "emit = run-once" semantic
+### Design: Runtime transition detection
 
-The natural invariant: **actions with `success`/`failure`/`error` emission
-fields are one-shot per state entry**. Actions without emission fields are
-polling/stateless and safe to repeat.
+The natural invariant: **actions that trigger state transitions are one-shot
+per state entry**. Actions that don't trigger transitions are polling/stateless
+and safe to repeat. Detection is runtime-based — no YAML-key heuristic needed.
+
+All pluggable actions return events via code-level defaults (e.g. `bash_action`
+always returns `self.config.get("success", "job_done")`), so checking for
+`success`/`failure`/`error` keys in YAML is unreliable. Instead, we observe
+whether `_state_entry_gen` changed after executing each action.
 
 ### Implementation
 
-Add a `_state_entry_generation` counter and `_completed_action_indices` set
-to the engine:
+Add a `_state_entry_gen` counter and `_completed_action_indices` set to the
+engine:
 
 ```python
 class StateMachineEngine:
     def __init__(self, ...):
         ...
-        self._state_entry_gen = 0          # Incremented on each state entry
-        self._completed_action_indices = set()  # Reset on state entry
+        self._state_entry_gen = 0               # Incremented on each state transition
+        self._completed_action_indices = set()   # Reset on transitions to different state
 
     async def process_event(self, event, context=None):
         ...
         if new_state:
             previous_state = self.current_state
             self.current_state = new_state
-            # Reset action tracking on state entry
             self._state_entry_gen += 1
-            self._completed_action_indices = set()
+            # Only reset completed actions on transitions to a DIFFERENT state.
+            # Self-loops preserve the set to prevent infinite re-fire.
+            if new_state != previous_state:
+                self._completed_action_indices = set()
             ...
 
-    async def _execute_state_actions(self):
+    async def _execute_state_actions(self) -> None:
         self.context["current_state"] = self.current_state
         state_actions = self.config.get("actions", {}).get(self.current_state, [])
+        entry_gen = self._state_entry_gen
 
         for idx, action_config in enumerate(state_actions):
-            # Skip one-shot actions that already completed in this state entry
+            # PRIMARY GUARD: abort if state changed mid-sequence.
+            # The action list was captured at loop start — without this check,
+            # remaining actions execute even after a transition.
+            if self._state_entry_gen != entry_gen:
+                break
+
+            # Skip actions that already triggered transitions in this state entry
             if idx in self._completed_action_indices:
                 continue
-
-            is_one_shot = any(
-                k in action_config for k in ("success", "failure", "error")
-            )
 
             await self._execute_action(action_config)
             self._propagate_job_context()
 
-            # Mark one-shot actions as completed
-            if is_one_shot:
+            # RUNTIME DETECTION: if this action triggered a state change,
+            # mark it as completed so it won't re-fire on subsequent ticks
+            if self._state_entry_gen != entry_gen:
                 self._completed_action_indices.add(idx)
 ```
 
 ### Why this works
 
-1. **Polling actions** (`check_database_queue`, `log`, `sleep`) have no
-   `success`/`failure` fields → re-execute every tick as before
-2. **Side-effecting actions** (`bash`, `send_event`, `start_fsm`) have
-   `success`/`failure` → execute once, skip on subsequent ticks
-3. **State transitions reset the tracker** → actions run fresh on re-entry
-4. **Self-loops** (`from: waiting, to: waiting`) increment the generation
-   counter → actions re-execute on self-transition (correct behavior)
-5. **No config changes needed** — existing YAML configs work unchanged
-
-### Edge case: action emits event mid-sequence
-
-When a one-shot action emits an event that triggers a transition, the remaining
-actions in the sequence should NOT execute (the state has changed). The current
-code already handles this implicitly because `process_event()` changes
-`self.current_state` synchronously. But we should add a guard:
-
-```python
-    current_gen = self._state_entry_gen
-    for idx, action_config in enumerate(state_actions):
-        if self._state_entry_gen != current_gen:
-            break  # State changed mid-sequence, abort remaining actions
-        ...
-```
-
-### Linter integration
-
-Add a new warning to FR-FSM-001's action checks:
-
-```
-W011  warning  Side-effecting action (bash/send_event/start_fsm/add_to_list)
-               without success/failure field — will re-fire every tick
-```
-
-This catches the case where an author writes a `bash` action without a
-`success` event, which would run the command repeatedly.
+1. **Mid-sequence abort** — the `entry_gen` check breaks the loop when an
+   action triggers a transition, preventing remaining captured actions from
+   executing in the wrong state. This is the primary bug fix.
+2. **Runtime one-shot detection** — polling actions (`wait_for_jobs` returning
+   `None`, `check_database_queue`) never trigger transitions → never marked →
+   repeat every tick. Side-effecting actions (`bash`, `send_event`) trigger
+   transitions → marked → run once.
+3. **Self-loops preserve completed set** — `_completed_action_indices` is NOT
+   reset on self-loops, preventing infinite alternation where A1 fires, causes
+   self-loop, resets, A1 fires again, forever starving A2/A3.
+4. **Different-state transitions reset** — entering a genuinely new state
+   clears the completed set, allowing all actions to run fresh.
+5. **No config changes needed** — existing YAML configs work unchanged.
+6. **No YAML-key heuristic** — works correctly even for actions that omit
+   `success:`/`failure:` in YAML but return events via code defaults.
 
 ## Acceptance Criteria
 
-- [ ] `_state_entry_gen` counter + `_completed_action_indices` set added
-- [ ] One-shot detection: actions with `success`/`failure`/`error` run once
-- [ ] Polling actions (no emission) continue to repeat every tick
-- [ ] State transitions (including self-loops) reset the tracker
-- [ ] Mid-sequence state change aborts remaining actions
+- [ ] `_state_entry_gen` counter + `_completed_action_indices` set initialized in `__init__`
+- [ ] Mid-sequence abort: loop breaks when `_state_entry_gen` changes during iteration
+- [ ] Runtime one-shot detection: actions that triggered transitions are marked completed
+- [ ] Polling actions (no transition triggered) repeat every tick
+- [ ] State transitions to different state reset `_completed_action_indices`
+- [ ] Self-loops increment gen counter but do NOT reset completed set
 - [ ] No behavioral change for correctly-configured machines
-- [ ] Unit test: bash action with success runs once per state entry
-- [ ] Unit test: check_database_queue runs every tick
-- [ ] Unit test: self-loop resets action completion
+- [ ] Unit test: bash action causing transition runs once per state entry
+- [ ] Unit test: check_database_queue (returns None) runs every tick
+- [ ] Unit test: self-loop preserves completed actions (no infinite alternation)
 - [ ] Unit test: mid-sequence transition aborts remaining actions
-- [ ] W011 linter warning added for unguarded side-effecting actions
-- [ ] All 390 existing tests pass
+- [ ] Unit test: re-entry from different state resets completed set
+- [ ] All existing tests pass (390+)
 
 ## Alternatives Considered
 
@@ -169,8 +163,13 @@ This catches the case where an author writes a `bash` action without a
 polling patterns (`check_database_queue` in `waiting` state must repeat).
 
 **Action-level `run_once: true` flag:** Rejected — requires config changes to
-all existing YAML files and is easy to forget. The `success`/`failure`
-presence is a natural semantic marker.
+all existing YAML files and is easy to forget.
+
+**YAML-key heuristic (`success`/`failure`/`error` presence):** Rejected —
+all pluggable actions return events via code-level defaults regardless of
+YAML presence (e.g. `bash_action` always returns `"job_done"`). A `bash`
+action WITHOUT `success:` in YAML is equally dangerous. Runtime detection
+(observing whether `_state_entry_gen` changed) is both simpler and correct.
 
 **Track by action hash instead of index:** Considered — would handle dynamic
 action lists, but FSM configs are static. Index is simpler and sufficient.
@@ -180,8 +179,8 @@ complexity for a fundamentally sequential loop.
 
 ## Related
 
-- FR-FSM-001 — Graph linter (W011 addition)
 - FR-FSM-007 — Split engine.py (this change increases motivation to split)
+- FR-FSM-010 (future) — W011 linter warning for unguarded side-effecting actions
 - `core/engine.py` lines 377, 822–833, 401–493
 
 ---

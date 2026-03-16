@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.84] - 2026-03-16
+
+### Fixed
+- **FR-FSM-010 Non-transition action re-execution follow-up enforced**
+  - Hardened `_is_repeatable_action()` parsing in `core/engine.py` so string
+    values like `"false"` no longer opt in to repeat-per-tick behavior.
+  - Preserved explicit opt-in paths: `repeatable: true` and
+    `run_policy: repeat_per_tick` (or `repeat`).
+  - Added focused tests for both mandatory amendments:
+    - `run_policy: repeat_per_tick` repeats on each tick
+    - `repeatable: "false"` remains one-shot per state entry
+  - `tests/core/test_action_idempotency.py`: 10 passing tests.
+
 ## [1.0.79] - 2026-03-16
 
 ### Fixed

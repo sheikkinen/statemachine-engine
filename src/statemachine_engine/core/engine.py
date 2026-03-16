@@ -837,8 +837,11 @@ class StateMachineEngine:
         FR-FSM-009: Guards against repeated execution of transition-triggering
         actions. If an action causes a state transition (detected by
         _state_entry_gen change), the loop aborts and the action index is
-        marked completed. Polling actions that don't trigger transitions
-        repeat every tick as before.
+        marked completed.
+
+        VB-006: Non-transition actions are one-shot per state entry by default.
+        Actions can opt in to repeat-per-tick behavior via `repeatable: true`
+        or `run_policy: repeat_per_tick`.
         """
         # Add current_state to context for template substitution
         self.context["current_state"] = self.current_state
@@ -863,6 +866,32 @@ class StateMachineEngine:
             # RUNTIME DETECTION: mark action as completed if it triggered a transition
             if self._state_entry_gen != entry_gen:
                 self._completed_action_indices.add(idx)
+                continue
+
+            # VB-006 default: non-transition actions run once per state entry.
+            # Explicit opt-in is required for repeat-per-tick polling behavior.
+            if not self._is_repeatable_action(action_config):
+                self._completed_action_indices.add(idx)
+
+    def _is_repeatable_action(self, action_config: dict[str, Any]) -> bool:
+        """Return True when action opts in to repeat-per-tick execution."""
+        repeatable = action_config.get("repeatable", False)
+
+        if isinstance(repeatable, bool):
+            if repeatable:
+                return True
+        elif isinstance(repeatable, str):
+            normalized = repeatable.strip().lower()
+            if normalized in {"true", "1", "yes", "on"}:
+                return True
+            if normalized in {"false", "0", "no", "off", ""}:
+                return False
+
+        # Unknown/non-boolean values do not opt in to repeat-per-tick.
+        # Explicit run_policy remains a valid opt-in path.
+
+        run_policy = str(action_config.get("run_policy", "")).strip().lower()
+        return run_policy in {"repeat_per_tick", "repeat"}
 
     def _substitute_variables(self, template: str, context: dict[str, Any]) -> str:
         """Substitute {variable} placeholders with context values.

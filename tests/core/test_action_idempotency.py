@@ -4,7 +4,8 @@ FR-FSM-009: Action Execution Idempotency Guard
 Tests that _execute_state_actions():
 1. Aborts mid-sequence when an action triggers a state transition
 2. Marks transition-triggering actions as completed (skip on next tick)
-3. Lets polling actions (no transition) repeat every tick
+3. VB-006: Runs non-transition actions once per state entry by default
+4. Allows polling actions to repeat only with explicit opt-in
 4. Preserves completed set on self-loops (no infinite alternation)
 5. Resets completed set on transitions to a different state
 """
@@ -113,8 +114,8 @@ class TestRuntimeOneShot:
         assert call_count == 1, "Action should not re-fire after self-loop"
 
     @pytest.mark.asyncio
-    async def test_polling_action_repeats_every_tick(self, engine):
-        """An action that does NOT trigger a transition repeats every tick."""
+    async def test_non_transition_action_runs_once_per_entry_by_default(self, engine):
+        """VB-006 default: non-transition action executes once per state entry."""
         call_count = 0
 
         engine.config["actions"]["idle"] = [
@@ -132,10 +133,79 @@ class TestRuntimeOneShot:
         assert call_count == 1
 
         await engine._execute_state_actions()
+        assert call_count == 1
+
+        await engine._execute_state_actions()
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_repeatable_polling_action_repeats_every_tick(self, engine):
+        """VB-006 opt-in: repeatable polling action runs on each tick."""
+        call_count = 0
+
+        engine.config["actions"]["idle"] = [
+            {"type": "check_database_queue", "repeatable": True},
+        ]
+
+        async def mock_execute(action_config):
+            nonlocal call_count
+            call_count += 1
+
+        engine._execute_action = mock_execute
+
+        await engine._execute_state_actions()
+        assert call_count == 1
+
+        await engine._execute_state_actions()
         assert call_count == 2
 
         await engine._execute_state_actions()
         assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_run_policy_repeat_per_tick_repeats_every_tick(self, engine):
+        """VB-006 opt-in: run_policy=repeat_per_tick runs on each tick."""
+        call_count = 0
+
+        engine.config["actions"]["idle"] = [
+            {"type": "check_database_queue", "run_policy": "repeat_per_tick"},
+        ]
+
+        async def mock_execute(action_config):
+            nonlocal call_count
+            call_count += 1
+
+        engine._execute_action = mock_execute
+
+        await engine._execute_state_actions()
+        assert call_count == 1
+
+        await engine._execute_state_actions()
+        assert call_count == 2
+
+        await engine._execute_state_actions()
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_repeatable_string_false_does_not_repeat(self, engine):
+        """String 'false' must not opt in to repeat-per-tick behavior."""
+        call_count = 0
+
+        engine.config["actions"]["idle"] = [
+            {"type": "check_database_queue", "repeatable": "false"},
+        ]
+
+        async def mock_execute(action_config):
+            nonlocal call_count
+            call_count += 1
+
+        engine._execute_action = mock_execute
+
+        await engine._execute_state_actions()
+        assert call_count == 1
+
+        await engine._execute_state_actions()
+        assert call_count == 1
 
 
 class TestSelfLoopPreservation:
@@ -145,7 +215,7 @@ class TestSelfLoopPreservation:
     async def test_self_loop_preserves_completed_no_infinite_alternation(self, engine):
         """Self-loop must NOT cause a one-shot action to re-fire every tick.
 
-        Scenario: state "working" has [A1(one-shot), A2(poll)].
+        Scenario: state "working" has [A1(one-shot), A2(repeatable poll)].
         A1 triggers a self-loop on first tick. On tick 2, A1 must be
         skipped and A2 must execute.
         """
@@ -154,7 +224,7 @@ class TestSelfLoopPreservation:
         engine.current_state = "working"
         engine.config["actions"]["working"] = [
             {"type": "bash", "command": "one_shot"},
-            {"type": "check_queue"},
+            {"type": "check_queue", "repeatable": True},
         ]
 
         first_tick = True

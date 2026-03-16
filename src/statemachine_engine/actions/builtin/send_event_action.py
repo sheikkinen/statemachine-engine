@@ -32,7 +32,7 @@ class SendEventAction(BaseAction):
         self.event_type = config.get("event_type", "generic_event")
         self.payload_template = config.get("payload", {})
 
-    async def execute(self, context: dict[str, Any]) -> str:
+    async def execute(self, context: dict[str, Any]) -> str | None:
         """Send event to target machine via Unix socket (with database fallback)"""
         try:
             # Get job information from context - support both formats
@@ -73,6 +73,11 @@ class SendEventAction(BaseAction):
             if payload:
                 logger.debug(f"[{machine_name}] Event payload: {payload}")
 
+            # Return custom success event unless fire_and_forget suppresses
+            # local event dispatch in the source machine.
+            if self._is_fire_and_forget_enabled():
+                return None
+
             # Return custom success event if specified, otherwise 'event_sent'
             success_event = self.get_config_value("success", "event_sent")
             return success_event
@@ -81,6 +86,22 @@ class SendEventAction(BaseAction):
             machine_name = context.get("machine_name", "unknown")
             logger.error(f"[{machine_name}] Error sending event: {e}")
             return "error"
+
+    def _is_fire_and_forget_enabled(self) -> bool:
+        """Parse fire_and_forget config using explicit boolean-like values."""
+        value = self.get_config_value("fire_and_forget", False)
+
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "1", "yes", "on"}:
+                return True
+            if normalized in {"false", "0", "no", "off", ""}:
+                return False
+
+        return False
 
     def _send_wake_up_socket(self, machine_name: str = "unknown") -> bool:
         """Send wake-up signal via Unix socket. Returns True if successful."""

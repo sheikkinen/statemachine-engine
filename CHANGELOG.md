@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.85] - 2026-03-16
+
+### Fixed
+- **VB-007 SendEventAction fire_and_forget enforcement**
+  - Added `fire_and_forget` handling to `send_event` action so successful
+    cross-machine sends can return `None` and suppress local
+    `process_event("event_sent")` dispatch.
+  - Added explicit boolean-like parsing for `fire_and_forget` to avoid
+    truthiness traps (`"false"` no longer behaves as enabled).
+  - Added focused tests in `tests/actions/test_send_event_fire_and_forget.py`:
+    - default path dispatches `event_sent`
+    - `fire_and_forget: true` suppresses dispatch
+    - `fire_and_forget: "false"` preserves default behavior
+  - Verified no regressions in nested send_event payload handling and
+    idempotency behavior.
+
 ## [1.0.84] - 2026-03-16
 
 ### Fixed

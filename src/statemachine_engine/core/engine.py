@@ -144,6 +144,11 @@ class StateMachineEngine:
         self._context_map_index: dict[
             str, dict[str, str]
         ] = {}  # NC-120: event → {ctx_key: payload_path}
+        # FR-FSM-009: Action idempotency guard
+        self._state_entry_gen: int = 0  # Incremented on each state transition
+        self._completed_action_indices: set[int] = (
+            set()
+        )  # Reset on different-state transitions
 
     async def load_config(self, yaml_path: str) -> None:
         """Load state machine configuration from YAML file"""
@@ -492,6 +497,11 @@ class StateMachineEngine:
             previous_state = self.current_state
             self.current_state = new_state
 
+            # FR-FSM-009: Track state entry generation for idempotency guard
+            self._state_entry_gen += 1
+            if new_state != previous_state:
+                self._completed_action_indices = set()
+
             # Mark activity time for non-idle events and state changes
             if not is_idle_event or not is_self_loop:
                 self._last_activity_time = time.time()
@@ -820,17 +830,37 @@ class StateMachineEngine:
                     )
 
     async def _execute_state_actions(self) -> None:
-        """Execute actions defined for current state"""
+        """Execute actions defined for current state.
+
+        FR-FSM-009: Guards against repeated execution of transition-triggering
+        actions. If an action causes a state transition (detected by
+        _state_entry_gen change), the loop aborts and the action index is
+        marked completed. Polling actions that don't trigger transitions
+        repeat every tick as before.
+        """
         # Add current_state to context for template substitution
         self.context["current_state"] = self.current_state
 
         state_actions = self.config.get("actions", {}).get(self.current_state, [])
+        entry_gen = self._state_entry_gen
 
-        for action_config in state_actions:
+        for idx, action_config in enumerate(state_actions):
+            # PRIMARY GUARD: abort if state changed mid-sequence
+            if self._state_entry_gen != entry_gen:
+                break
+
+            # Skip actions that already triggered transitions in this state entry
+            if idx in self._completed_action_indices:
+                continue
+
             await self._execute_action(action_config)
 
             # After each action, check if current_job was added to context and propagate job data
             self._propagate_job_context()
+
+            # RUNTIME DETECTION: mark action as completed if it triggered a transition
+            if self._state_entry_gen != entry_gen:
+                self._completed_action_indices.add(idx)
 
     def _substitute_variables(self, template: str, context: dict[str, Any]) -> str:
         """Substitute {variable} placeholders with context values.

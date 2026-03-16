@@ -21,7 +21,7 @@ This document describes how to create a new release of statemachine-engine.
    ```
 
 2. **GitHub Actions will automatically:**
-   - Run tests on Python 3.9, 3.10, 3.11, 3.12
+   - Run tests on Python 3.10, 3.11, 3.12
    - Build the package (wheel + source distribution)
    - Publish to PyPI (requires PyPI trusted publishing setup)
    - Create a GitHub Release with artifacts

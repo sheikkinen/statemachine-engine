@@ -42,7 +42,7 @@ pip install statemachine-engine
 
 ### Dependencies
 
-The package requires Python 3.9+ and automatically installs:
+The package requires Python 3.10+ and automatically installs:
 - PyYAML (YAML configuration parsing)
 - FastAPI (WebSocket server)
 - Uvicorn (ASGI server)
@@ -353,7 +353,7 @@ statemachine-db details <job-id>
 - Full visual interface at `http://localhost:3001`
 
 **Requirements:**
-- Python 3.9+ (required)
+- Python 3.10+ (required)
 - Node.js (optional, for Web UI)
 - npm (optional, for Web UI dependencies)
 

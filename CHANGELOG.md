@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.86] - 2026-03-17
+
+### Fixed
+- **UI diagram API dynamic machine-name fallback**
+  - Added `resolveDiagramDir()` prefix matching in `ui/server.cjs` so dynamic
+    machine names (for example `telephony-CA123`) resolve to existing base
+    diagram directories (for example `telephony`).
+  - Updated `/api/diagram/:machine_name`, `/api/diagram/:machine_name/metadata`,
+    and `/api/diagram/:machine_name/:diagram_name` to use resolved directory
+    lookup when exact machine directory is absent.
+  - Prevented false-positive prefix matches by requiring candidate directories
+    to contain diagram artifacts (`*_fsm.md` or `metadata.json`).
+
 ## [1.0.85] - 2026-03-16
 
 ### Fixed

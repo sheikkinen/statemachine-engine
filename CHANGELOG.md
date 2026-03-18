@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.87] - 2026-03-18
+
+### Fixed
+- **FR-FSM-011 Cross-state `_completed_action_indices` leak**: When action[0] in
+  state A triggered a transition to state B, index 0 leaked into state B's
+  completed set, silently skipping state B's first action. Fixed by conditioning
+  the `add(idx)` on self-loop only (`self.current_state == original_state`);
+  cross-state transitions no longer contaminate the new state.
+
 ## [1.0.86] - 2026-03-17
 
 ### Fixed

@@ -291,6 +291,114 @@ class TestDifferentStateResets:
         assert call_count == 2, "Action should re-fire after re-entry from different state"
 
 
+class TestCrossStateLeak:
+    """FR-FSM-011: _completed_action_indices must not leak across states.
+
+    When action[0] in state A triggers a transition to state B,
+    state B's action[0] must still execute — the index belongs to the
+    old state and must not contaminate the new state's action set.
+    """
+
+    @pytest.mark.asyncio
+    async def test_cross_state_idx0_not_skipped(self, engine):
+        """State B's idx=0 action fires after state A's idx=0 triggered transition.
+
+        Reproduces the ninchat_voice bug: warming_up[0] triggers "warmed",
+        transitions to connecting_ninchat, but connecting_ninchat[0] is
+        silently skipped because 0 leaked into _completed_action_indices.
+        """
+        call_log = []
+
+        engine.config["transitions"] = [
+            {"from": "idle", "event": "go", "to": "working"},
+            {"from": "working", "event": "done", "to": "idle"},
+        ]
+        engine.config["actions"]["idle"] = [
+            {"type": "state_a_action"},  # idx=0: triggers "go"
+        ]
+        engine.config["actions"]["working"] = [
+            {"type": "state_b_action"},  # idx=0: must NOT be skipped
+        ]
+        engine.current_state = "idle"
+
+        async def mock_execute(action_config):
+            action_type = action_config["type"]
+            call_log.append(action_type)
+            if action_type == "state_a_action":
+                await engine.process_event("go")
+
+        engine._execute_action = mock_execute
+
+        # Tick 1: idle's action fires → transitions to working
+        await engine._execute_state_actions()
+        assert engine.current_state == "working"
+        assert "state_a_action" in call_log
+
+        # Critical assertion: _completed_action_indices must be empty
+        # for the NEW state after a cross-state transition
+        assert engine._completed_action_indices == set(), (
+            f"Cross-state leak: _completed_action_indices={engine._completed_action_indices} "
+            f"should be empty after transitioning from idle→working"
+        )
+
+        # Tick 2: working's action at idx=0 must fire
+        call_log.clear()
+        await engine._execute_state_actions()
+        assert "state_b_action" in call_log, (
+            f"State B's idx=0 action was skipped! call_log={call_log}. "
+            f"_completed_action_indices={engine._completed_action_indices}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_three_state_chain_all_idx0_fire(self, engine):
+        """Chain A→B→C where each state's idx=0 triggers the next transition.
+
+        All three actions must execute exactly once.
+        """
+        call_log = []
+
+        engine.config["transitions"] = [
+            {"from": "idle", "event": "go", "to": "working"},
+            {"from": "working", "event": "done", "to": "finished"},
+        ]
+        engine.config["actions"]["idle"] = [
+            {"type": "action_a"},
+        ]
+        engine.config["actions"]["working"] = [
+            {"type": "action_b"},
+        ]
+        engine.config["actions"]["finished"] = [
+            {"type": "action_c"},
+        ]
+        engine.current_state = "idle"
+
+        async def mock_execute(action_config):
+            action_type = action_config["type"]
+            call_log.append(action_type)
+            if action_type == "action_a":
+                await engine.process_event("go")
+            elif action_type == "action_b":
+                await engine.process_event("done")
+
+        engine._execute_action = mock_execute
+
+        # Tick 1: A fires → go → working
+        await engine._execute_state_actions()
+        assert engine.current_state == "working"
+        assert call_log == ["action_a"]
+
+        # Tick 2: B fires → done → finished
+        call_log.clear()
+        await engine._execute_state_actions()
+        assert engine.current_state == "finished"
+        assert call_log == ["action_b"]
+
+        # Tick 3: C fires (no transition)
+        call_log.clear()
+        await engine._execute_state_actions()
+        assert call_log == ["action_c"]
+
+
 class TestInitialization:
     """_state_entry_gen and _completed_action_indices must exist on fresh engine."""
 

@@ -837,7 +837,11 @@ class StateMachineEngine:
         FR-FSM-009: Guards against repeated execution of transition-triggering
         actions. If an action causes a state transition (detected by
         _state_entry_gen change), the loop aborts and the action index is
-        marked completed.
+        marked completed (self-loops only).
+
+        FR-FSM-011: Cross-state transitions do NOT mark the triggering index
+        as completed — process_event() already cleared the set, and re-adding
+        would leak old indices into the new state.
 
         VB-006: Non-transition actions are one-shot per state entry by default.
         Actions can opt in to repeat-per-tick behavior via `repeatable: true`
@@ -846,6 +850,7 @@ class StateMachineEngine:
         # Add current_state to context for template substitution
         self.context["current_state"] = self.current_state
 
+        original_state = self.current_state
         state_actions = self.config.get("actions", {}).get(self.current_state, [])
         entry_gen = self._state_entry_gen
 
@@ -863,10 +868,14 @@ class StateMachineEngine:
             # After each action, check if current_job was added to context and propagate job data
             self._propagate_job_context()
 
-            # RUNTIME DETECTION: mark action as completed if it triggered a transition
+            # RUNTIME DETECTION: action triggered a state transition
             if self._state_entry_gen != entry_gen:
-                self._completed_action_indices.add(idx)
-                continue
+                # FR-FSM-011: Only mark completed for self-loops (set preserved).
+                # Cross-state transitions cleared the set in process_event();
+                # re-adding would leak old indices into the new state.
+                if self.current_state == original_state:
+                    self._completed_action_indices.add(idx)
+                break
 
             # VB-006 default: non-transition actions run once per state entry.
             # Explicit opt-in is required for repeat-per-tick polling behavior.

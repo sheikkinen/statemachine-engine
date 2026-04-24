@@ -986,8 +986,7 @@ class StateMachineEngine:
     ) -> None:
         """Execute pluggable action from actions module using ActionLoader"""
         try:
-            # Import ActionLoader
-            from .action_loader import ActionLoader
+            from .action_loader import get_action_loader
 
             # Add queue to context for actions to use
             if hasattr(self, "_queue"):
@@ -996,8 +995,8 @@ class StateMachineEngine:
             # Add global config to context so actions can access configuration parameters
             self.context["config"] = self.config
 
-            # Load action class dynamically using ActionLoader with custom actions_root if provided
-            loader = ActionLoader(actions_root=self.actions_root)
+            # Reuse cached ActionLoader for this actions_root (never re-scan the filesystem)
+            loader = get_action_loader(self.actions_root)
             action_class = loader.load_action_class(action_type)
 
             if action_class is None:

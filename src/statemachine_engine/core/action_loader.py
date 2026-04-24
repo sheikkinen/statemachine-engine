@@ -31,7 +31,6 @@ import importlib.util
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -110,14 +109,14 @@ class ActionLoader:
                     f"Custom actions root not found: {self.custom_actions_root}"
                 )
 
-        # Single INFO log summarizing discovery
+        # Discovery metadata — debug only (not operational noise)
         if self.is_custom_root:
-            logger.info(
+            logger.debug(
                 f"Action loader initialized: {len(self._action_map)} actions available "
                 f"(built-in: {builtin_count}, custom: {custom_count})"
             )
         else:
-            logger.info(
+            logger.debug(
                 f"Action loader initialized: {len(self._action_map)} actions available"
             )
 
@@ -181,7 +180,7 @@ class ActionLoader:
         pascal_case = "".join(word.capitalize() for word in words)
         return f"{pascal_case}Action"
 
-    def load_action_class(self, action_type: str) -> Optional[type]:
+    def load_action_class(self, action_type: str) -> type | None:
         """
         Load action class by action type.
 
@@ -273,19 +272,18 @@ class ActionLoader:
         self._discover_action_modules()
 
 
-# Singleton instance for convenient access
-_loader_instance: Optional[ActionLoader] = None
+# Per-actions_root cache (key: actions_root path or None for built-ins only)
+_loader_cache: dict[str | None, ActionLoader] = {}
 
 
-def get_action_loader() -> ActionLoader:
-    """Get the singleton ActionLoader instance."""
-    global _loader_instance
-    if _loader_instance is None:
-        _loader_instance = ActionLoader()
-    return _loader_instance
+def get_action_loader(actions_root: str | None = None) -> ActionLoader:
+    """Return a cached ActionLoader for the given actions_root."""
+    if actions_root not in _loader_cache:
+        _loader_cache[actions_root] = ActionLoader(actions_root=actions_root)
+    return _loader_cache[actions_root]
 
 
-def load_action_class(action_type: str) -> Optional[type]:
+def load_action_class(action_type: str) -> type | None:
     """
     Convenience function to load an action class.
 

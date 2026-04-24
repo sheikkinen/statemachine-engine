@@ -111,10 +111,10 @@ async def test_execute_pluggable_action_execution_error_emits_error(engine_with_
 
     mock_action_class = Mock(return_value=mock_action)
 
-    with patch('statemachine_engine.core.action_loader.ActionLoader') as mock_loader_class:
+    with patch('statemachine_engine.core.action_loader.get_action_loader') as mock_get_loader:
         mock_loader = Mock()
         mock_loader.load_action_class.return_value = mock_action_class
-        mock_loader_class.return_value = mock_loader
+        mock_get_loader.return_value = mock_loader
 
         with patch.object(engine_with_context, 'emit_error') as mock_emit_error:
             with patch.object(engine_with_context, 'process_event') as mock_process:
@@ -140,8 +140,8 @@ async def test_execute_pluggable_action_loading_error_emits_error(engine_with_co
     """Test that action loader exception triggers error emission"""
     engine_with_context.config = {'states': [], 'transitions': []}
 
-    with patch('statemachine_engine.core.action_loader.ActionLoader') as mock_loader_class:
-        mock_loader_class.side_effect = Exception('Loader initialization failed')
+    with patch('statemachine_engine.core.action_loader.get_action_loader') as mock_get_loader:
+        mock_get_loader.side_effect = Exception('Loader initialization failed')
 
         with patch.object(engine_with_context, 'emit_error') as mock_emit_error:
             with patch.object(engine_with_context, 'process_event') as mock_process:

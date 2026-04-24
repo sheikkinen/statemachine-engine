@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.88] - 2026-04-24
+
+### Fixed
+- **FR-FSM-012 ActionLoader re-instantiated on every action call**
+  - `_execute_pluggable_action` previously created a fresh `ActionLoader` on
+    every invocation, triggering a full filesystem discovery scan and an INFO
+    log line each time. With 12 active machines this flooded logs at ~24
+    lines/second and buried real errors.
+  - Replaced the module-level single-instance `_loader_instance` with a
+    `_loader_cache: dict[Optional[str], ActionLoader]` keyed by `actions_root`.
+    `get_action_loader(actions_root)` returns the same object on every
+    subsequent call with the same key.
+  - Engine now calls `get_action_loader(self.actions_root)` — no inline
+    `ActionLoader(...)` construction after startup.
+  - Downgraded `"Action loader initialized"` log from `INFO` to `DEBUG`;
+    it is discovery metadata, not an operational event.
+  - Added `TestGetActionLoader` regression tests: same-key identity,
+    different-key isolation, cache-size stability, DEBUG-level enforcement.
+
 ## [1.0.87] - 2026-03-18
 
 ### Fixed

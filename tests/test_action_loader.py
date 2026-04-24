@@ -5,7 +5,9 @@ Verifies that all actions can be discovered and loaded correctly
 using the ActionLoader instead of hardcoded imports.
 """
 
-from statemachine_engine.core.action_loader import ActionLoader
+import logging
+
+from statemachine_engine.core.action_loader import ActionLoader, get_action_loader
 
 
 class TestActionLoader:
@@ -102,3 +104,48 @@ class TestActionLoaderDomain:
                 if action_class is not None:
                     # Verify it has execute method
                     assert hasattr(action_class, '__init__'), f"{action_type} should have __init__ method"
+
+
+class TestGetActionLoader:
+    """Tests for get_action_loader caching (FR-FSM-012)"""
+
+    def setup_method(self):
+        """Clear module-level cache before each test."""
+        import statemachine_engine.core.action_loader as _al
+        _al._loader_cache.clear()
+
+    def test_same_key_returns_same_instance(self):
+        """get_action_loader called twice with same key must return identical object."""
+        loader1 = get_action_loader()
+        loader2 = get_action_loader()
+        assert loader1 is loader2, "Same actions_root should return the same ActionLoader instance"
+
+    def test_different_keys_return_different_instances(self, tmp_path):
+        """get_action_loader returns distinct instances for different actions_root values."""
+        loader_default = get_action_loader()
+        loader_custom = get_action_loader(actions_root=str(tmp_path))
+        assert loader_default is not loader_custom
+
+    def test_init_called_once_for_repeated_calls(self):
+        """ActionLoader.__init__ must be invoked exactly once for N get_action_loader calls."""
+        import statemachine_engine.core.action_loader as _al
+        for _ in range(5):
+            get_action_loader()
+        assert len(_al._loader_cache) == 1, "Cache should contain exactly one entry for repeated calls with the same key"
+        # Calling again should not grow the cache
+        loader_a = get_action_loader()
+        loader_b = get_action_loader()
+        assert loader_a is loader_b
+        assert len(_al._loader_cache) == 1
+
+    def test_action_loader_initialized_log_is_debug(self, caplog):
+        """'Action loader initialized' must be emitted at DEBUG, not INFO."""
+        with caplog.at_level(logging.DEBUG, logger="statemachine_engine.core.action_loader"):
+            ActionLoader()
+        info_records = [
+            r for r in caplog.records
+            if r.levelno == logging.INFO and "Action loader initialized" in r.message
+        ]
+        assert info_records == [], (
+            "'Action loader initialized' must not appear at INFO level; downgrade to DEBUG"
+        )

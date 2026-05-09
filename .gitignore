@@ -29,3 +29,5 @@ docs/fsm-diagrams/
 data/
 *.log
 *.pid
+
+.package-lock.json

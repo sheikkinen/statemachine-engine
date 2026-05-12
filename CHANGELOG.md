@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.89] - 2026-05-12
+
+### Fixed
+- **NC-290 AC-06: `action_loader` ImportError now logs full traceback**
+  - Changed `logger.error(...)` to `logger.exception(...)` in `load_action_class`
+    so that `ImportError`, `AttributeError`, and `SyntaxError` during action
+    loading include the full Python traceback in the log, not just the
+    exception message. This was the key observability gap in the NC-290
+    production incident where `No module named 'actions.real'` appeared without
+    any traceback, making root-cause analysis much harder.
+  - Added regression test `test_load_failure_logs_full_traceback` asserting
+    that `exc_info` is attached to the ERROR log record.
+
 ## [1.0.88] - 2026-04-24
 
 ### Fixed

@@ -252,7 +252,7 @@ class ActionLoader:
             return action_class
 
         except (ImportError, AttributeError, SyntaxError) as e:
-            logger.error(
+            logger.exception(
                 f"Failed to load action '{action_type}' from {path_or_module}.{class_name}: {e}"
             )
             return None

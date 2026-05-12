@@ -149,3 +149,25 @@ class TestGetActionLoader:
         assert info_records == [], (
             "'Action loader initialized' must not appear at INFO level; downgrade to DEBUG"
         )
+
+    def test_load_failure_logs_full_traceback(self, caplog):
+        """AC-06: ImportError during action load must use logger.exception (includes traceback)."""
+        import importlib.util
+        from unittest.mock import patch
+
+        loader = ActionLoader()
+        # Force a discovered action to fail on import by patching spec_from_file_location
+        # to raise ImportError, then calling load_action_class on a custom-path action.
+        # Simpler: inject a fake file path directly into _action_map.
+        loader._action_map["_test_fail"] = "/nonexistent/path/to/_test_fail_action.py"
+
+        with caplog.at_level(logging.ERROR, logger="statemachine_engine.core.action_loader"):
+            result = loader.load_action_class("_test_fail")
+
+        assert result is None
+        error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
+        assert error_records, "An ERROR record must be emitted on import failure"
+        # logger.exception attaches exc_info; verify traceback is present
+        assert error_records[0].exc_info is not None, (
+            "AC-06: logger.exception must be used so exc_info (traceback) is attached"
+        )

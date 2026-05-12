@@ -13,11 +13,7 @@ YAML Usage:
 """
 
 import logging
-import sys
-from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from statemachine_engine.database.models import get_job_model
 

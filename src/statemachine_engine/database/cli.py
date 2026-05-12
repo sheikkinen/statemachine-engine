@@ -10,15 +10,11 @@ Provides database management and querying capabilities
 import argparse
 import json
 import logging
+import socket
 import sys
 from pathlib import Path
 
 from tabulate import tabulate
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-import socket
 
 from statemachine_engine.database.models import (
     get_database,

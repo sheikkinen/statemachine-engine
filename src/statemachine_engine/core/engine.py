@@ -668,11 +668,7 @@ class StateMachineEngine:
         job_model = self.context.get("job_model")
         if job_model and hasattr(job_model, "db"):
             try:
-                import sys
-                from pathlib import Path
-
-                sys.path.insert(0, str(Path(__file__).parent.parent))
-                from database.models import get_realtime_event_model
+                from statemachine_engine.database.models import get_realtime_event_model
 
                 realtime_model = get_realtime_event_model()
                 realtime_model.log_event(self.machine_name, event_type, payload)

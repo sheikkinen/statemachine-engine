@@ -23,8 +23,6 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from statemachine_engine.database.models import Database
 from statemachine_engine.monitoring.async_logging import setup_async_logging
 

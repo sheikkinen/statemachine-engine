@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.90] - 2026-05-12
+
+### Fixed
+- **FR-FSM-017 Remove runtime `sys.path.insert` hacks**
+  - Removed `sys.path.insert(0, str(Path(__file__).parent.parent))` from six
+    source files that manipulated `sys.path` at import time to resolve
+    intra-package imports.
+  - Replaced bare `from database.models import …` with fully-qualified
+    `from statemachine_engine.database.models import …` in `engine.py`,
+    `check_database_queue_action.py`, `claim_job_action.py`,
+    `get_pending_jobs_action.py`, `database/cli.py`, and
+    `monitoring/websocket_server.py`.
+  - Dead `import sys` and `from pathlib import Path` lines removed where they
+    existed solely to support the path hack.
+  - Same class of fragile path arithmetic that caused the NC-290 production
+    incident (`No module named 'actions.real'`).
+
 ## [1.0.89] - 2026-05-12
 
 ### Fixed

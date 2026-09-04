@@ -2,7 +2,7 @@
 
 **Priority:** HIGH
 **Type:** Investigation
-**Status:** Proposed
+**Status:** Implemented (2026-09-04, branch `fr-fsm-019-idle-precedence`)
 **Effort:** 0.5–1 day
 **Requested:** 2026-09-03
 
@@ -84,14 +84,47 @@ swallowed with a DEBUG-level log. Consider WARN-level logging when an
 error event finds no transition. Separate ticket if confirmed
 worth fixing.
 
+## Findings (2026-09-04)
+
+**Origin (plan step 3).** Expression unchanged since initial commit
+`6a97041` (2025-10-07); only touched by a ruff-format pass. The
+accompanying comment already read "Idle = in waiting state with no
+recent activity" — intent was `waiting AND (...)`; the precedence was
+accidental, not a CPU-saving design.
+
+**Causal chain (AC-02).** `execute_state_machine()` calls
+`_check_control_socket()` once per iteration, then sleeps `0.5` or
+`0.05`. A datagram arriving mid-sleep waits for the remainder of the
+tick, so pickup latency is uniform on `[0, tick]`. Measured with
+`tmp/fr019_latency.py` (real control socket, state `listening`,
+self-loop on `ping`, `_last_activity_time` aged 10s before each of 40
+sends, jittered send phase):
+
+| branch | p50 | p90 | max |
+|---|---|---|---|
+| before fix, stale non-waiting | 216 ms | 454 ms | 476 ms |
+| before fix, fresh non-waiting | 19 ms | 28 ms | 47 ms |
+| after fix, stale non-waiting | 18 ms | 27 ms | 33 ms |
+
+The 500ms bound is confirmed; the fix removes it for every
+non-`waiting` state.
+
+**Consumer survey (plan step 4).** Not performed — csap NC ledger is
+outside this repo. The measured 0–476ms window is the signature to grep
+for if that survey is done.
+
+**Related observation.** Not changed here; DEBUG-level swallow of
+unmatched `error` events still stands. Separate ticket if wanted.
+
 ## Acceptance criteria
 
-- AC-01: Failing test demonstrating the misclassification exists and
-  is committed before any fix (RED).
-- AC-02: Causal chain documented: expression → tick selection →
-  event-pickup latency bound, with measured numbers.
-- AC-03: Fix or explicit documented-as-intended disposition; if fixed,
-  the RED test flips GREEN and guards regression.
+- [x] AC-01: `tests/core/test_idle_tick_precedence.py::test_non_waiting_state_keeps_active_tick_when_stale`
+  committed RED in `fd0b9ca` (fails `0.5 == 0.05` on pre-fix code).
+  Three companion tests pin the `waiting` semantics.
+- [x] AC-02: Causal chain + measured numbers above.
+- [x] AC-03: Fixed in `d95b1ed` — `is_idle = current_state == "waiting"
+  and (no activity or stale)`. RED test flips GREEN; full suite 416
+  passed / 9 skipped.
 
 ## Provenance
 

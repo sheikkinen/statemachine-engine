@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.91] - 2026-09-04
+
+### Fixed
+- **FR-FSM-019 Idle-tick precedence in the main event loop**
+  - `is_idle` in `execute_state_machine()` mixed `and`/`or` without
+    parentheses; the stale-activity disjunct ignored `current_state`, so any
+    machine quiet for >5s dropped to the 500ms tick in every state, bounding
+    control-socket event pickup at ~500ms.
+  - Now `waiting AND (no activity OR stale activity)`. Measured pickup latency
+    in a non-waiting state after 10s quiet: p50 216ms → 18ms, max 476ms → 33ms.
+  - Regression tests in `tests/core/test_idle_tick_precedence.py`.
+
 ## [1.0.90] - 2026-05-12
 
 ### Fixed

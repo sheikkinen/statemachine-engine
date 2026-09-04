@@ -1,6 +1,6 @@
 """State Machine Engine - Event-driven workflow framework"""
 
-__version__ = "1.0.90"
+__version__ = "1.0.91"
 
 from .actions.base import BaseAction
 from .core.action_loader import ActionLoader

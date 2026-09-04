@@ -385,13 +385,11 @@ class StateMachineEngine:
 
             # Adaptive sleep: longer when idle, shorter when active
             # Idle = in waiting state with no recent activity
-            is_idle = (
-                self.current_state == "waiting"
-                and not hasattr(self, "_last_activity_time")
-                or (
-                    hasattr(self, "_last_activity_time")
-                    and time.time() - self._last_activity_time > 5.0
-                )
+            # FR-FSM-019: tick length bounds control-socket pickup latency, so
+            # only the 'waiting' state may drop to the slow tick.
+            is_idle = self.current_state == "waiting" and (
+                not hasattr(self, "_last_activity_time")
+                or time.time() - self._last_activity_time > 5.0
             )
 
             if is_idle:
